@@ -1,0 +1,52 @@
+plugins {
+	id 'org.springframework.boot' version '2.3.2.RELEASE'
+	id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+	id 'com.palantir.docker' version '0.25.0'
+	id 'java'
+}
+
+group = 'com.exactpro.th2.schema'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+def target_docker_repository = 'local'
+def docker_image_name = 'th2-scheme-editor-be'
+
+apply plugin: 'com.palantir.docker'
+apply plugin: 'distribution'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.8.1.202007141445-r'
+	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:5.8.1.202007141445-r'
+	implementation 'org.projectlombok:lombok:1.18.12'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
+
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+
+    compileOnly 'org.projectlombok:lombok:1.18.12'
+	annotationProcessor 'org.projectlombok:lombok:1.18.12'
+
+}
+
+
+docker {
+	dependsOn dockerPrepare
+	name "${target_docker_repository}/${docker_image_name}:${version}"
+	tag 'local-version', "${docker_image_name}:${version}"
+	tag 'local-latest', "${docker_image_name}:${version}"
+	tag 'remote-latest',  "${target_docker_repository}/${docker_image_name}:${version}"
+
+	copySpec.from("build/libs/")
+
+}
+
+test {
+	useJUnitPlatform()
+}
