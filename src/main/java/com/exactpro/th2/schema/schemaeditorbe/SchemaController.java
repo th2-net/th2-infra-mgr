@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 @Controller
-public class GitController {
+public class SchemaController {
 
     @GetMapping("/schemas")
     @ResponseBody
