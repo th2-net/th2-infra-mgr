@@ -2,14 +2,18 @@ package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.models.ResponseDataUnit;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 
 @Controller
 public class GitController {
+
+    @GetMapping("/schemas")
+    @ResponseBody
+    public Set<String> getAvailableSchemas() throws Exception  {
+        return Gitter.getBranches(Config.getInstance().getGit());
+    }
 
     @GetMapping("/schema/{name}")
     @ResponseBody
@@ -19,9 +23,16 @@ public class GitController {
         return DataLoader.loadBranch(config, name);
     }
 
-    @GetMapping("/schemas")
+    @PutMapping("/schema/{name}")
     @ResponseBody
-    public Set<String> getAvailableSchemas() throws Exception  {
-        return Gitter.getBranches(Config.getInstance().getGit());
+    public Set<ResponseDataUnit> createSchema(@PathVariable(name="name") String name) throws Exception {
+        Config.GitConfig config = Config.getInstance().getGit();
+        Set<String> branches = Gitter.getBranches(config);
+        if (branches.contains(name))
+                throw new IllegalArgumentException("schema already exists");
+
+        Gitter.createBranch(config, name, "master");
+        return DataLoader.loadBranch(config, name);
     }
+
 }

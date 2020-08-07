@@ -126,7 +126,7 @@ public class Gitter {
                 .call();
     }
 
-    private static void createBranch(Config.GitConfig config, String branch, String sourceBranch) throws Exception {
+    public static void createBranch(Config.GitConfig config, String branch, String sourceBranch) throws Exception {
         Set<String> branches = getBranches(config);
         if (!branches.contains(sourceBranch))
             throw new IllegalArgumentException("Source branch does not exists");
