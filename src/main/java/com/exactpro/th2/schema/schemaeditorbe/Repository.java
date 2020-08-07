@@ -5,6 +5,7 @@ import com.exactpro.th2.schema.schemaeditorbe.models.ResponseDataUnit;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,7 +78,9 @@ public class Repository {
 
 
     private static void saveYMLFile(File ymlFile, Object object) throws Exception {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
+                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
         mapper.writeValue(ymlFile, object);
     }
 
