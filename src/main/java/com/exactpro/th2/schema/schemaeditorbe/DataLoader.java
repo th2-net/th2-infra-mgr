@@ -57,9 +57,53 @@ public class DataLoader {
         return dataUnits;
     }
 
+    private static File getFile(Config.GitConfig config, String branch, ResponseDataUnit data) {
+        File file = new File (
+                config.getLocalRepositoryRoot()
+                        + "/" + branch
+                        + "/" + data.getKind().path()
+                        + "/" + data.getName()
+                        + ".yml");
+        return file;
+    }
+
 
     public static Set<ResponseDataUnit> loadBranch(Config.GitConfig config, String branch) throws Exception {
         String path = config.getLocalRepositoryRoot() + "/" + branch;
         return loadBranchYMLFiles(new File(path));
     }
+
+
+
+
+    private static void saveYMLFile(File ymlFile, Object object) throws Exception {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.writeValue(ymlFile, object);
+    }
+
+
+    public static void add(Config.GitConfig config, String branch, ResponseDataUnit data) throws Exception {
+        File file = getFile(config, branch, data);
+        if (file.exists())
+            throw new IllegalArgumentException("resource already exist");
+        Th2CustomResource cr = new Th2CustomResource(data);
+        saveYMLFile(file, cr);
+    }
+
+    public static void update(Config.GitConfig config, String branch, ResponseDataUnit data) throws Exception {
+        File file = getFile(config, branch, data);
+        if (!file.exists() || !file.isFile())
+            throw new IllegalArgumentException("resource does not exist");
+        Th2CustomResource cr = new Th2CustomResource(data);
+        saveYMLFile(file, cr);
+    }
+
+    public static void remove(Config.GitConfig config, String branch, ResponseDataUnit data) throws Exception {
+
+        File file = getFile(config, branch, data);
+        if (!file.exists() || !file.isFile())
+            throw new IllegalArgumentException("resource does not exist");
+        file.delete();
+    }
+
 }

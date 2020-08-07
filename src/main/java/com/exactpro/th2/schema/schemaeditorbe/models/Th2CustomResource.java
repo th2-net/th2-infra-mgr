@@ -3,6 +3,8 @@ package com.exactpro.th2.schema.schemaeditorbe.models;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class Th2CustomResource {
+    public static String API_VERSION="th2.exactpro.com/v1";
+
     public static class Metadata {
         private String name;
         public String getName() {
@@ -17,6 +19,16 @@ public class Th2CustomResource {
     private Metadata metadata;
     private JsonNode spec;
 
+    public Th2CustomResource() {
+    }
+
+    public Th2CustomResource(ResponseDataUnit data) {
+        setApiVersion(Th2CustomResource.API_VERSION);
+        setMetadata(new Th2CustomResource.Metadata());
+        getMetadata().setName(data.getName());
+        setKind(data.getKind().kind());
+        setSpec(data.getSpec());
+    }
 
     public String getApiVersion() {
         return apiVersion;
