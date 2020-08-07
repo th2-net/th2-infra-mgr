@@ -4,15 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 public class ResponseDataUnit {
 
-    private RepositoryDataType kind;
+    private RepositoryEntry kind;
     private String name;
     private JsonNode spec;
 
-    public RepositoryDataType getKind() {
+    public RepositoryEntry getKind() {
         return kind;
     }
 
-    public void setKind(RepositoryDataType kind) {
+    public void setKind(RepositoryEntry kind) {
         this.kind = kind;
     }
 

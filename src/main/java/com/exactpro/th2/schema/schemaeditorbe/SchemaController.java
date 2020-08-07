@@ -24,7 +24,7 @@ public class SchemaController {
     public Set<ResponseDataUnit> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter.checkout(config, name);
-        return DataLoader.loadBranch(config, name);
+        return Repository.loadBranch(config, name);
     }
 
     @PutMapping("/schema/{name}")
@@ -36,7 +36,7 @@ public class SchemaController {
                 throw new IllegalArgumentException("schema already exists");
 
         Gitter.createBranch(config, name, "master");
-        return DataLoader.loadBranch(config, name);
+        return Repository.loadBranch(config, name);
     }
 
     @PostMapping("/schema/{name}")
@@ -53,20 +53,20 @@ public class SchemaController {
         for (RequestEntry entry : operations) {
             switch (entry.getOperation()) {
                 case add:
-                    DataLoader.add(config, name, entry.getPayload());
+                    Repository.add(config, name, entry.getPayload());
                     break;
                 case update:
-                    DataLoader.update(config, name, entry.getPayload());
+                    Repository.update(config, name, entry.getPayload());
                     break;
                 case remove:
-                    DataLoader.remove(config, name, entry.getPayload());
+                    Repository.remove(config, name, entry.getPayload());
                     break;
             }
         }
 
 
         Gitter.commit(config, name, "schema update");
-        return DataLoader.loadBranch(config, name);
+        return Repository.loadBranch(config, name);
     }
 
 }

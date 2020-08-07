@@ -1,6 +1,6 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
-import com.exactpro.th2.schema.schemaeditorbe.models.RepositoryDataType;
+import com.exactpro.th2.schema.schemaeditorbe.models.RepositoryEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResponseDataUnit;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +12,7 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
-public class DataLoader {
+public class Repository {
 
     private static ResponseDataUnit loadYMLFile(File ymlFile) throws Exception{
 
@@ -20,7 +20,7 @@ public class DataLoader {
         Th2CustomResource cr = mapper.readValue(ymlFile, Th2CustomResource.class);
 
         ResponseDataUnit rdu = new ResponseDataUnit();
-        rdu.setKind(RepositoryDataType.forKind(cr.getKind()));
+        rdu.setKind(RepositoryEntry.forKind(cr.getKind()));
         rdu.setName(cr.getMetadata().getName());
         rdu.setSpec(cr.getSpec());
 
@@ -29,10 +29,10 @@ public class DataLoader {
 
     public static Set<ResponseDataUnit> loadBranchYMLFiles(File repositoryRoot) throws Exception {
 
-        Logger logger = LoggerFactory.getLogger(DataLoader.class);
+        Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<ResponseDataUnit> dataUnits = new HashSet<>();
-        for (RepositoryDataType t : RepositoryDataType.values()) {
+        for (RepositoryEntry t : RepositoryEntry.values()) {
             File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
             if (dir.exists()) {
 
