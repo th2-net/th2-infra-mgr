@@ -2,7 +2,7 @@ package com.exactpro.th2.schema.schemaeditorbe.models;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public class ResponseDataUnit {
+public class ResourceEntry {
 
     private RepositoryEntry kind;
     private String name;

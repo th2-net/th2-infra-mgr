@@ -22,7 +22,7 @@ public class Th2CustomResource {
     public Th2CustomResource() {
     }
 
-    public Th2CustomResource(ResponseDataUnit data) {
+    public Th2CustomResource(ResourceEntry data) {
         setApiVersion(Th2CustomResource.API_VERSION);
         setMetadata(new Th2CustomResource.Metadata());
         getMetadata().setName(data.getName());

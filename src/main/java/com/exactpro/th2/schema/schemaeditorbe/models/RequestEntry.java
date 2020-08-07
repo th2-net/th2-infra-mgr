@@ -2,7 +2,7 @@ package com.exactpro.th2.schema.schemaeditorbe.models;
 
 public class RequestEntry {
     private RequestOperation operation;
-    private ResponseDataUnit payload;
+    private ResourceEntry payload;
 
     public RequestOperation getOperation() {
         return operation;
@@ -12,11 +12,11 @@ public class RequestEntry {
         this.operation = operation;
     }
 
-    public ResponseDataUnit getPayload() {
+    public ResourceEntry getPayload() {
         return payload;
     }
 
-    public void setPayload(ResponseDataUnit payload) {
+    public void setPayload(ResourceEntry payload) {
         this.payload = payload;
     }
 }

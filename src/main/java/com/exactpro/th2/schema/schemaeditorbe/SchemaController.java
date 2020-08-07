@@ -1,7 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
-import com.exactpro.th2.schema.schemaeditorbe.models.ResponseDataUnit;
+import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Controller;
@@ -21,7 +21,7 @@ public class SchemaController {
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResponseDataUnit> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
+    public Set<ResourceEntry> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter.checkout(config, name);
         return Repository.loadBranch(config, name);
@@ -29,7 +29,7 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResponseDataUnit> createSchema(@PathVariable(name="name") String name) throws Exception {
+    public Set<ResourceEntry> createSchema(@PathVariable(name="name") String name) throws Exception {
         Config.GitConfig config = Config.getInstance().getGit();
         Set<String> branches = Gitter.getBranches(config);
         if (branches.contains(name))
@@ -41,7 +41,7 @@ public class SchemaController {
 
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResponseDataUnit> updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
+    public Set<ResourceEntry> updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
 
         ObjectMapper mapper = new ObjectMapper();
         List<RequestEntry> operations = mapper.readValue(requestBody, new TypeReference<List<RequestEntry>>(){});
