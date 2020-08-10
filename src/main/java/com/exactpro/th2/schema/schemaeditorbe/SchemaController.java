@@ -22,34 +22,59 @@ public class SchemaController {
 
     @GetMapping("/schemas")
     @ResponseBody
-    public Set<String> getAvailableSchemas() throws Exception  {
-        return Gitter.getBranches(Config.getInstance().getGit());
+    public Set<String> getAvailableSchemas() throws NotAcceptableException  {
+
+        try {
+            return Gitter.getBranches(Config.getInstance().getGit());
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
     }
 
     @GetMapping("/schema/{name}")
     @ResponseBody
     public Set<ResourceEntry> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
+
         Config.GitConfig config = Config.getInstance().getGit();
-        Gitter.checkout(config, name);
-        return Repository.loadBranch(config, name);
+        try {
+            Gitter.checkout(config, name);
+            return Repository.loadBranch(config, name);
+        } catch (Exception e) {
+            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+        }
     }
 
     @PutMapping("/schema/{name}")
     @ResponseBody
     public Set<ResourceEntry> createSchema(@PathVariable(name="name") String name) throws Exception {
-        Config.GitConfig config = Config.getInstance().getGit();
-        Set<String> branches = Gitter.getBranches(config);
-        if (branches.contains(name))
-                throw new ServiceException(HttpStatus.NOT_ACCEPTABLE, SCHEMA_EXISTS, "error crating schema. schema with this name already exists");
 
-        Gitter.createBranch(config, name, "master");
-        return Repository.loadBranch(config, name);
+        Config.GitConfig config = Config.getInstance().getGit();
+
+        // check if the schema already exists
+        Set<String> branches;
+        try {
+             branches = Gitter.getBranches(config);
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
+        if (branches.contains(name))
+                throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
+
+
+        // create schema
+        try {
+            Gitter.createBranch(config, name, "master");
+            return Repository.loadBranch(config, name);
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
     }
 
     @PostMapping("/schema/{name}")
     @ResponseBody
     public Set<ResourceEntry> updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
 
+        // deserialize request body
         List<RequestEntry> operations = null;
         try {
             ObjectMapper mapper = new ObjectMapper();
@@ -59,6 +84,17 @@ public class SchemaController {
         }
 
         Config.GitConfig config = Config.getInstance().getGit();
+
+        // check if the schema exists
+        Set<String> branches;
+        try {
+            branches = Gitter.getBranches(config);
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
+        if (!branches.contains(name))
+            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
+
         Gitter.checkout(config, name);
 
         // apply operations
@@ -82,8 +118,13 @@ public class SchemaController {
         }
 
 
-        Gitter.commit(config, name, "schema update");
-        return Repository.loadBranch(config, name);
+        // create schema
+        try {
+            Gitter.commit(config, name, "schema update");
+            return Repository.loadBranch(config, name);
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
     }
 
 }
