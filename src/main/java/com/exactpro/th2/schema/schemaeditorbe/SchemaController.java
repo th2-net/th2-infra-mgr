@@ -1,9 +1,11 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
+import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,6 +14,8 @@ import java.util.Set;
 
 @Controller
 public class SchemaController {
+
+    public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
 
     @GetMapping("/schemas")
     @ResponseBody
@@ -33,7 +37,7 @@ public class SchemaController {
         Config.GitConfig config = Config.getInstance().getGit();
         Set<String> branches = Gitter.getBranches(config);
         if (branches.contains(name))
-                throw new IllegalArgumentException("schema already exists");
+                throw new ServiceException(HttpStatus.NOT_ACCEPTABLE, SCHEMA_EXISTS, "error crating schema. schema with this name already exists");
 
         Gitter.createBranch(config, name, "master");
         return Repository.loadBranch(config, name);
