@@ -1,5 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
+import com.exactpro.th2.schema.schemaeditorbe.errors.BadRequestException;
+import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
@@ -16,6 +18,7 @@ import java.util.Set;
 public class SchemaController {
 
     public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
+    public static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
 
     @GetMapping("/schemas")
     @ResponseBody
@@ -47,25 +50,35 @@ public class SchemaController {
     @ResponseBody
     public Set<ResourceEntry> updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
 
-        ObjectMapper mapper = new ObjectMapper();
-        List<RequestEntry> operations = mapper.readValue(requestBody, new TypeReference<List<RequestEntry>>(){});
+        List<RequestEntry> operations = null;
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            operations = mapper.readValue(requestBody, new TypeReference<List<RequestEntry>>() {});
+        } catch (Exception e) {
+            throw new BadRequestException(e.getMessage());
+        }
 
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter.checkout(config, name);
 
         // apply operations
-        for (RequestEntry entry : operations) {
-            switch (entry.getOperation()) {
-                case add:
-                    Repository.add(config, name, entry.getPayload());
-                    break;
-                case update:
-                    Repository.update(config, name, entry.getPayload());
-                    break;
-                case remove:
-                    Repository.remove(config, name, entry.getPayload());
-                    break;
+        try {
+            for (RequestEntry entry : operations) {
+                switch (entry.getOperation()) {
+                    case add:
+                        Repository.add(config, name, entry.getPayload());
+                        break;
+                    case update:
+                        Repository.update(config, name, entry.getPayload());
+                        break;
+                    case remove:
+                        Repository.remove(config, name, entry.getPayload());
+                        break;
+                }
             }
+        } catch (Exception e) {
+            Gitter.reset(config, name);
+            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
 
 

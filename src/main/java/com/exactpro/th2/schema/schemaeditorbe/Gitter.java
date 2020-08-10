@@ -3,6 +3,7 @@ package com.exactpro.th2.schema.schemaeditorbe;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.NoHeadException;
 import org.eclipse.jgit.errors.EntryExistsException;
@@ -96,6 +97,22 @@ public class Gitter {
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         checkout(config, branch, targetDir);
     }
+
+
+    public static void reset(Config.GitConfig config, String branch) throws Exception {
+
+        final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
+        final String repositoryDir = targetDir + "/.git";
+
+        File dir = new File(targetDir);
+        if (!dir.exists())
+            throw new IllegalArgumentException("branch does not exist locally");
+
+        Repository repo = new FileRepository(repositoryDir);
+        Git git = new Git(repo);
+        git.reset().setMode(ResetCommand.ResetType.HARD).call();
+    }
+
 
     public static void commit(Config.GitConfig config, String branch, String message) throws Exception {
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
