@@ -1,6 +1,6 @@
 git:
-  remoteRepository: "git@gitlab.exactpro.com:giorgi.mania/scheme-files.git"
-  localRepositoryRoot: "/home/exp.exactpro.com/giorgi.mania/.sche_be"
+  remoteRepository: "git@gitlab.exactpro.com:giorgi.mania/schema-files.git"
+  localRepositoryRoot: "/home/exp.exactpro.com/giorgi.mania/projects/schema-editor-be-runner/repository"
   privateKeyFile: "/home/exp.exactpro.com/giorgi.mania/.ssh/scheme_designer_backend"
 
 
