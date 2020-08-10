@@ -150,16 +150,4 @@ public class Gitter {
                 .setTransportConfigCallback(transportConfigCallback(config))
                 .call();
     }
-    public static void main(String[] args) throws Exception {
-//        System.out.println("Gitter Started") ;
-//
-//        Config config = new Config();
-//        getBranches(config.get)
-//            .stream().forEach(System.out::println);
-//
-//        //checkout(config, "first-project");
-//        //commit(config, "first-project", "update done");
-//        createBranch(config, "new-project", "master");
-
-    }
 }
