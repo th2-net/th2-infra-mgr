@@ -78,6 +78,7 @@ public class Repository {
 
 
     private static void saveYMLFile(File ymlFile, Object object) throws Exception {
+        ymlFile.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
