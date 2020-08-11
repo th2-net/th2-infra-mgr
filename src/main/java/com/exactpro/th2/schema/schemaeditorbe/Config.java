@@ -3,11 +3,15 @@ package com.exactpro.th2.schema.schemaeditorbe;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.apache.commons.text.StringSubstitutor;
+import org.apache.commons.text.lookup.StringLookupFactory;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.nio.file.Files;
 
 public class Config {
+    public static final String CONFIG_FILE = "config.yml";
     private static Config instance;
 
     private Config() throws Exception {
@@ -16,7 +20,11 @@ public class Config {
     private static void readConfiguration()  throws IOException {
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        mapper.readerForUpdating(instance).readValue(new URL("file:config.yml"));
+        StringSubstitutor stringSubstitutor = new StringSubstitutor(StringLookupFactory.INSTANCE.environmentVariableStringLookup());
+
+        File configFile = new File(CONFIG_FILE);
+        String contents = stringSubstitutor.replace(new String(Files.readAllBytes(configFile.toPath())));
+        mapper.readerForUpdating(instance).readValue(contents);
     }
 
     public static Config getInstance() throws Exception {
