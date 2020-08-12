@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.exactpro.th2.schema'
-version = '0.2.0'
+version = '0.2.1'
 sourceCompatibility = '11'
 def target_docker_repository = 'nexus.exactpro.com:16000/giorgi.mania'
 def docker_image_name = 'th2-schema-editor-be'
