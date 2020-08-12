@@ -10,7 +10,9 @@ import org.eclipse.jgit.errors.EntryExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
-import org.eclipse.jgit.transport.*;
+import org.eclipse.jgit.transport.JschConfigSessionFactory;
+import org.eclipse.jgit.transport.SshSessionFactory;
+import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.util.FS;
 
 import java.io.File;
@@ -28,7 +30,14 @@ public class Gitter {
             @Override
             protected JSch createDefaultJSch(FS fs) throws JSchException {
                 JSch defaultJSch = super.createDefaultJSch(fs);
-                defaultJSch.addIdentity(config.getPrivateKeyFile());
+
+                if (config.getPrivateKey() != null)
+                    defaultJSch.addIdentity("backend-key", config.getPrivateKey(), null, null);
+                else
+                    if (config.getPrivateKeyFile() != null)
+                        defaultJSch.addIdentity(config.getPrivateKeyFile());
+                    else
+                        throw  new IllegalArgumentException("repository private key not set");
                 return defaultJSch;
             }
         };

@@ -43,34 +43,46 @@ public class Config {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class GitConfig {
-        private static String remoteRepository;
+        private  String remoteRepository;
 
-        private String localRepositoryRoot;
+        private  String localRepositoryRoot;
 
-        private String privateKeyFile;
+        private  String privateKeyFile;
 
-        public static String getRemoteRepository() {
+        private  String privateKey;
+        private  byte[] privateKeyBytes;
+
+        public  String getRemoteRepository() {
             return remoteRepository;
         }
 
-        public void setRemoteRepository(String remoteRepository) {
+        public  void setRemoteRepository(String remoteRepository) {
             this.remoteRepository = remoteRepository;
         }
 
-        public String getLocalRepositoryRoot() {
+        public  String getLocalRepositoryRoot() {
             return localRepositoryRoot;
         }
 
-        public void setLocalRepositoryRoot(String localRepositoryRoot) {
+        public  void setLocalRepositoryRoot(String localRepositoryRoot) {
             this.localRepositoryRoot = localRepositoryRoot;
         }
 
-        public String getPrivateKeyFile() {
+        public  String getPrivateKeyFile() {
             return privateKeyFile;
         }
 
-        public static void setPrivateKeyFile(String privateKeyFile) {
-            privateKeyFile = privateKeyFile;
+        public  void setPrivateKeyFile(String privateKeyFile) {
+            this.privateKeyFile = privateKeyFile;
+        }
+
+        public  byte[] getPrivateKey() {
+            return privateKeyBytes;
+        }
+
+        public  void setPrivateKey(String privateKey) {
+            this.privateKey = privateKey;
+            this.privateKeyBytes = privateKey.getBytes();
         }
     }
 
