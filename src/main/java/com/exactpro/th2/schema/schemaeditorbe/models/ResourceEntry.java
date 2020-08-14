@@ -4,15 +4,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 public class ResourceEntry {
 
-    private RepositoryEntry kind;
+    private ResourceType kind;
     private String name;
     private JsonNode spec;
 
-    public RepositoryEntry getKind() {
+    public ResourceType getKind() {
         return kind;
     }
 
-    public void setKind(RepositoryEntry kind) {
+    public void setKind(ResourceType kind) {
         this.kind = kind;
     }
 

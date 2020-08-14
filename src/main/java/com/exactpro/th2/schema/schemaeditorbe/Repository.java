@@ -1,7 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
-import com.exactpro.th2.schema.schemaeditorbe.models.RepositoryEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
+import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -21,7 +21,7 @@ public class Repository {
         Th2CustomResource cr = mapper.readValue(ymlFile, Th2CustomResource.class);
 
         ResourceEntry rdu = new ResourceEntry();
-        rdu.setKind(RepositoryEntry.forKind(cr.getKind()));
+        rdu.setKind(ResourceType.forKind(cr.getKind()));
         rdu.setName(cr.getMetadata().getName());
         rdu.setSpec(cr.getSpec());
 
@@ -33,7 +33,7 @@ public class Repository {
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<ResourceEntry> dataUnits = new HashSet<>();
-        for (RepositoryEntry t : RepositoryEntry.values()) {
+        for (ResourceType t : ResourceType.values()) {
             File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
             if (dir.exists()) {
 
@@ -73,8 +73,6 @@ public class Repository {
         String path = config.getLocalRepositoryRoot() + "/" + branch;
         return loadBranchYMLFiles(new File(path));
     }
-
-
 
 
     private static void saveYMLFile(File ymlFile, Object object) throws Exception {
