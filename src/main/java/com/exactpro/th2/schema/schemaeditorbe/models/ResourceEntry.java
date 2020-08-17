@@ -1,12 +1,10 @@
 package com.exactpro.th2.schema.schemaeditorbe.models;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 public class ResourceEntry {
 
     private ResourceType kind;
     private String name;
-    private JsonNode spec;
+    private Object spec;
 
     public ResourceType getKind() {
         return kind;
@@ -24,11 +22,11 @@ public class ResourceEntry {
         this.name = name;
     }
 
-    public JsonNode getSpec() {
+    public Object getSpec() {
         return spec;
     }
 
-    public void setSpec(JsonNode spec) {
+    public void setSpec(Object spec) {
         this.spec = spec;
     }
 }

@@ -4,26 +4,32 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum ResourceType {
-    Th2Act("Th2Act", "acts"),
-    Th2BookChecker("Th2BookChecker", "book-checkers"),
-    Th2Codec("Th2Codec", "codecs"),
-    Th2Connector("Th2Connector", "connectors"),
-    Th2Link("Th2Link", "links"),
-    Th2Recon("Th2Recon", "recons"),
-    Th2Verifier("Th2Verifier", "verifiers"),
-    UIFile("UIFile", "ui-files");
+    Th2Act("Th2Act", "acts", "th2acts"),
+    Th2BookChecker("Th2BookChecker", "book-checkers", "th2bookcheckers"),
+    Th2Codec("Th2Codec", "codecs", "th2codecs"),
+    Th2Connector("Th2Connector", "connectors", "th2connectors"),
+    Th2Link("Th2Link", "links", "th2links"),
+    Th2Recon("Th2Recon", "recons", "th2recons"),
+    Th2Verifier("Th2Verifier", "verifiers", "th2verifiers"),
+    UIFile("UIFile", "ui-files", null);
 
     private String kind;
     private String path;
-    ResourceType(String value, String path) {
+    private String k8sName;
+
+    ResourceType(String value, String path, String k8sName) {
         this.kind = value;
         this.path = path;
+        this.k8sName = k8sName;
     }
     public String kind() {
         return kind;
     }
     public String path() {
         return path;
+    }
+    public String k8sName() {
+        return k8sName;
     }
     public static ResourceType forKind(String value) {
         return kinds.get(value);

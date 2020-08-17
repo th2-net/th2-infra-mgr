@@ -2,7 +2,7 @@ package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
-import com.exactpro.th2.schema.schemaeditorbe.models.Th2Resource;
+import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -18,7 +18,7 @@ public class Repository {
     private static ResourceEntry loadYMLFile(File ymlFile) throws Exception{
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        Th2Resource cr = mapper.readValue(ymlFile, Th2Resource.class);
+        Th2CustomResource cr = mapper.readValue(ymlFile, Th2CustomResource.class);
 
         ResourceEntry rdu = new ResourceEntry();
         rdu.setKind(ResourceType.forKind(cr.getKind()));
@@ -88,7 +88,7 @@ public class Repository {
         File file = getFile(config, branch, data);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        Th2Resource cr = new Th2Resource(data);
+        Th2CustomResource cr = new Th2CustomResource(data);
         saveYMLFile(file, cr);
     }
 
@@ -96,7 +96,7 @@ public class Repository {
         File file = getFile(config, branch, data);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        Th2Resource cr = new Th2Resource(data);
+        Th2CustomResource cr = new Th2CustomResource(data);
         saveYMLFile(file, cr);
     }
 
