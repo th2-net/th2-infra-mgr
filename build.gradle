@@ -24,6 +24,9 @@ dependencies {
 	implementation 'org.projectlombok:lombok:1.18.12'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
 	implementation 'org.apache.commons:commons-text:1.9'
+	implementation 'io.fabric8:kubernetes-client:4.10.3'
+
+	//compile 'io.kubernetes:client-java:9.0.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
