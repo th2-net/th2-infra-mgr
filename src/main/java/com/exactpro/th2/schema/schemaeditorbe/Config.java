@@ -30,7 +30,7 @@ public class Config {
             mapper.readerForUpdating(instance).readValue(contents);
 
         } catch(UnrecognizedPropertyException e) {
-            Logger logger = LoggerFactory.getLogger(Repository.class);
+            Logger logger = LoggerFactory.getLogger(Config.class);
             logger.error("bad configuration: unknown property(\"{}\") specified in configuration file", e.getPropertyName());
             throw new RuntimeException("Configuration exception", e);
         }

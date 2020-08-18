@@ -16,7 +16,7 @@ public class SchemaEditorBeApplication {
 
 			SpringApplication.run(SchemaEditorBeApplication.class, args);
 		} catch (Exception e) {
-			Logger logger = LoggerFactory.getLogger(Repository.class);
+			Logger logger = LoggerFactory.getLogger(SchemaEditorBeApplication.class);
 			logger.error("exiting with exception", e);
 		}
 	}
