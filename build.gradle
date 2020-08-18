@@ -21,12 +21,10 @@ repositories {
 dependencies {
 	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.8.1.202007141445-r'
 	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:5.8.1.202007141445-r'
-	implementation 'org.projectlombok:lombok:1.18.12'
+//	implementation 'org.projectlombok:lombok:1.18.12'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
 	implementation 'org.apache.commons:commons-text:1.9'
 	implementation 'io.fabric8:kubernetes-client:4.10.3'
-
-	//compile 'io.kubernetes:client-java:9.0.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-web'

@@ -1,4 +1,4 @@
-package com.exactpro.th2.schema.schemaeditorbe.k8s;
+package com.exactpro.th2.schema.schemaeditorbe.util;
 
 import java.util.Iterator;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class Stringifier {
 
-    private static boolean stringify(Object o) {
+    public static boolean stringify(Object o) {
         if (o instanceof Map) {
             stringify((Map) o);
             return true;

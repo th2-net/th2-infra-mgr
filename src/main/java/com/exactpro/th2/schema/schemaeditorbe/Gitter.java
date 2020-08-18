@@ -25,7 +25,10 @@ import java.util.logging.Logger;
 public class Gitter {
 
     private static TransportConfigCallback transportConfigCallback(Config.GitConfig config) {
-        JSch.setConfig("StrictHostKeyChecking", "no");
+
+
+        if (config.ignoreInsecureHosts())
+            JSch.setConfig("StrictHostKeyChecking", "no");
         SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
             @Override
             protected JSch createDefaultJSch(FS fs) throws JSchException {
