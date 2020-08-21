@@ -1,5 +1,6 @@
-package com.exactpro.th2.schema.schemaeditorbe;
+package com.exactpro.th2.schema.schemaeditorbe.repository;
 
+import com.exactpro.th2.schema.schemaeditorbe.Config;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import org.eclipse.jgit.api.Git;
@@ -16,9 +17,7 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.util.FS;
 
 import java.io.File;
-import java.util.Collection;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.logging.Logger;
 
 
@@ -51,7 +50,8 @@ public class Gitter {
         };
     }
 
-    public static Set<String> getBranches(Config.GitConfig config) throws Exception {
+
+    public static Map<String, String> getAllBranchesCommits(Config.GitConfig config) throws Exception {
 
         // retrieve all remote branches
         Collection<Ref> allBRanches = Git.lsRemoteRepository()
@@ -61,13 +61,19 @@ public class Gitter {
                 .call();
 
         // filter, convert and normalize branch names
-        Set<String> result = new TreeSet<>();
+        Map<String, String> result = new HashMap<>();
         final String lookupPrefix = "refs/heads/";
         allBRanches.stream()
                 .filter(r -> r.getName().startsWith(lookupPrefix))
-                .forEach(r -> result.add(r.getName().substring(lookupPrefix.length())));
+                .forEach(r -> result.put(r.getName().substring(lookupPrefix.length()), r.getObjectId().getName()));
 
         return result;
+    }
+
+    public static Set<String> getBranches(Config.GitConfig config) throws Exception {
+
+        Map<String, String> commits = getAllBranchesCommits(config);
+        return commits.keySet();
     }
 
     private static void checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {

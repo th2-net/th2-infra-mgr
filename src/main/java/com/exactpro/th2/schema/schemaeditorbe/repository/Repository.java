@@ -1,5 +1,6 @@
-package com.exactpro.th2.schema.schemaeditorbe;
+package com.exactpro.th2.schema.schemaeditorbe.repository;
 
+import com.exactpro.th2.schema.schemaeditorbe.Config;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;

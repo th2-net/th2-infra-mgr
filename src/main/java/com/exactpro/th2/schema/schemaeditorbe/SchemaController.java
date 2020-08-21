@@ -1,5 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
+import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
+import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.errors.BadRequestException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
