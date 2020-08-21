@@ -23,6 +23,26 @@ import java.util.logging.Logger;
 
 public class Gitter {
 
+    private static volatile Map<String, Gitter> instance = new HashMap<>();
+    private Config.GitConfig config;
+    private String branch;
+
+    private Gitter(Config.GitConfig config, String branch) {
+        this.config = config;
+        this.branch = branch;
+    }
+
+    public static Gitter getBranch(Config.GitConfig config, String branch) {
+
+        if (instance.get(branch) == null)
+            synchronized (instance) {
+                if (instance.get(branch) == null)
+                    instance.put(branch, new Gitter(config, branch));
+            }
+
+        return instance.get(branch);
+    }
+
     private static TransportConfigCallback transportConfigCallback(Config.GitConfig config) {
 
 
@@ -76,7 +96,7 @@ public class Gitter {
         return commits.keySet();
     }
 
-    private static void checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {
+    private void checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {
         final String repositoryDir = targetDir + "/.git";
 
         // create bracnh directory if it does not exist
@@ -110,14 +130,14 @@ public class Gitter {
                 .call();
     }
 
-    public static void checkout(Config.GitConfig config, String branch) throws Exception {
+    public void checkout() throws Exception {
 
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         checkout(config, branch, targetDir);
     }
 
 
-    public static void reset(Config.GitConfig config, String branch) throws Exception {
+    public void reset() throws Exception {
 
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         final String repositoryDir = targetDir + "/.git";
@@ -132,7 +152,7 @@ public class Gitter {
     }
 
 
-    public static void commit(Config.GitConfig config, String branch, String message) throws Exception {
+    public void commit(String message) throws Exception {
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         final String repositoryDir = targetDir + "/.git";
 
@@ -161,8 +181,9 @@ public class Gitter {
                 .call();
     }
 
-    public static void createBranch(Config.GitConfig config, String branch, String sourceBranch) throws Exception {
-        Set<String> branches = getBranches(config);
+    public void createBranch(String sourceBranch) throws Exception {
+
+        Set<String> branches = Gitter.getBranches(config);
         if (!branches.contains(sourceBranch))
             throw new IllegalArgumentException("Source branch does not exists");
         if (branches.contains(branch))

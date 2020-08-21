@@ -1,12 +1,12 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
-import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
-import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.errors.BadRequestException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
+import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
+import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -38,8 +38,9 @@ public class SchemaController {
     public Set<ResourceEntry> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
 
         Config.GitConfig config = Config.getInstance().getGit();
+        Gitter gitter = Gitter.getBranch(config, name);
         try {
-            Gitter.checkout(config, name);
+            gitter.checkout();
             return Repository.loadBranch(config, name);
         } catch (Exception e) {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
@@ -64,8 +65,9 @@ public class SchemaController {
 
 
         // create schema
+        Gitter gitter = Gitter.getBranch(config, name);
         try {
-            Gitter.createBranch(config, name, "master");
+            gitter.createBranch("master");
             return Repository.loadBranch(config, name);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
@@ -97,7 +99,8 @@ public class SchemaController {
         if (!branches.contains(name))
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
 
-        Gitter.checkout(config, name);
+        Gitter gitter = Gitter.getBranch(config, name);
+        gitter.checkout();
 
         // apply operations
         try {
@@ -115,14 +118,14 @@ public class SchemaController {
                 }
             }
         } catch (Exception e) {
-            Gitter.reset(config, name);
+            gitter.reset();
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
 
 
         // create schema
         try {
-            Gitter.commit(config, name, "schema update");
+            gitter.commit("schema update");
             return Repository.loadBranch(config, name);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
