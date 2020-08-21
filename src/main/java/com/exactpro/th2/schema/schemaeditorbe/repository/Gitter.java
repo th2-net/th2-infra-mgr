@@ -152,7 +152,7 @@ public class Gitter {
     }
 
 
-    public void commit(String message) throws Exception {
+    public boolean commit(String message) throws Exception {
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         final String repositoryDir = targetDir + "/.git";
 
@@ -164,7 +164,7 @@ public class Gitter {
         Git git = new Git(repo);
         if (git.status().call().isClean()) {
             Logger.getLogger("").info("nothing to commit, leaving");
-            return;
+            return false;
         }
         git.add()
                 .setUpdate(true)
@@ -179,6 +179,7 @@ public class Gitter {
         git.push()
                 .setTransportConfigCallback(transportConfigCallback(config))
                 .call();
+        return true;
     }
 
     public void createBranch(String sourceBranch) throws Exception {
