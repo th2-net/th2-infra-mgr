@@ -34,7 +34,12 @@ public class RepositoryWatcherService {
 
                 if (!(commitHistory.isEmpty() || commitHistory.getOrDefault(branch, "").equals(commitRef))) {
                     logger.info("New commit \"{}\" detected for branch \"{}\"", commitRef, branch);
-                    eventRouter.addEvent(new RepositoryUpdateEvent(branch, commitRef));
+
+                    RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
+                    if (eventRouter.isEventCached(event))
+                        logger.info("Event is recently processed, ignoring");
+                    else
+                        eventRouter.addEvent(event);
                 }
             });
 

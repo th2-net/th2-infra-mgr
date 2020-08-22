@@ -17,8 +17,10 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.util.FS;
 
 import java.io.File;
-import java.util.*;
-import java.util.logging.Logger;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 
 public class Gitter {
@@ -43,6 +45,7 @@ public class Gitter {
         return instance.get(branch);
     }
 
+    // TODO : initialize transport on instance creation
     private static TransportConfigCallback transportConfigCallback(Config.GitConfig config) {
 
 
@@ -152,7 +155,7 @@ public class Gitter {
     }
 
 
-    public boolean commit(String message) throws Exception {
+    public String commit(String message) throws Exception {
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         final String repositoryDir = targetDir + "/.git";
 
@@ -162,10 +165,8 @@ public class Gitter {
 
         Repository repo = new FileRepository(repositoryDir);
         Git git = new Git(repo);
-        if (git.status().call().isClean()) {
-            Logger.getLogger("").info("nothing to commit, leaving");
-            return false;
-        }
+        if (git.status().call().isClean())
+            return null;
         git.add()
                 .setUpdate(true)
                 .addFilepattern(".")
@@ -173,13 +174,15 @@ public class Gitter {
         git.add()
                 .addFilepattern(".")
                 .call();
-        git.commit()
+        String commitRef = git.commit()
                 .setMessage(message)
-                .call();
+                .call()
+                .getId().getName();
+
         git.push()
                 .setTransportConfigCallback(transportConfigCallback(config))
                 .call();
-        return true;
+        return commitRef;
     }
 
     public void createBranch(String sourceBranch) throws Exception {

@@ -3,7 +3,7 @@ package com.exactpro.th2.schema.schemaeditorbe.repository;
 import com.exactpro.th2.schema.schemaeditorbe.SchemaEvent;
 
 public class RepositoryUpdateEvent extends SchemaEvent {
-    private static final String EVENT_TYPE="repositoryUpdate";
+    public static final String EVENT_TYPE="repositoryUpdate";
     private String commitRef;
 
     public RepositoryUpdateEvent(String branch, String commitRef) {
@@ -24,4 +24,14 @@ public class RepositoryUpdateEvent extends SchemaEvent {
                 .append("\"commit\":\"").append(commitRef).append("\"}")
                 .toString();
     }
+
+    @Override
+    public String getEventKey() {
+        return new StringBuilder()
+                .append(getSchema())
+                .append(":")
+                .append(commitRef)
+                .toString();
+    }
+
 }

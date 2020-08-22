@@ -7,6 +7,7 @@ import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
+import com.exactpro.th2.schema.schemaeditorbe.repository.RepositoryUpdateEvent;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
 
 @Controller
 public class SchemaController {
@@ -122,10 +124,15 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
 
-
         // create schema
         try {
-            gitter.commit("schema update");
+            String commitRef = gitter.commit("schema update");
+            if (commitRef == null) {
+                Logger.getLogger("").info("Nothing changed, leaving");
+            } else {
+                SchemaEventRouter router = SchemaEventRouter.getInstance();
+                router.addEvent(new RepositoryUpdateEvent(name, commitRef));
+            }
             return Repository.loadBranch(config, name);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
