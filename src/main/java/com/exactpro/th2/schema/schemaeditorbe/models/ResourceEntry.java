@@ -1,10 +1,13 @@
 package com.exactpro.th2.schema.schemaeditorbe.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class ResourceEntry {
 
     private ResourceType kind;
     private String name;
     private Object spec;
+    private String hash;
 
     public ResourceType getKind() {
         return kind;
@@ -28,5 +31,14 @@ public class ResourceEntry {
 
     public void setSpec(Object spec) {
         this.spec = spec;
+    }
+
+    @JsonIgnore
+    public String getSourceHash() {
+        return hash;
+    }
+
+    public void setSourceHash(String hash) {
+        this.hash = hash;
     }
 }

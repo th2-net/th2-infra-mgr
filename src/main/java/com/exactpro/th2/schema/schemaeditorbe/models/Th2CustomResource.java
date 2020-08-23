@@ -3,7 +3,9 @@ package com.exactpro.th2.schema.schemaeditorbe.models;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class Th2CustomResource {
-    public static String API_VERSION="th2.exactpro.com/v1";
+    public static String GROUP = "th2.exactpro.com";
+    public static String VERSION = "v1";
+    public static String API_VERSION = GROUP + "/" + VERSION;
 
     public static class Metadata {
         private String name;
@@ -18,6 +20,7 @@ public class Th2CustomResource {
     private String kind;
     private Metadata metadata;
     private Object spec;
+    private String hash;
 
     public Th2CustomResource() {
     }
@@ -28,6 +31,7 @@ public class Th2CustomResource {
         getMetadata().setName(data.getName());
         setKind(data.getKind().kind());
         setSpec(data.getSpec());
+        setSourceHash(data.getSourceHash());
     }
 
     public String getApiVersion() {
@@ -71,5 +75,16 @@ public class Th2CustomResource {
     public String getVersion() {
         return apiVersion.substring(apiVersion.indexOf("/") + 1);
     }
+
+    @JsonIgnore
+    public String getSourceHash() {
+        return hash;
+    }
+
+    @JsonIgnore
+    public void setSourceHash(String hash) {
+        this.hash = hash;
+    }
+
 
 }

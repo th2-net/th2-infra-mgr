@@ -4,6 +4,7 @@ import com.exactpro.th2.schema.schemaeditorbe.Config;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
+import com.exactpro.th2.schema.schemaeditorbe.util.Hash;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -11,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,22 +20,25 @@ public class Repository {
 
     private static ResourceEntry loadYMLFile(File ymlFile) throws Exception{
 
+        String ymlFileContents = Files.readString(ymlFile.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        Th2CustomResource cr = mapper.readValue(ymlFile, Th2CustomResource.class);
+        Th2CustomResource cr = mapper.readValue(ymlFileContents, Th2CustomResource.class);
 
         ResourceEntry rdu = new ResourceEntry();
         rdu.setKind(ResourceType.forKind(cr.getKind()));
         rdu.setName(cr.getMetadata().getName());
         rdu.setSpec(cr.getSpec());
 
+        rdu.setSourceHash(Hash.digest(ymlFileContents));
+
         return rdu;
     }
 
-    public static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws Exception {
+    private static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws Exception {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
-        Set<ResourceEntry> dataUnits = new HashSet<>();
+        Set<ResourceEntry> resources = new HashSet<>();
         for (ResourceType t : ResourceType.values()) {
             File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
             if (dir.exists()) {
@@ -51,12 +56,12 @@ public class Repository {
                         if (rdu.getKind() != t)
                             logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}", f.getAbsolutePath(), rdu.getKind().kind(), t.path());
 
-                        dataUnits.add(rdu);
+                        resources.add(rdu);
                     }
                 }
             }
         }
-        return dataUnits;
+        return resources;
     }
 
     private static File getFile(Config.GitConfig config, String branch, ResourceEntry data) {

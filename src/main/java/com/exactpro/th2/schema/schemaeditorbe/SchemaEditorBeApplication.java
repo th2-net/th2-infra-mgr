@@ -13,14 +13,15 @@ public class SchemaEditorBeApplication {
 	public static void main(String[] args) {
 
 		try {
-			// force load configuration
+			// preload configuration
 			Config.getInstance();
 
-			SpringApplication.run(SchemaEditorBeApplication.class, args);
+			SpringApplication application = new SpringApplication(SchemaEditorBeApplication.class);
+			application.run(args);
+
 		} catch (Exception e) {
 			Logger logger = LoggerFactory.getLogger(SchemaEditorBeApplication.class);
-			logger.error("exiting with exception", e);
+			logger.error("Exiting with exception ({})", e.getMessage());
 		}
 	}
-
 }
