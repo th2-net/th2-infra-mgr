@@ -33,12 +33,12 @@ public class K8sStartupSynchronization {
             // load custom resources from k8s
             Map<ResourceType, Map<String, K8sCustomResource>> k8sEntries = new HashMap<>();
             for (ResourceType t : ResourceType.values())
-                if (t != ResourceType.UIFile)
+                if (t.isK8sResource())
                     k8sEntries.put(t, kube.loadResources(t, Th2CustomResource.GROUP, Th2CustomResource.VERSION));
 
             // synchronize by resource type
             for (ResourceType resourceType : ResourceType.values())
-                if (resourceType != ResourceType.UIFile) {
+                if (resourceType.isK8sResource()) {
                     Map<String, ResourceEntry> entries = repositoryEntries.get(resourceType);
                     Map<String, K8sCustomResource> customResources = k8sEntries.get(resourceType);
 
@@ -108,11 +108,11 @@ public class K8sStartupSynchronization {
             Map<ResourceType, Map<String, ResourceEntry>> repositoryMap = new HashMap<>();
             // convert to map
             for (ResourceType t : ResourceType.values())
-                if (t != ResourceType.UIFile)
+                if (t.isK8sResource())
                     repositoryMap.put(t, new HashMap<>());
 
             for (ResourceEntry entry : repositoryEntries)
-                if (entry.getKind() != ResourceType.UIFile) {
+                if (entry.getKind().isK8sResource()) {
                     Map<String, ResourceEntry> typeMap = repositoryMap.get(entry.getKind());
                     repositoryMap.putIfAbsent(entry.getKind(), typeMap);
                     typeMap.put(entry.getName(), entry);

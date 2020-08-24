@@ -39,6 +39,10 @@ public enum ResourceType {
         return pathes.get(path);
     }
 
+    public boolean isK8sResource() {
+        return this != UIFile;
+    }
+
     private static Map<String, ResourceType> kinds = new HashMap<>();
     private static Map<String, ResourceType> pathes = new HashMap<>();
     static {
