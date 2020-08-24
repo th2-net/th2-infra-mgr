@@ -31,6 +31,7 @@ public class SchemaController {
     public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
     public static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+    private static final String SOURCE_BRANCH = "master";
 
     private Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
@@ -39,7 +40,9 @@ public class SchemaController {
     public Set<String> getAvailableSchemas() throws ServiceException  {
 
         try {
-            return Gitter.getBranches(Config.getInstance().getGit());
+            Set<String> schemas = Gitter.getBranches(Config.getInstance().getGit());
+            schemas.remove(SOURCE_BRANCH);
+            return schemas;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -48,6 +51,9 @@ public class SchemaController {
     @GetMapping("/schema/{name}")
     @ResponseBody
     public RepositorySnapshot getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
+
+        if (name.equals(SOURCE_BRANCH))
+            throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter gitter = Gitter.getBranch(config, name);
@@ -66,6 +72,9 @@ public class SchemaController {
     @ResponseBody
     public RepositorySnapshot createSchema(@PathVariable(name="name") String name) throws Exception {
 
+        if (name.equals(SOURCE_BRANCH))
+            throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
+
         Config.GitConfig config = Config.getInstance().getGit();
 
         // check if the schema already exists
@@ -82,7 +91,7 @@ public class SchemaController {
         // create schema
         Gitter gitter = Gitter.getBranch(config, name);
         try {
-            String commitRef = gitter.createBranch("master");
+            String commitRef = gitter.createBranch(SOURCE_BRANCH);
             Set<ResourceEntry> resources = Repository.loadBranch(config, name);
             RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
             snapshot.setResources(resources);
@@ -96,6 +105,9 @@ public class SchemaController {
     @PostMapping("/schema/{name}")
     @ResponseBody
     public RepositorySnapshot updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
+
+        if (name.equals(SOURCE_BRANCH))
+            throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         // deserialize request body
         List<RequestEntry> operations = null;
