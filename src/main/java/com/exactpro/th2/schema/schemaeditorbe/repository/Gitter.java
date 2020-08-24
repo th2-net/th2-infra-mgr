@@ -99,7 +99,7 @@ public class Gitter {
         return commits.keySet();
     }
 
-    private void checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {
+    private String checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {
         final String repositoryDir = targetDir + "/.git";
 
         // create bracnh directory if it does not exist
@@ -127,20 +127,21 @@ public class Gitter {
                     .call();
         }
 
-        git.checkout()
+        Ref ref = git.checkout()
                 .setName(branch)
                 .setForced(true)
                 .call();
+        return ref.getObjectId().getName();
     }
 
-    public void checkout() throws Exception {
+    public String checkout() throws Exception {
 
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
-        checkout(config, branch, targetDir);
+        return checkout(config, branch, targetDir);
     }
 
 
-    public void reset() throws Exception {
+    public String reset() throws Exception {
 
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         final String repositoryDir = targetDir + "/.git";
@@ -151,7 +152,8 @@ public class Gitter {
 
         Repository repo = new FileRepository(repositoryDir);
         Git git = new Git(repo);
-        git.reset().setMode(ResetCommand.ResetType.HARD).call();
+        Ref ref = git.reset().setMode(ResetCommand.ResetType.HARD).call();
+        return ref.getObjectId().getName();
     }
 
 
@@ -185,7 +187,7 @@ public class Gitter {
         return commitRef;
     }
 
-    public void createBranch(String sourceBranch) throws Exception {
+    public String createBranch(String sourceBranch) throws Exception {
 
         Set<String> branches = Gitter.getBranches(config);
         if (!branches.contains(sourceBranch))
@@ -203,11 +205,13 @@ public class Gitter {
         git.branchCreate()
                 .setName(branch)
                 .call();
-        git.checkout()
+        Ref ref = git.checkout()
                 .setName(branch)
                 .call();
         git.push()
                 .setTransportConfigCallback(transportConfigCallback(config))
                 .call();
+
+        return ref.getObjectId().getName();
     }
 }

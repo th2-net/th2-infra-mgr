@@ -36,10 +36,9 @@ public class RepositoryWatcherService {
                     logger.info("New commit \"{}\" detected for branch \"{}\"", commitRef, branch);
 
                     RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
-                    if (eventRouter.isEventCached(event))
+                    boolean sent = eventRouter.addEventIfNotCached(event);
+                    if (!sent)
                         logger.info("Event is recently processed, ignoring");
-                    else
-                        eventRouter.addEvent(event);
                 }
             });
 

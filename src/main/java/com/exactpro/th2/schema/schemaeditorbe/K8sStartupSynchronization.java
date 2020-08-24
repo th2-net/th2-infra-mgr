@@ -51,7 +51,7 @@ public class K8sStartupSynchronization {
                             logger.info("Creating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), nameSpace, resourceName);
                             Th2CustomResource resource = new Th2CustomResource(entry);
                             try {
-                                //Stringifier.stringify(resource.getSpec());
+                                Stringifier.stringify(resource.getSpec());
                                 kube.create(resource);
                             } catch (Exception e) {
                                 logger.error("Exception creating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), nameSpace, resourceName, e.getMessage());
@@ -65,7 +65,7 @@ public class K8sStartupSynchronization {
                                 logger.info("Updating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), nameSpace, resourceName);
                                 Th2CustomResource resource = new Th2CustomResource(entry);
                                 try {
-                                    //Stringifier.stringify(resource.getSpec());
+                                    Stringifier.stringify(resource.getSpec());
                                     kube.replace(resource);
                                 } catch (Exception e) {
                                     logger.error("Exception updating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), nameSpace, resourceName, e.getMessage());

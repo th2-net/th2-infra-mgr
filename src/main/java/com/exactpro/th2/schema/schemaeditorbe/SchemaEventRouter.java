@@ -50,18 +50,27 @@ public class SchemaEventRouter {
     }
 
 
-    public boolean isEventCached(SchemaEvent event) {
-        EventCache cache = getEventCache(event.getEventType());
-        return  cache.containsKey(event.getEventKey());
+    public boolean addEventIfNotCached(SchemaEvent event) {
+        EventCache eventCache = getEventCache(event.getEventType());
+        boolean doSend = false;
+        synchronized (eventCache) {
+            if (!eventCache.containsKey(event.getEventKey())) {
+                eventCache.put(event.getEventKey(), event);
+                doSend = true;
+            }
+        }
+        if (doSend)
+            addEvent(event);
+        return doSend;
     }
 
     public void addEvent(SchemaEvent event) {
 
-        subject.onNext(event);
         EventCache eventCache = getEventCache(event.getEventType());
-        synchronized(eventCache) {
+        synchronized (eventCache) {
             eventCache.put(event.getEventKey(), event);
         }
+        subject.onNext(event);
     }
 
     public Observable<SchemaEvent> getObservable() {

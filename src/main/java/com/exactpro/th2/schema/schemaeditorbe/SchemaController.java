@@ -5,12 +5,14 @@ import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.Kubernetes;
+import com.exactpro.th2.schema.schemaeditorbe.models.RepositorySnapshot;
 import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.schema.schemaeditorbe.util.Stringifier;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -45,13 +47,16 @@ public class SchemaController {
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResourceEntry> getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
+    public RepositorySnapshot getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
 
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter gitter = Gitter.getBranch(config, name);
         try {
-            gitter.checkout();
-            return Repository.loadBranch(config, name);
+            String commitRef = gitter.checkout();
+            Set<ResourceEntry> resources = Repository.loadBranch(config, name);
+            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
+            snapshot.setResources(resources);
+            return snapshot;
         } catch (Exception e) {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
@@ -59,7 +64,7 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResourceEntry> createSchema(@PathVariable(name="name") String name) throws Exception {
+    public RepositorySnapshot createSchema(@PathVariable(name="name") String name) throws Exception {
 
         Config.GitConfig config = Config.getInstance().getGit();
 
@@ -77,8 +82,11 @@ public class SchemaController {
         // create schema
         Gitter gitter = Gitter.getBranch(config, name);
         try {
-            gitter.createBranch("master");
-            return Repository.loadBranch(config, name);
+            String commitRef = gitter.createBranch("master");
+            Set<ResourceEntry> resources = Repository.loadBranch(config, name);
+            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
+            snapshot.setResources(resources);
+            return snapshot;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -87,7 +95,7 @@ public class SchemaController {
 
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public Set<ResourceEntry> updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
+    public RepositorySnapshot updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
 
         // deserialize request body
         List<RequestEntry> operations = null;
@@ -156,6 +164,7 @@ public class SchemaController {
 
                     for (RequestEntry entry : operations) {
                         try {
+                            Stringifier.stringify(entry.getPayload().getSpec());
                             switch (entry.getOperation()) {
                                 case add:
                                     kube.create(new Th2CustomResource(entry.getPayload()));
@@ -185,7 +194,13 @@ public class SchemaController {
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 router.addEvent(new RepositoryUpdateEvent(name, commitRef));
             }
-            return Repository.loadBranch(git, name);
+
+            commitRef = gitter.checkout();
+            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
+            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
+            snapshot.setResources(resources);
+            return snapshot;
+
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
