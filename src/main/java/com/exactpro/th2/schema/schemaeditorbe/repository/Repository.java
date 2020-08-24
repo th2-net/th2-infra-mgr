@@ -81,12 +81,15 @@ public class Repository {
     }
 
 
-    private static void saveYMLFile(File ymlFile, Object object) throws Exception {
+    private static void saveYMLFile(File ymlFile, Th2CustomResource object) throws Exception {
         ymlFile.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
-        mapper.writeValue(ymlFile, object);
+        String ymlData = mapper.writeValueAsString(object);
+        object.setSourceHash(Hash.digest(ymlData));
+        Files.writeString(ymlFile.toPath(), ymlData);
+        //mapper.writeValue(ymlFile, object);
     }
 
 
@@ -95,7 +98,8 @@ public class Repository {
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
         Th2CustomResource cr = new Th2CustomResource(data);
-        saveYMLFile(file, cr);
+        Repository.saveYMLFile(file, cr);
+        data.setSourceHash(cr.getSourceHash());
     }
 
     public static void update(Config.GitConfig config, String branch, ResourceEntry data) throws Exception {
@@ -103,7 +107,8 @@ public class Repository {
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         Th2CustomResource cr = new Th2CustomResource(data);
-        saveYMLFile(file, cr);
+        Repository.saveYMLFile(file, cr);
+        data.setSourceHash(cr.getSourceHash());
     }
 
     public static void remove(Config.GitConfig config, String branch, ResourceEntry data) throws Exception {
