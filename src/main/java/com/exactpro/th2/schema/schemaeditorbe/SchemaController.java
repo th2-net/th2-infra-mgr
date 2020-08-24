@@ -75,6 +75,11 @@ public class SchemaController {
         if (name.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
+        Pattern pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
+        if (!pattern.matcher(name).matches())
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+
+
         Config.GitConfig config = Config.getInstance().getGit();
 
         // check if the schema already exists
