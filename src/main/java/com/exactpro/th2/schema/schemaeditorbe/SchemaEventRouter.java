@@ -49,6 +49,10 @@ public class SchemaEventRouter {
         return eventCache;
     }
 
+    public boolean isEventCached(SchemaEvent event) {
+        EventCache cache = getEventCache(event.getEventType());
+        return cache.containsKey(event.getEventKey());
+    }
 
     public boolean addEventIfNotCached(SchemaEvent event) {
         EventCache eventCache = getEventCache(event.getEventType());
