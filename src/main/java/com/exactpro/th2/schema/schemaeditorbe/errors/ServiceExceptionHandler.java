@@ -10,11 +10,9 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 public class ServiceExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(ServiceException.class)
-    public ResponseEntity<ErrorResponse> handleServiceException(Exception ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleServiceException(ServiceException e, WebRequest request) {
 
-        ErrorResponse response = ((ServiceException) ex).getErrorResponse();
+        ErrorResponse response = e.getErrorResponse();
         return new ResponseEntity<>(response, response.getHttpStatus());
-
     }
-
 }

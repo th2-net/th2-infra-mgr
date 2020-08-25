@@ -1,6 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.errors.BadRequestException;
+import com.exactpro.th2.schema.schemaeditorbe.errors.K8sProvisioningException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.K8sCustomResource;
@@ -103,32 +104,36 @@ public class SchemaController {
             snapshot.setResources(resources);
 
             //synchronize with k8s
-            boolean k8sErrorDetected = false;
             try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
                 kube.ensureNameSpace();
+                K8sProvisioningException k8se = null;
 
                 for (ResourceEntry entry : resources) {
                     try {
                         Stringifier.stringify(entry.getSpec());
                         kube.createOrReplaceCustomResource(new Th2CustomResource(entry));
                     } catch (Exception e) {
-                        k8sErrorDetected = true;
+                        if (k8se == null)
+                            k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
+                        k8se.addItem(entry);
                         logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
                                 , entry.getKind().kind()
                                 , entry.getName()
                                 , e.getMessage());
                     }
                 }
+                if (k8se != null)
+                    throw k8se;
+
             } catch (Exception e) {
-                k8sErrorDetected = true;
                 logger.error("Exception provisioning resource(s) to Kubernetes ({})", e.getMessage());
+                throw e;
             }
-            // TODO: report partial success
-
-
 
             return snapshot;
+        } catch (ServiceException se) {
+            throw se;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -203,11 +208,14 @@ public class SchemaController {
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");
             } else {
+                SchemaEventRouter router = SchemaEventRouter.getInstance();
+                router.addEvent(new RepositoryUpdateEvent(name, commitRef));
+
                 //synchronize with k8s
-                boolean k8sErrorDetected = false;
                 try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
                     kube.ensureNameSpace();
+                    K8sProvisioningException k8se = null;
 
                     for (RequestEntry entry : operations) {
                         try {
@@ -224,22 +232,21 @@ public class SchemaController {
                                     break;
                             }
                         } catch (Exception e) {
-                            k8sErrorDetected = true;
+                            if (k8se == null)
+                                k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
+                            k8se.addItem(entry.getPayload());
                             logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
                                     , entry.getPayload().getKind().kind()
                                     , entry.getPayload().getName()
                                     , e.getMessage());
                         }
                     }
+                    if (k8se != null)
+                        throw k8se;
                 } catch (Exception e) {
-                    k8sErrorDetected = true;
                     logger.error("Exception provisioning resource(s) to Kubernetes ({})", e.getMessage());
+                    throw e;
                 }
-                // TODO: report partial success
-
-
-                SchemaEventRouter router = SchemaEventRouter.getInstance();
-                router.addEvent(new RepositoryUpdateEvent(name, commitRef));
             }
 
             commitRef = gitter.checkout();
@@ -248,9 +255,10 @@ public class SchemaController {
             snapshot.setResources(resources);
             return snapshot;
 
+        } catch (ServiceException se) {
+            throw se;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
     }
-
 }
