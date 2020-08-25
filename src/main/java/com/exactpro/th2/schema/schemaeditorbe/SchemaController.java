@@ -80,12 +80,13 @@ public class SchemaController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
 
-        Config.GitConfig config = Config.getInstance().getGit();
+        Config config = Config.getInstance();
+        Config.GitConfig git = config.getGit();
 
         // check if the schema already exists
         Set<String> branches;
         try {
-             branches = Gitter.getBranches(config);
+             branches = Gitter.getBranches(git);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -94,12 +95,39 @@ public class SchemaController {
 
 
         // create schema
-        Gitter gitter = Gitter.getBranch(config, name);
+        Gitter gitter = Gitter.getBranch(git, name);
         try {
             String commitRef = gitter.createBranch(SOURCE_BRANCH);
-            Set<ResourceEntry> resources = Repository.loadBranch(config, name);
+            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
             RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
             snapshot.setResources(resources);
+
+            //synchronize with k8s
+            boolean k8sErrorDetected = false;
+            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
+
+                kube.ensureNameSpace();
+
+                for (ResourceEntry entry : resources) {
+                    try {
+                        Stringifier.stringify(entry.getSpec());
+                        kube.createOrReplaceCustomResource(new Th2CustomResource(entry));
+                    } catch (Exception e) {
+                        k8sErrorDetected = true;
+                        logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
+                                , entry.getKind().kind()
+                                , entry.getName()
+                                , e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                k8sErrorDetected = true;
+                logger.error("Exception provisioning resource(s) to Kubernetes ({})", e.getMessage());
+            }
+            // TODO: report partial success
+
+
+
             return snapshot;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
@@ -179,18 +207,20 @@ public class SchemaController {
                 boolean k8sErrorDetected = false;
                 try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
+                    kube.ensureNameSpace();
+
                     for (RequestEntry entry : operations) {
                         try {
                             Stringifier.stringify(entry.getPayload().getSpec());
                             switch (entry.getOperation()) {
                                 case add:
-                                    kube.create(new Th2CustomResource(entry.getPayload()));
+                                    kube.createCustomResource(new Th2CustomResource(entry.getPayload()));
                                     break;
                                 case update:
-                                    kube.replace(new Th2CustomResource(entry.getPayload()));
+                                    kube.replaceCustomResource(new Th2CustomResource(entry.getPayload()));
                                     break;
                                 case remove:
-                                    kube.delete(new Th2CustomResource(entry.getPayload()));
+                                    kube.deleteCustomResource(new Th2CustomResource(entry.getPayload()));
                                     break;
                             }
                         } catch (Exception e) {

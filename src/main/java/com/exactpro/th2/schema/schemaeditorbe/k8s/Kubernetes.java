@@ -3,6 +3,8 @@ package com.exactpro.th2.schema.schemaeditorbe.k8s;
 import com.exactpro.th2.schema.schemaeditorbe.Config;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.NamespaceList;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.ConfigBuilder;
@@ -19,8 +21,21 @@ import java.util.List;
 import java.util.Map;
 
 public class Kubernetes implements Closeable {
+    private static final String SCHEMA_NAMESPACE_PREFIX = "schema-";
 
-    public void createOrReplace(Th2CustomResource repoResource) {
+    public static String formatNamespaceName(String schemaName) {
+        return SCHEMA_NAMESPACE_PREFIX + schemaName;
+    }
+    public static String extractSchemaName(String nameSpaceName) {
+        if (nameSpaceName.startsWith(SCHEMA_NAMESPACE_PREFIX))
+            throw new IllegalArgumentException("Malformed namespace name");
+        String schemaName = nameSpaceName.substring(SCHEMA_NAMESPACE_PREFIX.length());
+        if (schemaName.equals(""))
+            throw new IllegalArgumentException("Malformed namespace name");
+        return schemaName;
+    }
+
+    public void createOrReplaceCustomResource(Th2CustomResource repoResource) {
 
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
@@ -58,7 +73,7 @@ public class Kubernetes implements Closeable {
         }
     }
 
-    public void create(Th2CustomResource repoResource) {
+    public void createCustomResource(Th2CustomResource repoResource) {
 
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
@@ -76,7 +91,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public void replace(Th2CustomResource repoResource) throws ResourceNotFoundException {
+    public void replaceCustomResource(Th2CustomResource repoResource) throws ResourceNotFoundException {
 
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
@@ -99,7 +114,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public Map<String, K8sCustomResource> loadResources(ResourceType type, String apiGroup, String apiVersion) {
+    public Map<String, K8sCustomResource> loadCustomResources(ResourceType type, String apiGroup, String apiVersion) {
 
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
                 .withGroup(apiGroup)
@@ -119,7 +134,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public boolean delete(Th2CustomResource repoResource) {
+    public boolean deleteCustomResource(Th2CustomResource repoResource) {
 
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
@@ -130,7 +145,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public CustomResourceDefinitionContext getCrdContext(Th2CustomResource resource) {
+    private CustomResourceDefinitionContext getCrdContext(Th2CustomResource resource) {
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
                 .withGroup(resource.getApiGroup())
                 .withVersion(resource.getVersion())
@@ -141,12 +156,27 @@ public class Kubernetes implements Closeable {
         return crdContext;
     }
 
+    public void ensureNameSpace() {
+
+        NamespaceList list = client.namespaces().list();
+        for (Namespace ns :list.getItems())
+            if (ns.getMetadata().getName().equals(nameSpace))
+                return;
+
+            // namespace not found, create it
+        Namespace n = new Namespace();
+        n.setMetadata(new ObjectMeta());
+        n.getMetadata().setName(nameSpace);
+        client.namespaces().create(n);
+    }
+
+
     private KubernetesClient client;
     private String nameSpace;
-    public Kubernetes(Config.K8sConfig config, String nameSpace) {
+    public Kubernetes(Config.K8sConfig config, String schemaName) {
 
         // if we are not using custom configutation, let fabric8 handle initialization
-        this.nameSpace = nameSpace;
+        this.nameSpace = Kubernetes.formatNamespaceName(schemaName);
         if (!config.useCustomConfig()) {
             client = new DefaultKubernetesClient();
             return;
