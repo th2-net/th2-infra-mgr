@@ -11,6 +11,7 @@ public enum ResourceType {
     Th2Link("Th2Link", "links", "th2links"),
     Th2Recon("Th2Recon", "recons", "th2recons"),
     Th2Verifier("Th2Verifier", "verifiers", "th2verifiers"),
+    Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries"),
     UIFile("UIFile", "ui-files", null);
 
     private String kind;
