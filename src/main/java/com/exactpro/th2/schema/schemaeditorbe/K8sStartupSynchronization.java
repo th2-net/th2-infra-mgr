@@ -2,9 +2,7 @@ package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.Kubernetes;
-import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
-import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
-import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
+import com.exactpro.th2.schema.schemaeditorbe.models.*;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.util.Stringifier;
@@ -97,15 +95,24 @@ public class K8sStartupSynchronization {
 
     private void synchronizeBranch(Config config, String branch) {
 
-        logger.info("Synchronizing schema \"{}\"", branch);
-
         try {
+            logger.info("Checking schema settings \"{}\"", branch);
+
             // get repository items
             Gitter gitter = Gitter.getBranch(config.getGit(), branch);
             gitter.checkout();
             Set<ResourceEntry> repositoryEntries = Repository.loadBranch(config.getGit(), branch);
-            Map<ResourceType, Map<String, ResourceEntry>> repositoryMap = new HashMap<>();
+            RepositorySnapshot snapshot = new RepositorySnapshot("");
+            snapshot.setResources(repositoryEntries);
+            if (snapshot.getRepositorySettings() == null || !snapshot.getRepositorySettings().isK8sPropagationEnabled()) {
+                logger.info("Ignoring schema \"{}\" as it is not configured for synchronization", branch);
+                return;
+            }
+
+            logger.info("Proceeding with schema \"{}\"", branch);
+
             // convert to map
+            Map<ResourceType, Map<String, ResourceEntry>> repositoryMap = new HashMap<>();
             for (ResourceType t : ResourceType.values())
                 if (t.isK8sResource())
                     repositoryMap.put(t, new HashMap<>());

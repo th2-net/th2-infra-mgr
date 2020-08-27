@@ -12,6 +12,7 @@ public enum ResourceType {
     Th2Recon("Th2Recon", "recons", "th2recons"),
     Th2Verifier("Th2Verifier", "verifiers", "th2verifiers"),
     Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries"),
+    SettingsFile("SettingsFile", "", null),
     UIFile("UIFile", "ui-files", null);
 
     private String kind;
@@ -41,7 +42,7 @@ public enum ResourceType {
     }
 
     public boolean isK8sResource() {
-        return this != UIFile;
+        return k8sName != null;
     }
 
     private static Map<String, ResourceType> kinds = new HashMap<>();

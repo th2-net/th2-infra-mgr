@@ -6,10 +6,7 @@ import com.exactpro.th2.schema.schemaeditorbe.errors.NotAcceptableException;
 import com.exactpro.th2.schema.schemaeditorbe.errors.ServiceException;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.Kubernetes;
-import com.exactpro.th2.schema.schemaeditorbe.models.RepositorySnapshot;
-import com.exactpro.th2.schema.schemaeditorbe.models.RequestEntry;
-import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
-import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
+import com.exactpro.th2.schema.schemaeditorbe.models.*;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.repository.RepositoryUpdateEvent;
@@ -103,26 +100,31 @@ public class SchemaController {
             RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
             snapshot.setResources(resources);
 
+            RepositorySettings repoSettings = snapshot.getRepositorySettings();
+            if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
+                return snapshot;
+
             //synchronize with k8s
             try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
                 kube.ensureNameSpace();
                 K8sProvisioningException k8se = null;
 
-                for (ResourceEntry entry : resources) {
-                    try {
-                        Stringifier.stringify(entry.getSpec());
-                        kube.createOrReplaceCustomResource(new Th2CustomResource(entry));
-                    } catch (Exception e) {
-                        if (k8se == null)
-                            k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
-                        k8se.addItem(entry);
-                        logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
-                                , entry.getKind().kind()
-                                , entry.getName()
-                                , e.getMessage());
+                for (ResourceEntry entry : resources)
+                    if (entry.getKind().isK8sResource()) {
+                        try {
+                            Stringifier.stringify(entry.getSpec());
+                            kube.createOrReplaceCustomResource(new Th2CustomResource(entry));
+                        } catch (Exception e) {
+                            if (k8se == null)
+                                k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
+                            k8se.addItem(entry);
+                            logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
+                                    , entry.getKind().kind()
+                                    , entry.getName()
+                                    , e.getMessage());
+                        }
                     }
-                }
                 if (k8se != null)
                     throw k8se;
 
@@ -202,14 +204,22 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
 
-        // create schema
+        // update schema
         try {
             String commitRef = gitter.commit("schema update");
+            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
+            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
+            snapshot.setResources(resources);
+
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");
             } else {
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 router.addEvent(new RepositoryUpdateEvent(name, commitRef));
+
+                RepositorySettings repoSettings = snapshot.getRepositorySettings();
+                if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
+                    return snapshot;
 
                 //synchronize with k8s
                 try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
@@ -217,30 +227,31 @@ public class SchemaController {
                     kube.ensureNameSpace();
                     K8sProvisioningException k8se = null;
 
-                    for (RequestEntry entry : operations) {
-                        try {
-                            Stringifier.stringify(entry.getPayload().getSpec());
-                            switch (entry.getOperation()) {
-                                case add:
-                                    kube.createCustomResource(new Th2CustomResource(entry.getPayload()));
-                                    break;
-                                case update:
-                                    kube.replaceCustomResource(new Th2CustomResource(entry.getPayload()));
-                                    break;
-                                case remove:
-                                    kube.deleteCustomResource(new Th2CustomResource(entry.getPayload()));
-                                    break;
+                    for (RequestEntry entry : operations)
+                        if (entry.getPayload().getKind().isK8sResource()) {
+                            try {
+                                Stringifier.stringify(entry.getPayload().getSpec());
+                                switch (entry.getOperation()) {
+                                    case add:
+                                        kube.createCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        break;
+                                    case update:
+                                        kube.replaceCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        break;
+                                    case remove:
+                                        kube.deleteCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        break;
+                                }
+                            } catch (Exception e) {
+                                if (k8se == null)
+                                    k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
+                                k8se.addItem(entry.getPayload());
+                                logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
+                                        , entry.getPayload().getKind().kind()
+                                        , entry.getPayload().getName()
+                                        , e.getMessage());
                             }
-                        } catch (Exception e) {
-                            if (k8se == null)
-                                k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
-                            k8se.addItem(entry.getPayload());
-                            logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
-                                    , entry.getPayload().getKind().kind()
-                                    , entry.getPayload().getName()
-                                    , e.getMessage());
                         }
-                    }
                     if (k8se != null)
                         throw k8se;
                 } catch (Exception e) {
@@ -249,12 +260,7 @@ public class SchemaController {
                 }
             }
 
-            commitRef = gitter.checkout();
-            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
-            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
-            snapshot.setResources(resources);
             return snapshot;
-
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {

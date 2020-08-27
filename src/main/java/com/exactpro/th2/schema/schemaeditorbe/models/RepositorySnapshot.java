@@ -1,5 +1,9 @@
 package com.exactpro.th2.schema.schemaeditorbe.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Set;
 
 public class RepositorySnapshot {
@@ -22,4 +26,19 @@ public class RepositorySnapshot {
     public void setResources(Set<ResourceEntry> resources) {
         this.resources = resources;
     }
+
+    @JsonIgnore
+    public RepositorySettings getRepositorySettings() throws JsonProcessingException {
+        for (ResourceEntry entry : resources)
+            if (entry.getKind() == ResourceType.SettingsFile) {
+                ObjectMapper mapper = new ObjectMapper();
+                RepositorySettings s = mapper.readValue(
+                        mapper.writeValueAsString(entry.getSpec()),
+                        RepositorySettings.class
+                );
+                return s;
+            }
+        return null;
+    }
+
 }
