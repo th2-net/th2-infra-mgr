@@ -77,7 +77,7 @@ public class Gitter {
     public static Map<String, String> getAllBranchesCommits(Config.GitConfig config) throws Exception {
 
         // retrieve all remote branches
-        Collection<Ref> allBRanches = Git.lsRemoteRepository()
+        Collection<Ref> allBranches = Git.lsRemoteRepository()
                 .setHeads(true)
                 .setRemote(config.getRemoteRepository())
                 .setTransportConfigCallback(transportConfigCallback(config))
@@ -86,7 +86,7 @@ public class Gitter {
         // filter, convert and normalize branch names
         Map<String, String> result = new HashMap<>();
         final String lookupPrefix = "refs/heads/";
-        allBRanches.stream()
+        allBranches.stream()
                 .filter(r -> r.getName().startsWith(lookupPrefix))
                 .forEach(r -> result.put(r.getName().substring(lookupPrefix.length()), r.getObjectId().getName()));
 
