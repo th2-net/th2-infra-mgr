@@ -56,10 +56,7 @@ public class SchemaController {
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter gitter = Gitter.getBranch(config, name);
         try {
-            String commitRef = gitter.checkout();
-            Set<ResourceEntry> resources = Repository.loadBranch(config, name);
-            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
-            snapshot.setResources(resources);
+            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
             return snapshot;
         } catch (Exception e) {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
@@ -95,10 +92,9 @@ public class SchemaController {
         // create schema
         Gitter gitter = Gitter.getBranch(git, name);
         try {
-            String commitRef = gitter.createBranch(SOURCE_BRANCH);
-            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
-            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
-            snapshot.setResources(resources);
+            gitter.createBranch(SOURCE_BRANCH);
+            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
+            Set<ResourceEntry> resources = snapshot.getResources();
 
             RepositorySettings repoSettings = snapshot.getRepositorySettings();
             if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
@@ -207,9 +203,7 @@ public class SchemaController {
         // update schema
         try {
             String commitRef = gitter.commit("schema update");
-            Set<ResourceEntry> resources = Repository.loadBranch(git, name);
-            RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
-            snapshot.setResources(resources);
+            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
 
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");

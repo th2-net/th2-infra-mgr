@@ -1,6 +1,7 @@
 package com.exactpro.th2.schema.schemaeditorbe.repository;
 
 import com.exactpro.th2.schema.schemaeditorbe.Config;
+import com.exactpro.th2.schema.schemaeditorbe.models.RepositorySnapshot;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
@@ -75,9 +76,15 @@ public class Repository {
     }
 
 
-    public static Set<ResourceEntry> loadBranch(Config.GitConfig config, String branch) throws Exception {
-        String path = config.getLocalRepositoryRoot() + "/" + branch;
-        return loadBranchYMLFiles(new File(path));
+    public static RepositorySnapshot getSnapshot(Gitter gitter) throws Exception {
+
+        String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
+        String commitRef = gitter.checkout();
+        Set<ResourceEntry> resources = loadBranchYMLFiles(new File(path));
+
+        RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
+        snapshot.setResources(resources);
+        return snapshot;
     }
 
 

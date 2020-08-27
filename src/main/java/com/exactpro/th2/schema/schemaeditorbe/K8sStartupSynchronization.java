@@ -2,7 +2,10 @@ package com.exactpro.th2.schema.schemaeditorbe;
 
 import com.exactpro.th2.schema.schemaeditorbe.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.k8s.Kubernetes;
-import com.exactpro.th2.schema.schemaeditorbe.models.*;
+import com.exactpro.th2.schema.schemaeditorbe.models.RepositorySnapshot;
+import com.exactpro.th2.schema.schemaeditorbe.models.ResourceEntry;
+import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
+import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Gitter;
 import com.exactpro.th2.schema.schemaeditorbe.repository.Repository;
 import com.exactpro.th2.schema.schemaeditorbe.util.Stringifier;
@@ -100,10 +103,9 @@ public class K8sStartupSynchronization {
 
             // get repository items
             Gitter gitter = Gitter.getBranch(config.getGit(), branch);
-            gitter.checkout();
-            Set<ResourceEntry> repositoryEntries = Repository.loadBranch(config.getGit(), branch);
-            RepositorySnapshot snapshot = new RepositorySnapshot("");
-            snapshot.setResources(repositoryEntries);
+            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
+            Set<ResourceEntry> repositoryEntries = snapshot.getResources();
+
             if (snapshot.getRepositorySettings() == null || !snapshot.getRepositorySettings().isK8sPropagationEnabled()) {
                 logger.info("Ignoring schema \"{}\" as it is not configured for synchronization", branch);
                 return;

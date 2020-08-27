@@ -34,6 +34,14 @@ public class Gitter {
         this.branch = branch;
     }
 
+    public Config.GitConfig getConfig() {
+        return config;
+    }
+
+    public String getBranch() {
+        return branch;
+    }
+
     public static Gitter getBranch(Config.GitConfig config, String branch) {
 
         if (instance.get(branch) == null)
