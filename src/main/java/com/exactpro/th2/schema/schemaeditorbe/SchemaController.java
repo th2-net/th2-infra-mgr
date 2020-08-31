@@ -249,7 +249,7 @@ public class SchemaController {
                     if (k8se != null)
                         throw k8se;
                 } catch (Exception e) {
-                    logger.error("Exception provisioning resource(s) to Kubernetes ({})", e.getMessage());
+                    logger.error("Exception provisioning resource(s) to Kubernetes ({})", e);
                     throw e;
                 }
             }
@@ -258,6 +258,7 @@ public class SchemaController {
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
+            logger.error("Exception provisioning request", e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
     }
