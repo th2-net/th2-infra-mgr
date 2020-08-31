@@ -155,7 +155,7 @@ public class K8sStartupSynchronization {
             }
 
         } catch (Exception e) {
-            logger.error("Exception fetching branch list from repository");
+            logger.error("Exception fetching branch list from repository", e);
             throw new RuntimeException("Kubernetes synchronization failed");
         }
 
