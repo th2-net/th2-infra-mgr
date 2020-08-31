@@ -1,6 +1,15 @@
 git:
-  remoteRepository: "git@gitlab.exactpro.com:giorgi.mania/schema-files.git"
-  localRepositoryRoot: "/home/exp.exactpro.com/giorgi.mania/projects/schema-editor-be-runner/repository"
-  privateKeyFile: "/home/exp.exactpro.com/giorgi.mania/.ssh/scheme_designer_backend"
+  remoteRepository: "${REPOSITORY}"
+  localRepositoryRoot: "${REPOSITORY_CACHE}"
+  privateKey: "${PRIVATE_KEY}"
+  ignoreInsecureHosts: true
+kubernetes:
+  useCustomConfig: false
+  ignoreInsecureHosts: true
 
-
+  secretNames:
+    - "th2-core"
+    - "th2-solution"
+    - "rabbitmq-token-7b6xx"
+    - "cassandra"
+    - "rabbitmq"

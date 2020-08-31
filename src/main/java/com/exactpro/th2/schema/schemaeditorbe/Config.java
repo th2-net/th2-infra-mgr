@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Set;
 
 public class Config {
     public static final String CONFIG_FILE = "config.yml";
@@ -112,6 +113,7 @@ public class Config {
         private String clientKeyFile;
         private String clientCertificate;
         private String clientKey;
+        private Set<String> secretNames;
 
         public boolean useCustomConfig() {
             return useCustomConfig;
@@ -175,6 +177,14 @@ public class Config {
 
         public void setClientKey(String clientKey) {
             this.clientKey = clientKey;
+        }
+
+        public Set<String> getSecretNames() {
+            return secretNames;
+        }
+
+        public void setSecretNames(Set<String> secretNames) {
+            this.secretNames = secretNames;
         }
     }
 

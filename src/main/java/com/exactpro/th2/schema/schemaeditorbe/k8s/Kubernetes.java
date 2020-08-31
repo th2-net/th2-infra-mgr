@@ -3,29 +3,31 @@ package com.exactpro.th2.schema.schemaeditorbe.k8s;
 import com.exactpro.th2.schema.schemaeditorbe.Config;
 import com.exactpro.th2.schema.schemaeditorbe.models.ResourceType;
 import com.exactpro.th2.schema.schemaeditorbe.models.Th2CustomResource;
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.NamespaceList;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.util.*;
 
 public class Kubernetes implements Closeable {
+
+    private static final Logger logger = LoggerFactory.getLogger(Kubernetes.class);
+
+
     private static final String SCHEMA_NAMESPACE_PREFIX = "schema-";
 
     public static String formatNamespaceName(String schemaName) {
         return SCHEMA_NAMESPACE_PREFIX + schemaName;
     }
+
     public static String extractSchemaName(String nameSpaceName) {
         if (nameSpaceName.startsWith(SCHEMA_NAMESPACE_PREFIX))
             throw new IllegalArgumentException("Malformed namespace name");
@@ -40,7 +42,7 @@ public class Kubernetes implements Closeable {
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList  = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
         boolean resourceUpdated = false;
 
@@ -96,7 +98,7 @@ public class Kubernetes implements Closeable {
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList  = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
 
         if (customResources.size() > 0)
@@ -124,7 +126,7 @@ public class Kubernetes implements Closeable {
                 .build();
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList  = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
 
         Map<String, K8sCustomResource> resources = new HashMap<>();
@@ -138,7 +140,7 @@ public class Kubernetes implements Closeable {
 
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
         Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(nameSpace).withName(repoResource.getMetadata().getName());
         return r.delete();
 
@@ -159,15 +161,47 @@ public class Kubernetes implements Closeable {
     public void ensureNameSpace() {
 
         NamespaceList list = client.namespaces().list();
-        for (Namespace ns :list.getItems())
+        for (Namespace ns : list.getItems())
             if (ns.getMetadata().getName().equals(nameSpace))
                 return;
 
-            // namespace not found, create it
+        // namespace not found, create it
         Namespace n = new Namespace();
         n.setMetadata(new ObjectMeta());
         n.getMetadata().setName(nameSpace);
         client.namespaces().create(n);
+    }
+
+    public List<Secret> copySecrets() throws IOException {
+
+        List<Secret> updatedSecrets = new ArrayList<>();
+
+        Map<String, Secret> currentNamespaceSecrets = mapOf(client.secrets().list().getItems());
+        Map<String, Secret> targetNamespaceSecrets = mapOf(client.secrets().inNamespace(nameSpace).list().getItems());
+
+        for (String secretName : Config.getInstance().getKubernetes().getSecretNames()) {
+
+            Secret secret = currentNamespaceSecrets.get(secretName);
+            if (secret == null)
+                throw new IllegalStateException(String.format(
+                        "Unable to copy secret '%s' to '%s' namespace, because secret not found in current namespace",
+                        secretName, nameSpace
+                ));
+
+            if(!targetNamespaceSecrets.containsKey(secretName)){
+                secret.getMetadata().setResourceVersion(null);
+                secret.getMetadata().setNamespace(nameSpace);
+                updatedSecrets.add(client.secrets().inNamespace(nameSpace).createOrReplace(secret));
+                logger.info("Secret '{}' has been copied in namespace '{}'", secretName, nameSpace);
+            }
+        }
+        return updatedSecrets;
+    }
+
+    private Map<String, Secret> mapOf(List<Secret> secrets) {
+        Map<String, Secret> map = new HashMap<>();
+        secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
+        return map;
     }
 
 
