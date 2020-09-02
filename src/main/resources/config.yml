@@ -7,6 +7,8 @@ kubernetes:
   useCustomConfig: false
 
   secretNames:
+    - "chart-secrets"
+    - "git-chart-creds"
     - "th2-core"
     - "th2-solution"
     - "cassandra"
