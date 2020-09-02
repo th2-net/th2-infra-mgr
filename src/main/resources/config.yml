@@ -1,0 +1,13 @@
+git:
+  remoteRepository: "${REPOSITORY}"
+  localRepositoryRoot: "${REPOSITORY_LOCAL_CACHE}"
+  privateKeyFile: "${PRIVATE_KEY_FILE}"
+  ignoreInsecureHosts: true
+kubernetes:
+  useCustomConfig: false
+
+  secretNames:
+    - "th2-core"
+    - "th2-solution"
+    - "cassandra"
+    - "rabbitmq"

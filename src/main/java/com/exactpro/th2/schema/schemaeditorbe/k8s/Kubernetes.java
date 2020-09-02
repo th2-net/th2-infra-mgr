@@ -158,7 +158,7 @@ public class Kubernetes implements Closeable {
         return crdContext;
     }
 
-    public void ensureNameSpace() {
+    public void ensureNameSpace() throws IOException {
 
         NamespaceList list = client.namespaces().list();
         for (Namespace ns : list.getItems())
@@ -170,6 +170,8 @@ public class Kubernetes implements Closeable {
         n.setMetadata(new ObjectMeta());
         n.getMetadata().setName(nameSpace);
         client.namespaces().create(n);
+
+        copySecrets();
     }
 
     public List<Secret> copySecrets() throws IOException {
