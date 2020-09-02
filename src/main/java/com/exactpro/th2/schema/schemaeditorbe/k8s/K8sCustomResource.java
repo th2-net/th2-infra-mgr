@@ -1,11 +1,13 @@
 package com.exactpro.th2.schema.schemaeditorbe.k8s;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.fabric8.kubernetes.client.CustomResource;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class K8sCustomResource extends CustomResource {
 
     public static final String LABEL_SOURCE_HASH = "th2.exactpro.com/source_hash";

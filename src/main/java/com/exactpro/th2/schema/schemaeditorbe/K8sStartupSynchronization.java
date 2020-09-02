@@ -71,7 +71,7 @@ public class K8sStartupSynchronization {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e.getMessage());
+                                    logger.error("Exception updating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e);
                                 }
                             }
                         }
@@ -87,7 +87,7 @@ public class K8sStartupSynchronization {
                             entry.setName(resourceName);
                             kube.deleteCustomResource(new Th2CustomResource(entry));
                         } catch (Exception e) {
-                            logger.error("Exception deleting Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e.getMessage());
+                            logger.error("Exception deleting Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e);
                         }
             }
         } catch (Exception e) {
@@ -130,7 +130,7 @@ public class K8sStartupSynchronization {
             synchronizeNamespace(config.getKubernetes(), branch, repositoryMap);
 
         } catch (Exception e) {
-            logger.error("Exception synchronizing schema \"{}\": {}", branch, e.getMessage());
+            logger.error("Exception synchronizing schema \"{}\": {}", branch, e);
         }
     }
 
