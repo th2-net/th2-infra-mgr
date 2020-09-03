@@ -1,10 +1,16 @@
+FROM gradle:6.4-jdk11 AS gradle-image
+COPY ./ .
+RUN gradle build
+
+
+RUN mkdir /home/service
+RUN mkdir /home/service/repository
+RUN mkdir /home/service/keys
+RUN cp ./build/libs/*.jar /home/service/application.jar
+RUN cp ./build/resources/main/config.yml /home/service/
+
 FROM openjdk:12-alpine
-WORKDIR /home
-RUN mkdir th2-schema-editor-be
-WORKDIR /home/th2-schema-editor-be
-COPY ./config.yml ./
-RUN mkdir repository
-COPY *.jar ./application.jar
+COPY --from=gradle-image /home/service /home/service
+WORKDIR /home/service/
 EXPOSE 8080
-WORKDIR /home/th2-schema-editor-be/
-ENTRYPOINT ["java", "-jar", "/home/th2-schema-editor-be/application.jar"]
+ENTRYPOINT ["java", "-jar", "/home/service/application.jar"]

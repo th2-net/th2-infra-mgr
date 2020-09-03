@@ -1,17 +1,16 @@
 plugins {
 	id 'org.springframework.boot' version '2.3.2.RELEASE'
 	id 'io.spring.dependency-management' version '1.0.9.RELEASE'
-	id 'com.palantir.docker' version '0.25.0'
 	id 'java'
 }
 
 group = 'com.exactpro.th2.schema'
-version = '0.3.3'
+version = '0.4.0'
 sourceCompatibility = '11'
-def target_docker_repository = 'nexus.exactpro.com:16000/giorgi.mania'
-def docker_image_name = 'th2-schema-editor-be'
 
-apply plugin: 'com.palantir.docker'
+def docker_repository = 'nexus.exactpro.com:16000/giorgi.mania'
+def docker_image_name = 'schema-manager'
+
 apply plugin: 'distribution'
 
 repositories {
@@ -37,20 +36,13 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok:1.18.12'
 	annotationProcessor 'org.projectlombok:lombok:1.18.12'
-
 }
 
-
-docker {
-	dependsOn dockerPrepare
-	name "${target_docker_repository}/${docker_image_name}:${version}"
-	tag 'local-version', "${docker_image_name}:${version}"
-	tag 'local-latest', "${docker_image_name}:${version}"
-	tag 'remote-latest',  "${target_docker_repository}/${docker_image_name}:${version}"
-
-	copySpec.from("build/libs")
-	copySpec.from("build/resources/main/config.yml")
-
+task printProjectInfo {
+	printf("PROJECT_NAME=[%s]\n", project.name)
+	printf("PROJECT_VERSION=[%s]\n", version)
+	printf("IMAGE_NAME=[%s]\n", docker_image_name)
+	printf("DOCKER_REPOSITORY=[%s]\n", docker_repository)
 }
 
 test {
