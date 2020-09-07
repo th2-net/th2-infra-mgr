@@ -107,9 +107,18 @@ public class SchemaController {
         // create schema
         Gitter gitter = Gitter.getBranch(git, name);
         try {
-            gitter.createBranch(SOURCE_BRANCH);
+            String commitRef = gitter.createBranch(SOURCE_BRANCH);
+
+            // send repository update event
+            SchemaEventRouter router = SchemaEventRouter.getInstance();
+            RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
+            event.setSyncingK8s(true);
+            router.addEvent(event);
+
             RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
             Set<ResourceEntry> resources = snapshot.getResources();
+
+
 
             RepositorySettings repoSettings = snapshot.getRepositorySettings();
             if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
@@ -224,7 +233,9 @@ public class SchemaController {
                 logger.info("Nothing changed, leaving");
             } else {
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
-                router.addEvent(new RepositoryUpdateEvent(name, commitRef));
+                RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
+                event.setSyncingK8s(true);
+                router.addEvent(event);
 
                 RepositorySettings repoSettings = snapshot.getRepositorySettings();
                 if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())

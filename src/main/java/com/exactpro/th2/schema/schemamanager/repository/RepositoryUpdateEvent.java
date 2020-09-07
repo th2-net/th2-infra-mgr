@@ -20,11 +20,21 @@ import com.exactpro.th2.schema.schemamanager.SchemaEvent;
 public class RepositoryUpdateEvent extends SchemaEvent {
     public static final String EVENT_TYPE="repositoryUpdate";
     private String commitRef;
+    private boolean syncingK8s;
 
     public RepositoryUpdateEvent(String branch, String commitRef) {
         super(branch);
         this.commitRef = commitRef;
     }
+
+    public boolean isSyncingK8s() {
+        return syncingK8s;
+    }
+
+    public void setSyncingK8s(boolean syncingK8s) {
+        this.syncingK8s = syncingK8s;
+    }
+
     @Override
     public String getEventType() {
         return EVENT_TYPE;

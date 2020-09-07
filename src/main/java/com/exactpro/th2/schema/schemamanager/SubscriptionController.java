@@ -15,6 +15,7 @@
  */
 package com.exactpro.th2.schema.schemamanager;
 
+import com.exactpro.th2.schema.schemamanager.repository.RepositoryUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -54,7 +55,7 @@ public class SubscriptionController {
                     Subscription subscription = null;
                 };
                 ref.subscription = router.getObservable()
-                        .filter(event -> event.getSchema().equals(schemaName))
+                        .filter(event -> (event.getSchema().equals(schemaName) && event.getEventType().equals(RepositoryUpdateEvent.EVENT_TYPE)))
                         .observeOn(Schedulers.io())
                         .subscribe(event -> {
 

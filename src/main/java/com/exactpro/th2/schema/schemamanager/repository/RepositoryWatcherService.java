@@ -47,7 +47,7 @@ public class RepositoryWatcherService {
             Map<String, String> commits = Gitter.getAllBranchesCommits(config);
             commits.forEach((branch, commitRef) -> {
 
-                if (!(commitHistory.isEmpty() || commitHistory.getOrDefault(branch, "").equals(commitRef))) {
+                if (!(branch.equals("master") || commitHistory.isEmpty() || commitHistory.getOrDefault(branch, "").equals(commitRef))) {
                     logger.info("New commit \"{}\" detected for branch \"{}\"", commitRef, branch);
 
                     RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
