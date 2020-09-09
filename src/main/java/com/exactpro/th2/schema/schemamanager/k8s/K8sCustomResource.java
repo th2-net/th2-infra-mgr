@@ -28,11 +28,20 @@ public class K8sCustomResource extends CustomResource {
     public static final String LABEL_SOURCE_HASH = "th2.exactpro.com/source_hash";
     public static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
     private Object spec;
+    public Object status;
     public void setSpec(Object spec) {
         this.spec = spec;
     }
     public Object getSpec() {
         return spec;
+    }
+
+    public Object getStatus() {
+        return status;
+    }
+
+    public void setStatus(Object status) {
+        this.status = status;
     }
 
     @JsonIgnore

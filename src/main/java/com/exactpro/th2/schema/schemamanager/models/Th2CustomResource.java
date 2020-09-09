@@ -38,6 +38,7 @@ public class Th2CustomResource {
     private String hash;
 
     public Th2CustomResource() {
+        this.setApiVersion(API_VERSION);
     }
 
     public Th2CustomResource(ResourceEntry data) {

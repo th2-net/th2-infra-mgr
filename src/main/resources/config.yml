@@ -5,6 +5,7 @@ git:
   ignoreInsecureHosts: true
 kubernetes:
   useCustomConfig: false
+  namespacePrefix: "${NAMESPACE_PREFIX}"
 
   secretNames:
     - "chart-secrets"

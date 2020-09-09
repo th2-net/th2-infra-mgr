@@ -129,6 +129,7 @@ public class Config {
         private String clientCertificate;
         private String clientKey;
         private Set<String> secretNames;
+        private String namespacePrefix;
 
         public boolean useCustomConfig() {
             return useCustomConfig;
@@ -200,6 +201,14 @@ public class Config {
 
         public void setSecretNames(Set<String> secretNames) {
             this.secretNames = secretNames;
+        }
+
+        public String getNamespacePrefix() {
+            return namespacePrefix;
+        }
+
+        public void setNamespacePrefix(String namespacePrefix) {
+            this.namespacePrefix = namespacePrefix;
         }
     }
 

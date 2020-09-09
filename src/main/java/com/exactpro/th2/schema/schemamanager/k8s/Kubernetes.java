@@ -35,18 +35,16 @@ import java.util.*;
 public class Kubernetes implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(Kubernetes.class);
+    private String namespacePrefix;
 
-
-    private static final String SCHEMA_NAMESPACE_PREFIX = "schema-";
-
-    public static String formatNamespaceName(String schemaName) {
-        return SCHEMA_NAMESPACE_PREFIX + schemaName;
+    private String formatNamespaceName(String schemaName) {
+        return namespacePrefix + schemaName;
     }
 
-    public static String extractSchemaName(String nameSpaceName) {
-        if (nameSpaceName.startsWith(SCHEMA_NAMESPACE_PREFIX))
+    private String extractSchemaName(String namespaceName) {
+        if (namespaceName.startsWith(namespacePrefix))
             throw new IllegalArgumentException("Malformed namespace name");
-        String schemaName = nameSpaceName.substring(SCHEMA_NAMESPACE_PREFIX.length());
+        String schemaName = namespaceName.substring(namespacePrefix.length());
         if (schemaName.equals(""))
             throw new IllegalArgumentException("Malformed namespace name");
         return schemaName;
@@ -57,7 +55,7 @@ public class Kubernetes implements Closeable {
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
         boolean resourceUpdated = false;
 
@@ -68,7 +66,7 @@ public class Kubernetes implements Closeable {
                     k8sResource.setSpec(repoResource.getSpec());
                     k8sResource.setSourceHashLabel(repoResource.getSourceHash());
                     k8sResource.getMetadata().setResourceVersion(null);
-                    mixedOperation.inNamespace(nameSpace).createOrReplace(k8sResource);
+                    mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                     resourceUpdated = true;
                     break;
@@ -79,13 +77,13 @@ public class Kubernetes implements Closeable {
             K8sCustomResource k8sResource = new K8sCustomResource();
             ObjectMeta metaData = new ObjectMetaBuilder()
                     .withName(repoResource.getMetadata().getName())
-                    .withNamespace(nameSpace)
+                    .withNamespace(namespace)
                     .build();
             k8sResource.setMetadata(metaData);
             k8sResource.setSourceHashLabel(repoResource.getSourceHash());
             k8sResource.setKind(repoResource.getKind());
             k8sResource.setSpec(repoResource.getSpec());
-            mixedOperation.inNamespace(nameSpace).create(k8sResource);
+            mixedOperation.inNamespace(namespace).create(k8sResource);
 
         }
     }
@@ -98,13 +96,13 @@ public class Kubernetes implements Closeable {
         K8sCustomResource k8sResource = new K8sCustomResource();
         ObjectMeta metaData = new ObjectMetaBuilder()
                 .withName(repoResource.getMetadata().getName())
-                .withNamespace(nameSpace)
+                .withNamespace(namespace)
                 .build();
         k8sResource.setMetadata(metaData);
         k8sResource.setSourceHashLabel(repoResource.getSourceHash());
         k8sResource.setKind(repoResource.getKind());
         k8sResource.setSpec(repoResource.getSpec());
-        mixedOperation.inNamespace(nameSpace).create(k8sResource);
+        mixedOperation.inNamespace(namespace).create(k8sResource);
     }
 
 
@@ -113,7 +111,7 @@ public class Kubernetes implements Closeable {
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
 
         if (customResources.size() > 0)
@@ -123,7 +121,7 @@ public class Kubernetes implements Closeable {
                     k8sResource.setSpec(repoResource.getSpec());
                     k8sResource.setSourceHashLabel(repoResource.getSourceHash());
                     k8sResource.getMetadata().setResourceVersion(null);
-                    mixedOperation.inNamespace(nameSpace).createOrReplace(k8sResource);
+                    mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                     return;
                 }
@@ -141,7 +139,7 @@ public class Kubernetes implements Closeable {
                 .build();
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(nameSpace).list();
+        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
 
         Map<String, K8sCustomResource> resources = new HashMap<>();
@@ -156,7 +154,7 @@ public class Kubernetes implements Closeable {
         CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
         var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(nameSpace).withName(repoResource.getMetadata().getName());
+        Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
         return r.delete();
 
     }
@@ -177,13 +175,13 @@ public class Kubernetes implements Closeable {
 
         NamespaceList list = client.namespaces().list();
         for (Namespace ns : list.getItems())
-            if (ns.getMetadata().getName().equals(nameSpace))
+            if (ns.getMetadata().getName().equals(namespace))
                 return;
 
         // namespace not found, create it
         Namespace n = new Namespace();
         n.setMetadata(new ObjectMeta());
-        n.getMetadata().setName(nameSpace);
+        n.getMetadata().setName(namespace);
         client.namespaces().create(n);
 
         copySecrets();
@@ -194,7 +192,7 @@ public class Kubernetes implements Closeable {
         List<Secret> updatedSecrets = new ArrayList<>();
 
         Map<String, Secret> currentNamespaceSecrets = mapOf(client.secrets().list().getItems());
-        Map<String, Secret> targetNamespaceSecrets = mapOf(client.secrets().inNamespace(nameSpace).list().getItems());
+        Map<String, Secret> targetNamespaceSecrets = mapOf(client.secrets().inNamespace(namespace).list().getItems());
 
         for (String secretName : Config.getInstance().getKubernetes().getSecretNames()) {
 
@@ -202,18 +200,19 @@ public class Kubernetes implements Closeable {
             if (secret == null)
                 throw new IllegalStateException(String.format(
                         "Unable to copy secret '%s' to '%s' namespace, because secret not found in current namespace",
-                        secretName, nameSpace
+                        secretName, namespace
                 ));
 
             if(!targetNamespaceSecrets.containsKey(secretName)){
                 secret.getMetadata().setResourceVersion(null);
-                secret.getMetadata().setNamespace(nameSpace);
-                updatedSecrets.add(client.secrets().inNamespace(nameSpace).createOrReplace(secret));
-                logger.info("Secret '{}' has been copied in namespace '{}'", secretName, nameSpace);
+                secret.getMetadata().setNamespace(namespace);
+                updatedSecrets.add(client.secrets().inNamespace(namespace).createOrReplace(secret));
+                logger.info("Secret '{}' has been copied in namespace '{}'", secretName, namespace);
             }
         }
         return updatedSecrets;
     }
+
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
         Map<String, Secret> map = new HashMap<>();
@@ -223,11 +222,12 @@ public class Kubernetes implements Closeable {
 
 
     private KubernetesClient client;
-    private String nameSpace;
+    private String namespace;
     public Kubernetes(Config.K8sConfig config, String schemaName) {
 
         // if we are not using custom configutation, let fabric8 handle initialization
-        this.nameSpace = Kubernetes.formatNamespaceName(schemaName);
+        this.namespacePrefix = config.getNamespacePrefix();
+        this.namespace = formatNamespaceName(schemaName);
         if (!config.useCustomConfig()) {
             client = new DefaultKubernetesClient();
             return;
