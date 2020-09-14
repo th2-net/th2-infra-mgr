@@ -5,11 +5,11 @@ plugins {
 }
 
 group = 'com.exactpro.th2.schema'
-version = '0.4.1'
+version = '0.5.0'
 sourceCompatibility = '11'
 
-def docker_repository = 'nexus.exactpro.com:16000/giorgi.mania'
-def docker_image_name = 'schema-manager'
+def docker_repository = 'nexus.exactpro.com:16000'
+def docker_image_name = 'infra-mgr'
 
 apply plugin: 'distribution'
 
