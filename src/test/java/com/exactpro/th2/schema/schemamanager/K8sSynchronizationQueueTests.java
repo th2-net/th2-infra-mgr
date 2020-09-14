@@ -16,7 +16,8 @@
 package com.exactpro.th2.schema.schemamanager;
 
 
-import com.exactpro.th2.schema.schemamanager.K8sSynchronizationJobQueue.Job;
+import com.exactpro.th2.schema.schemamanager.k8s.K8sSynchronizationJobQueue;
+import com.exactpro.th2.schema.schemamanager.k8s.K8sSynchronizationJobQueue.Job;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;

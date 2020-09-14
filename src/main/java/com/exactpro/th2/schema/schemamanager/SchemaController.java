@@ -71,10 +71,13 @@ public class SchemaController {
         Config.GitConfig config = Config.getInstance().getGit();
         Gitter gitter = Gitter.getBranch(config, name);
         try {
+            gitter.lock();
             RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
             return snapshot;
         } catch (Exception e) {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+        } finally {
+            gitter.unlock();
         }
     }
 
@@ -107,17 +110,24 @@ public class SchemaController {
         // create schema
         Gitter gitter = Gitter.getBranch(git, name);
         try {
-            String commitRef = gitter.createBranch(SOURCE_BRANCH);
+            RepositorySnapshot snapshot;
+            Set<ResourceEntry> resources;
+            String commitRef;
+            try {
+                gitter.lock();
+                commitRef = gitter.createBranch(SOURCE_BRANCH);
+
+                snapshot = Repository.getSnapshot(gitter);
+                resources = snapshot.getResources();
+            } finally {
+                gitter.unlock();
+            }
 
             // send repository update event
             SchemaEventRouter router = SchemaEventRouter.getInstance();
             RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
             event.setSyncingK8s(true);
             router.addEvent(event);
-
-            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
-            Set<ResourceEntry> resources = snapshot.getResources();
-
 
 
             RepositorySettings repoSettings = snapshot.getRepositorySettings();
@@ -201,43 +211,67 @@ public class SchemaController {
         if (!branches.contains(name))
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
 
-        Gitter gitter = Gitter.getBranch(git, name);
-        gitter.checkout();
-
-        // apply operations
-        try {
-            for (RequestEntry entry : operations) {
-                switch (entry.getOperation()) {
-                    case add:
-                        Repository.add(git, name, entry.getPayload());
-                        break;
-                    case update:
-                        Repository.update(git, name, entry.getPayload());
-                        break;
-                    case remove:
-                        Repository.remove(git, name, entry.getPayload());
-                        break;
-                }
-            }
-        } catch (Exception e) {
-            gitter.reset();
-            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
-        }
-
         // update schema
         try {
-            String commitRef = gitter.commit("schema update");
-            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
+            Gitter gitter = Gitter.getBranch(git, name);
+
+            String commitRef;
+            RepositorySnapshot snapshot;
+
+            boolean wasPropagated = false;
+            try {
+                gitter.lock();
+                gitter.checkout();
+                snapshot = Repository.getSnapshot(gitter);
+                RepositorySettings repoSettings = snapshot.getRepositorySettings();
+                if (repoSettings != null && repoSettings.isK8sPropagationEnabled())
+                    wasPropagated = true;
+
+                // apply operations
+                try {
+                    for (RequestEntry entry : operations) {
+                        switch (entry.getOperation()) {
+                            case add:
+                                Repository.add(git, name, entry.getPayload());
+                                break;
+                            case update:
+                                Repository.update(git, name, entry.getPayload());
+                                break;
+                            case remove:
+                                Repository.remove(git, name, entry.getPayload());
+                                break;
+                        }
+                    }
+                } catch (Exception e) {
+                    gitter.reset();
+                    throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+                }
+
+                commitRef = gitter.commit("schema update");
+                snapshot = Repository.getSnapshot(gitter);
+            } finally {
+                gitter.unlock();
+            }
 
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");
             } else {
+                RepositorySettings repoSettings = snapshot.getRepositorySettings();
+
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
+
+                if (repoSettings != null && repoSettings.isK8sPropagationEnabled() && !wasPropagated) {
+                    // we need to resynchronize whole schema
+                    // delegate this job to K8sSynchronization
+                    event.setSyncingK8s(false);
+                    router.addEvent(event);
+                    return snapshot;
+                }
+
                 event.setSyncingK8s(true);
                 router.addEvent(event);
 
-                RepositorySettings repoSettings = snapshot.getRepositorySettings();
                 if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
                     return snapshot;
 
@@ -266,10 +300,10 @@ public class SchemaController {
                                 if (k8se == null)
                                     k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
                                 k8se.addItem(entry.getPayload());
-                                logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
+                                logger.error("Exception provisioning {} resource \"{}\" to Kubernetes"
                                         , entry.getPayload().getKind().kind()
                                         , entry.getPayload().getName()
-                                        , e.getMessage());
+                                        , e);
                             }
                         }
                     if (k8se != null)

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.schema.schemamanager;
+package com.exactpro.th2.schema.schemamanager.k8s;
 
 import java.util.HashMap;
 import java.util.Iterator;

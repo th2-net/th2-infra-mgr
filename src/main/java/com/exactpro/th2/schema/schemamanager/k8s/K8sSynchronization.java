@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.schema.schemamanager;
+package com.exactpro.th2.schema.schemamanager.k8s;
 
-import com.exactpro.th2.schema.schemamanager.k8s.K8sCustomResource;
-import com.exactpro.th2.schema.schemamanager.k8s.Kubernetes;
+import com.exactpro.th2.schema.schemamanager.Config;
+import com.exactpro.th2.schema.schemamanager.SchemaEventRouter;
 import com.exactpro.th2.schema.schemamanager.models.RepositorySnapshot;
 import com.exactpro.th2.schema.schemamanager.models.ResourceEntry;
 import com.exactpro.th2.schema.schemamanager.models.ResourceType;
@@ -44,12 +44,15 @@ public class K8sSynchronization {
     private static final int SYNC_PARALELIZATION_THREADS = 3;
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
     private Config config;
+    private static volatile boolean startupSynchronizationComplete;
+
     private K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
     private void synchronizeNamespace(String schemaName, Map<ResourceType, Map<String, ResourceEntry>> repositoryEntries) throws Exception {
 
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName);) {
 
+            K8sResourceCache cache = K8sResourceCache.INSTANCE;
             kube.ensureNameSpace();
 
             // load custom resources from k8s
@@ -66,6 +69,8 @@ public class K8sSynchronization {
 
                     for (ResourceEntry entry: entries.values()) {
                         String resourceName = entry.getName();
+                        // add resource to cache
+                        cache.add(kube.formatNamespaceName(schemaName), entry);
 
                         // check repository items against k8s
                         if (!customResources.containsKey(resourceName)) {
@@ -122,7 +127,15 @@ public class K8sSynchronization {
 
             // get repository items
             Gitter gitter = Gitter.getBranch(config.getGit(), branch);
-            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
+            RepositorySnapshot snapshot;
+            try {
+                gitter.lock();
+                gitter.checkout();
+                snapshot = Repository.getSnapshot(gitter);
+            } finally {
+                gitter.unlock();
+            }
+
             Set<ResourceEntry> repositoryEntries = snapshot.getResources();
 
             if (snapshot.getRepositorySettings() == null || !snapshot.getRepositorySettings().isK8sPropagationEnabled()) {
@@ -178,6 +191,7 @@ public class K8sSynchronization {
             //throw new RuntimeException("Kubernetes synchronization failed");
         }
 
+        startupSynchronizationComplete = true;
         logger.info("Kubernetes synchronization phase complete");
 
 
@@ -213,10 +227,15 @@ public class K8sSynchronization {
                 jobQueue.completeJob(job);
 
             } catch (InterruptedException e) {
+                logger.info("Interrupt signal received. Exiting synchronization thread");
                 break;
             }
         }
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
     }
 
+
+    public static boolean isStartupSynchronizationComplete() {
+        return startupSynchronizationComplete;
+    }
 }

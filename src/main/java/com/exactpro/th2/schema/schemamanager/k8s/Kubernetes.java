@@ -20,29 +20,29 @@ import com.exactpro.th2.schema.schemamanager.models.ResourceType;
 import com.exactpro.th2.schema.schemamanager.models.Th2CustomResource;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.ResourceNotFoundException;
+import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(Kubernetes.class);
     private String namespacePrefix;
 
-    private String formatNamespaceName(String schemaName) {
+    public String formatNamespaceName(String schemaName) {
         return namespacePrefix + schemaName;
     }
 
-    private String extractSchemaName(String namespaceName) {
-        if (namespaceName.startsWith(namespacePrefix))
+    public String extractSchemaName(String namespaceName) {
+        if (!namespaceName.startsWith(namespacePrefix))
             throw new IllegalArgumentException("Malformed namespace name");
         String schemaName = namespaceName.substring(namespacePrefix.length());
         if (schemaName.equals(""))
@@ -51,28 +51,73 @@ public class Kubernetes implements Closeable {
     }
 
     public void createOrReplaceCustomResource(Th2CustomResource repoResource) {
+        createOrReplaceCustomResource(repoResource, namespace);
+    }
 
-        CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
+    public void createOrReplaceCustomResource(Th2CustomResource repoResource, String namespace) {
 
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
-        List<K8sCustomResource> customResources = customResourceList.getItems();
-        boolean resourceUpdated = false;
+        K8sResourceCache cache = K8sResourceCache.INSTANCE;
+        Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
 
-        if (customResources.size() > 0)
-            for (K8sCustomResource k8sResource : customResources)
-                if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
+        try {
+            lock.lock();
 
-                    k8sResource.setSpec(repoResource.getSpec());
-                    k8sResource.setSourceHashLabel(repoResource.getSourceHash());
-                    k8sResource.getMetadata().setResourceVersion(null);
-                    mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-                    resourceUpdated = true;
-                    break;
-                }
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
+            List<K8sCustomResource> customResources = customResourceList.getItems();
+            boolean resourceUpdated = false;
 
-        if (!resourceUpdated) {
+            if (customResources.size() > 0)
+                for (K8sCustomResource k8sResource : customResources)
+                    if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
+
+                        k8sResource.setSpec(repoResource.getSpec());
+                        k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                        k8sResource.getMetadata().setResourceVersion(null);
+                        mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+
+                        cache.add(namespace, k8sResource);
+                        resourceUpdated = true;
+                        break;
+                    }
+
+            if (!resourceUpdated) {
+
+                K8sCustomResource k8sResource = new K8sCustomResource();
+                ObjectMeta metaData = new ObjectMetaBuilder()
+                        .withName(repoResource.getMetadata().getName())
+                        .withNamespace(namespace)
+                        .build();
+                k8sResource.setMetadata(metaData);
+                k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                k8sResource.setKind(repoResource.getKind());
+                k8sResource.setSpec(repoResource.getSpec());
+                mixedOperation.inNamespace(namespace).create(k8sResource);
+
+                cache.add(namespace, k8sResource);
+            }
+
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void createCustomResource(Th2CustomResource repoResource) {
+        createCustomResource(repoResource, namespace);
+    }
+
+    public void createCustomResource(Th2CustomResource repoResource, String namespace) {
+
+        K8sResourceCache cache = K8sResourceCache.INSTANCE;
+        Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
+
+        try {
+            lock.lock();
+
+            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
 
             K8sCustomResource k8sResource = new K8sCustomResource();
             ObjectMeta metaData = new ObjectMetaBuilder()
@@ -85,47 +130,49 @@ public class Kubernetes implements Closeable {
             k8sResource.setSpec(repoResource.getSpec());
             mixedOperation.inNamespace(namespace).create(k8sResource);
 
+            cache.add(namespace, k8sResource);
+
+        } finally {
+            lock.unlock();
         }
-    }
-
-    public void createCustomResource(Th2CustomResource repoResource) {
-
-        CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-
-        K8sCustomResource k8sResource = new K8sCustomResource();
-        ObjectMeta metaData = new ObjectMetaBuilder()
-                .withName(repoResource.getMetadata().getName())
-                .withNamespace(namespace)
-                .build();
-        k8sResource.setMetadata(metaData);
-        k8sResource.setSourceHashLabel(repoResource.getSourceHash());
-        k8sResource.setKind(repoResource.getKind());
-        k8sResource.setSpec(repoResource.getSpec());
-        mixedOperation.inNamespace(namespace).create(k8sResource);
     }
 
 
     public void replaceCustomResource(Th2CustomResource repoResource) throws ResourceNotFoundException {
+        replaceCustomResource(repoResource, namespace);
+    }
 
-        CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
-        List<K8sCustomResource> customResources = customResourceList.getItems();
+    public void replaceCustomResource(Th2CustomResource repoResource, String namespace) throws ResourceNotFoundException {
 
-        if (customResources.size() > 0)
-            for (K8sCustomResource k8sResource : customResources)
-                if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
+        K8sResourceCache cache = K8sResourceCache.INSTANCE;
+        Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
 
-                    k8sResource.setSpec(repoResource.getSpec());
-                    k8sResource.setSourceHashLabel(repoResource.getSourceHash());
-                    k8sResource.getMetadata().setResourceVersion(null);
-                    mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+        try {
+            lock.lock();
+            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-                    return;
-                }
-        throw new ResourceNotFoundException("Resource to replace does not exists");
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
+            List<K8sCustomResource> customResources = customResourceList.getItems();
+
+            if (customResources.size() > 0)
+                for (K8sCustomResource k8sResource : customResources)
+                    if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
+
+                        k8sResource.setSpec(repoResource.getSpec());
+                        k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                        k8sResource.getMetadata().setResourceVersion(null);
+                        mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+
+                        cache.add(namespace, k8sResource);
+                        return;
+                    }
+            throw new ResourceNotFoundException("Resource to replace does not exists");
+
+        } finally {
+            lock.unlock();
+        }
     }
 
 
@@ -148,14 +195,30 @@ public class Kubernetes implements Closeable {
         return resources;
     }
 
-
     public boolean deleteCustomResource(Th2CustomResource repoResource) {
+        return deleteCustomResource(repoResource, namespace);
+    }
 
-        CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
+    public boolean deleteCustomResource(Th2CustomResource repoResource, String namespace) {
 
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-        Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
-        return r.delete();
+        K8sResourceCache cache = K8sResourceCache.INSTANCE;
+        Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
+
+        try {
+            lock.lock();
+
+            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
+
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
+            boolean result = r.delete();
+
+            cache.remove(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
+            return result;
+
+        } finally {
+            lock.unlock();
+        }
 
     }
 
@@ -211,6 +274,42 @@ public class Kubernetes implements Closeable {
             }
         }
         return updatedSecrets;
+    }
+
+
+    public List<Watch> registerWatchers(Watcher watcher) {
+
+        List<Watch> watches = new LinkedList<>();
+        try {
+
+            for (ResourceType t : ResourceType.values())
+                if (t.isK8sResource()) {
+                    Th2CustomResource resource = new Th2CustomResource();
+                    resource.setKind(t.kind());
+
+                    KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
+                    CustomResourceDefinitionContext crdContext = getCrdContext(resource);
+
+                    var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+                    Watch watch =  mixedOperation.inAnyNamespace().watch(new Watcher<>() {
+                        @Override
+                        public void eventReceived(Action action, K8sCustomResource resource) {
+                            if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
+                                watcher.eventReceived(action, resource);
+                        }
+
+                        @Override
+                        public void onClose(KubernetesClientException cause) {
+                            watcher.onClose(cause);
+                        }
+                    });
+                    watches.add(watch);
+                }
+
+        } catch (Exception e) {
+            logger.error("exception :", e);
+        }
+        return watches;
     }
 
 

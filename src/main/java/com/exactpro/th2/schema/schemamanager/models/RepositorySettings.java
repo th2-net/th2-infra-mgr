@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class RepositorySettings {
     private Boolean k8sPropagationEnabled;
+    private Boolean k8sGovernanceEnabled;
 
     @JsonProperty("k8s-propagation")
     public boolean isK8sPropagationEnabled() {
@@ -28,5 +29,15 @@ public class RepositorySettings {
     @JsonProperty("k8s-propagation")
     public void setK8sPropagationEnabled(boolean k8sPropagationEnabled) {
         this.k8sPropagationEnabled = k8sPropagationEnabled;
+    }
+
+    @JsonProperty("k8s-governance")
+    public Boolean isK8sGovernanceEnabled() {
+        return k8sGovernanceEnabled == null ? false : k8sGovernanceEnabled;
+    }
+
+    @JsonProperty("k8s-governance")
+    public void setK8sGovernanceEnabled(Boolean k8sGovernanceEnabled) {
+        this.k8sGovernanceEnabled = k8sGovernanceEnabled;
     }
 }

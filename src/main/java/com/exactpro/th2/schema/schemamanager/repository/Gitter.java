@@ -36,6 +36,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 public class Gitter {
@@ -43,10 +45,12 @@ public class Gitter {
     private static volatile Map<String, Gitter> instance = new HashMap<>();
     private Config.GitConfig config;
     private String branch;
+    private Lock lock;
 
     private Gitter(Config.GitConfig config, String branch) {
         this.config = config;
         this.branch = branch;
+        this.lock = new ReentrantLock();
     }
 
     public Config.GitConfig getConfig() {
@@ -55,6 +59,14 @@ public class Gitter {
 
     public String getBranch() {
         return branch;
+    }
+
+    public void lock() {
+        lock.lock();
+    }
+
+    public void unlock() {
+        lock.unlock();
     }
 
     public static Gitter getBranch(Config.GitConfig config, String branch) {
