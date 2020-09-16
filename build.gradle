@@ -5,11 +5,8 @@ plugins {
 }
 
 group = 'com.exactpro.th2.schema'
-version = '0.5.0'
+version = '0.5.1'
 sourceCompatibility = '11'
-
-def docker_repository = 'nexus.exactpro.com:16000'
-def docker_image_name = 'infra-mgr'
 
 apply plugin: 'distribution'
 
@@ -41,8 +38,6 @@ dependencies {
 task printProjectInfo {
 	printf("PROJECT_NAME=[%s]\n", project.name)
 	printf("PROJECT_VERSION=[%s]\n", version)
-	printf("IMAGE_NAME=[%s]\n", docker_image_name)
-	printf("DOCKER_REPOSITORY=[%s]\n", docker_repository)
 }
 
 test {

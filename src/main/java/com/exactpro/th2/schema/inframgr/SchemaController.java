@@ -19,6 +19,7 @@ import com.exactpro.th2.schema.inframgr.errors.BadRequestException;
 import com.exactpro.th2.schema.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.schema.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.schema.inframgr.errors.ServiceException;
+import com.exactpro.th2.schema.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.schema.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.schema.inframgr.models.*;
@@ -137,7 +138,7 @@ public class SchemaController {
             //synchronize with k8s
             try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
-                kube.ensureNameSpace();
+                SchemaInitializer.ensureSchema(name, kube);
                 K8sProvisioningException k8se = null;
 
                 for (ResourceEntry entry : resources)
@@ -278,7 +279,7 @@ public class SchemaController {
                 //synchronize with k8s
                 try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
 
-                    kube.ensureNameSpace();
+                    SchemaInitializer.ensureSchema(name, kube);
                     K8sProvisioningException k8se = null;
 
                     for (RequestEntry entry : operations)

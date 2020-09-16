@@ -24,17 +24,13 @@ import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.internal.KubernetesDeserializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
 
-    private static final Logger logger = LoggerFactory.getLogger(Kubernetes.class);
     private String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
@@ -222,8 +218,8 @@ public class Kubernetes implements Closeable {
 
     }
 
-
     private CustomResourceDefinitionContext getCrdContext(Th2CustomResource resource) {
+
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
                 .withGroup(resource.getApiGroup())
                 .withVersion(resource.getVersion())
@@ -234,88 +230,67 @@ public class Kubernetes implements Closeable {
         return crdContext;
     }
 
-    public void ensureNameSpace() throws IOException {
+    public boolean existsNamespace() {
 
         NamespaceList list = client.namespaces().list();
         for (Namespace ns : list.getItems())
             if (ns.getMetadata().getName().equals(namespace))
-                return;
+                return true;
+        return false;
+    }
 
-        // namespace not found, create it
+    public void createNamespace() {
+
         Namespace n = new Namespace();
         n.setMetadata(new ObjectMeta());
         n.getMetadata().setName(namespace);
         client.namespaces().create(n);
-
-        copySecrets();
     }
 
-    public List<Secret> copySecrets() throws IOException {
 
-        List<Secret> updatedSecrets = new ArrayList<>();
-
-        Map<String, Secret> currentNamespaceSecrets = mapOf(client.secrets().list().getItems());
-        Map<String, Secret> targetNamespaceSecrets = mapOf(client.secrets().inNamespace(namespace).list().getItems());
-
-        for (String secretName : Config.getInstance().getKubernetes().getSecretNames()) {
-
-            Secret secret = currentNamespaceSecrets.get(secretName);
-            if (secret == null)
-                throw new IllegalStateException(String.format(
-                        "Unable to copy secret '%s' to '%s' namespace, because secret not found in current namespace",
-                        secretName, namespace
-                ));
-
-            if(!targetNamespaceSecrets.containsKey(secretName)){
-                secret.getMetadata().setResourceVersion(null);
-                secret.getMetadata().setNamespace(namespace);
-                updatedSecrets.add(client.secrets().inNamespace(namespace).createOrReplace(secret));
-                logger.info("Secret '{}' has been copied in namespace '{}'", secretName, namespace);
-            }
-        }
-        return updatedSecrets;
+    public void createOrReplaceConfigMap(ConfigMap configMap) {
+        configMap.getMetadata().setResourceVersion(null);
+        configMap.getMetadata().setNamespace(namespace);
+        client.configMaps().inNamespace(namespace).createOrReplace(configMap);
     }
 
 
     public List<Watch> registerWatchers(Watcher watcher) {
 
         List<Watch> watches = new LinkedList<>();
-        try {
 
-            for (ResourceType t : ResourceType.values())
-                if (t.isK8sResource()) {
-                    Th2CustomResource resource = new Th2CustomResource();
-                    resource.setKind(t.kind());
+        for (ResourceType t : ResourceType.values())
+            if (t.isK8sResource()) {
+                Th2CustomResource resource = new Th2CustomResource();
+                resource.setKind(t.kind());
 
-                    KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
-                    CustomResourceDefinitionContext crdContext = getCrdContext(resource);
+                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
+                CustomResourceDefinitionContext crdContext = getCrdContext(resource);
 
-                    var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-                    Watch watch =  mixedOperation.inAnyNamespace().watch(new Watcher<>() {
-                        @Override
-                        public void eventReceived(Action action, K8sCustomResource resource) {
-                            if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
-                                watcher.eventReceived(action, resource);
-                        }
+                var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+                Watch watch =  mixedOperation.inAnyNamespace().watch(new Watcher<>() {
+                    @Override
+                    public void eventReceived(Action action, K8sCustomResource resource) {
+                        if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
+                            watcher.eventReceived(action, resource);
+                    }
 
-                        @Override
-                        public void onClose(KubernetesClientException cause) {
-                            watcher.onClose(cause);
-                        }
-                    });
-                    watches.add(watch);
-                }
+                    @Override
+                    public void onClose(KubernetesClientException cause) {
+                        watcher.onClose(cause);
+                    }
+                });
+                watches.add(watch);
+            }
 
-        } catch (Exception e) {
-            logger.error("exception :", e);
-        }
         return watches;
     }
 
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
         Map<String, Secret> map = new HashMap<>();
-        secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
+        if (secrets != null)
+            secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
         return map;
     }
 
@@ -327,6 +302,8 @@ public class Kubernetes implements Closeable {
         // if we are not using custom configutation, let fabric8 handle initialization
         this.namespacePrefix = config.getNamespacePrefix();
         this.namespace = formatNamespaceName(schemaName);
+        this._currentNamespace = new CurrentNamespace();
+
         if (!config.useCustomConfig()) {
             client = new DefaultKubernetesClient();
             return;
@@ -357,8 +334,38 @@ public class Kubernetes implements Closeable {
         client = new DefaultKubernetesClient(configBuilder.build());
     }
 
+    public Map<String, Secret> getSecrets() {
+        return mapOf(client.secrets().inNamespace(namespace).list().getItems());
+    }
+
+    public Secret createOrReplaceSecret(Secret secret) {
+        secret.getMetadata().setResourceVersion(null);
+        secret.getMetadata().setNamespace(namespace);
+        return client.secrets().inNamespace(namespace).createOrReplace(secret);
+    }
+
+    public String getNamespaceName() {
+        return namespace;
+    }
+
     @Override
     public void close() {
         client.close();
+    }
+
+    private CurrentNamespace _currentNamespace;
+    public  CurrentNamespace currentNamespace() {
+        return _currentNamespace;
+    }
+
+    public final class CurrentNamespace {
+        public ConfigMap getConfigMap(String name) {
+            ConfigMap configMap = client.configMaps().withName(name).get();
+            return configMap;
+        }
+
+        public Map<String, Secret> getSecrets() {
+            return mapOf(client.secrets().list().getItems());
+        }
     }
 }

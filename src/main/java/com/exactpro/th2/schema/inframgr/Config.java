@@ -15,6 +15,7 @@
  */
 package com.exactpro.th2.schema.inframgr;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -44,6 +45,9 @@ public class Config {
             File configFile = new File(CONFIG_FILE);
             String contents = stringSubstitutor.replace(new String(Files.readAllBytes(configFile.toPath())));
             mapper.readerForUpdating(instance).readValue(contents);
+
+            if (instance.rabbitmq == null)
+                instance.rabbitmq = new RabbitMQConfig();
 
         } catch(UnrecognizedPropertyException e) {
             Logger logger = LoggerFactory.getLogger(Config.class);
@@ -119,6 +123,55 @@ public class Config {
         }
     }
 
+    public static class RabbitMQConfig {
+        private String host;
+        private String port;
+        private String user;
+        private String password;
+        private String vhostPrefix;
+
+        public String getHost() {
+            return host;
+        }
+
+        public void setHost(String host) {
+            this.host = host;
+        }
+
+        public String getPort() {
+            return port;
+        }
+
+        public void setPort(String port) {
+            this.port = port;
+        }
+
+        public String getUser() {
+            return user;
+        }
+
+        public void setUser(String user) {
+            this.user = user;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getVhostPrefix() {
+            return vhostPrefix;
+        }
+
+        public void setVhostPrefix(String vhostPrefix) {
+            this.vhostPrefix = vhostPrefix;
+        }
+    }
+
+
     public static class K8sConfig {
         private boolean useCustomConfig;
         private String masterURL;
@@ -129,6 +182,7 @@ public class Config {
         private String clientCertificate;
         private String clientKey;
         private Set<String> secretNames;
+        private String commonConfigMap;
         private String namespacePrefix;
 
         public boolean useCustomConfig() {
@@ -210,6 +264,14 @@ public class Config {
         public void setNamespacePrefix(String namespacePrefix) {
             this.namespacePrefix = namespacePrefix;
         }
+
+        public String getCommonConfigMap() {
+            return commonConfigMap;
+        }
+
+        public void setCommonConfigMap(String commonConfigMapName) {
+            this.commonConfigMap = commonConfigMapName;
+        }
     }
 
     public GitConfig getGit() {
@@ -228,6 +290,17 @@ public class Config {
         this.kubernetes = kubernetes;
     }
 
+    @JsonProperty("rabbitmq")
+    public RabbitMQConfig getRabbitMQ() {
+        return rabbitmq;
+    }
+
+    @JsonProperty("rabbitmq")
+    public void setRabbitMQ(RabbitMQConfig rabbitmq) {
+        this.rabbitmq = rabbitmq;
+    }
+
     private GitConfig git;
     private K8sConfig kubernetes;
+    private RabbitMQConfig rabbitmq;
 }

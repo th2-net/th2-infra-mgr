@@ -17,6 +17,7 @@ package com.exactpro.th2.schema.inframgr.k8s;
 
 import com.exactpro.th2.schema.inframgr.Config;
 import com.exactpro.th2.schema.inframgr.SchemaEventRouter;
+import com.exactpro.th2.schema.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.schema.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.schema.inframgr.models.ResourceEntry;
 import com.exactpro.th2.schema.inframgr.models.ResourceType;
@@ -53,7 +54,7 @@ public class K8sSynchronization {
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName);) {
 
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
-            kube.ensureNameSpace();
+            SchemaInitializer.ensureSchema(schemaName, kube);
 
             // load custom resources from k8s
             Map<ResourceType, Map<String, K8sCustomResource>> k8sEntries = new HashMap<>();
