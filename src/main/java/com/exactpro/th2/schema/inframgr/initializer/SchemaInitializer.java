@@ -18,6 +18,7 @@ package com.exactpro.th2.schema.inframgr.initializer;
 
 import com.exactpro.th2.schema.inframgr.Config;
 import com.exactpro.th2.schema.inframgr.k8s.Kubernetes;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
 import org.slf4j.Logger;
@@ -33,9 +34,12 @@ public class SchemaInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
+    private static final String RABBITMQ_CONFIG_MAP_NAME = "rabbitmq";
+
     private static final String RABBITMQ_HOST_KEY = "RABBITMQ_HOST";
-    private static final String RABBITMQ_PORT_KEY = "RABBITMQ_PORT";
-    private static final String RABBITMQ_VHOST_KEY = "RABBITMQ_VHOST";
+    private static final String RABBITMQ_PORT_KEY = "RABBITMQ_MANAGEMENT_PORT";
+    private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
+    private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -50,6 +54,8 @@ public class SchemaInitializer {
 
         // namespace not found, create it
         kube.createNamespace();
+        logger.info("Created namespace \"{}\"", kube.getNamespaceName());
+
         copySecrets(config.getKubernetes(), kube);
 
         ensureVHost(config, schemaName, kube);
@@ -58,19 +64,18 @@ public class SchemaInitializer {
 
     public static void ensureVHost(Config config, String schemaName, Kubernetes kube) {
 
-        String commonConfigMapName = config.getKubernetes().getCommonConfigMap();
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String configMapName = configMaps.get(RABBITMQ_CONFIG_MAP_NAME);
         Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
 
-        ConfigMap cm = kube.currentNamespace().getConfigMap(commonConfigMapName);
-        if (cm == null) {
-            logger.error("Failed to load common ConfigMap({})", commonConfigMapName);
+        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
+        if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null)   {
+            logger.error("Failed to load ConfigMap({})", configMapName);
             return;
         }
 
         Map<String, String> cmData = cm.getData();
         String host = rabbitMQConfig.getHost() != null ? rabbitMQConfig.getHost() : cmData.get(RABBITMQ_HOST_KEY);
-
-        // TODO: need to sort it out to where to get the management port from !!!
         String port = rabbitMQConfig.getPort() != null ? rabbitMQConfig.getPort() : cmData.get(RABBITMQ_PORT_KEY);
 
         if (host == null || port == null) {
@@ -93,7 +98,6 @@ public class SchemaInitializer {
                 // no exception at this point means that
                 // vHost already exists on server and we do not need to do anything
                 logger.info("vHost \"{}\" already exists on server, leaving", vHostName);
-
             } catch (HttpClientErrorException.NotFound e) {
                 // vHost was not found on query, create it
                 restTemplate.put(apiUrl, null);
@@ -107,11 +111,16 @@ public class SchemaInitializer {
 
         // copy config map with updated vHost value to namespace
         try {
-            cmData.put(RABBITMQ_VHOST_KEY, vHostName);
+            logger.info("Creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName());
+
+            ObjectMapper mapper = new ObjectMapper();
+            var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
+            rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
+            cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
+
             kube.createOrReplaceConfigMap(cm);
-            logger.info("Created ConfigMap \"{}\" in namespace \"{}\"", commonConfigMapName, kube.getNamespaceName());
         } catch (Exception e) {
-            logger.error("Exception creating ConfigMap \"{}\" in namespace \"{}\"", commonConfigMapName, kube.getNamespaceName(), e);
+            logger.error("Exception creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName(), e);
         }
     }
 
@@ -145,5 +154,6 @@ public class SchemaInitializer {
                 }
         }
     }
+
 
 }

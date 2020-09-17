@@ -14,7 +14,8 @@ kubernetes:
   useCustomConfig: false
   namespacePrefix: "${K8S_NAMESPACE_PREFIX}"
 
-  commonConfigMap: "${K8S_COMMON_CONFIG}"
+  configMaps:
+    rabbitmq: "${K8S_CONFIG_MAP_RABBITMQ}"
   secretNames:
     - "chart-secrets"
     - "git-chart-creds"

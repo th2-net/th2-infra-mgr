@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Map;
 import java.util.Set;
 
 public class Config {
@@ -182,7 +183,7 @@ public class Config {
         private String clientCertificate;
         private String clientKey;
         private Set<String> secretNames;
-        private String commonConfigMap;
+        private Map<String, String> configMaps;
         private String namespacePrefix;
 
         public boolean useCustomConfig() {
@@ -265,12 +266,12 @@ public class Config {
             this.namespacePrefix = namespacePrefix;
         }
 
-        public String getCommonConfigMap() {
-            return commonConfigMap;
+        public Map<String, String> getConfigMaps() {
+            return configMaps;
         }
 
-        public void setCommonConfigMap(String commonConfigMapName) {
-            this.commonConfigMap = commonConfigMapName;
+        public void setConfigMaps(Map<String, String> configMaps) {
+            this.configMaps = configMaps;
         }
     }
 
