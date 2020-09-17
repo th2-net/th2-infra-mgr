@@ -241,10 +241,13 @@ public class Kubernetes implements Closeable {
 
     public void createNamespace() {
 
-        Namespace n = new Namespace();
-        n.setMetadata(new ObjectMeta());
-        n.getMetadata().setName(namespace);
-        client.namespaces().create(n);
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(namespace);
+
+        Namespace ns = new Namespace();
+        ns.setMetadata(meta);
+
+        client.namespaces().create(ns);
     }
 
 

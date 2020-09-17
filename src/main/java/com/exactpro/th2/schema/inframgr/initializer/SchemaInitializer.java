@@ -50,7 +50,7 @@ public class SchemaInitializer {
 
         // namespace not found, create it
         kube.createNamespace();
-        copySecrets(kube);
+        copySecrets(config.getKubernetes(), kube);
 
         ensureVHost(config, schemaName, kube);
     }
@@ -116,24 +116,34 @@ public class SchemaInitializer {
     }
 
 
-    private static void copySecrets(Kubernetes kube) throws IOException {
+    private static void copySecrets(Config.K8sConfig config, Kubernetes kube) {
 
-        Map<String, Secret> currentNamespaceSecrets = kube.currentNamespace().getSecrets();
+        Map<String, Secret> workingNamespaceSecrets = kube.currentNamespace().getSecrets();
         Map<String, Secret> targetNamespaceSecrets = kube.getSecrets();
 
-        for (String secretName : Config.getInstance().getKubernetes().getSecretNames()) {
+        for (String secretName : config.getSecretNames()) {
 
-            Secret secret = currentNamespaceSecrets.get(secretName);
-            if (secret == null)
-                throw new IllegalStateException(String.format(
-                        "Unable to copy secret \"%s\" to \"%s\" namespace, because secret not found in current namespace",
-                        secretName, kube.getNamespaceName()
-                ));
-
-            if(!targetNamespaceSecrets.containsKey(secretName)){
-                kube.createOrReplaceSecret(secret);
-                logger.info("Secret \"{}\" has been copied to namespace \"{}\"", secretName, kube.getNamespaceName());
+            Secret secret = workingNamespaceSecrets.get(secretName);
+            if (secret == null) {
+                logger.error(
+                        "Unable to copy secret \"{}\" to namespace \"{}\" because secret not found in working namespace",
+                        secretName, kube.getNamespaceName());
+                continue;
             }
+
+
+            if (targetNamespaceSecrets.containsKey(secretName))
+                logger.debug("Skipped secret \"{}\" as it already exists in namespace \"{}\"", secretName, kube.getNamespaceName());
+            else
+                try {
+                    kube.createOrReplaceSecret(secret);
+                    logger.info("Secret \"{}\" has been copied to namespace \"{}\"", secretName, kube.getNamespaceName());
+                } catch (Exception e) {
+                    logger.error(
+                            "Exception copying secret \"{}\" to namespace \"{}\"",
+                            secretName, kube.getNamespaceName(), e);
+                }
         }
     }
+
 }
