@@ -16,8 +16,8 @@
 package com.exactpro.th2.schema.inframgr.k8s;
 
 import com.exactpro.th2.schema.inframgr.Config;
+import com.exactpro.th2.schema.inframgr.models.RepositoryResource;
 import com.exactpro.th2.schema.inframgr.models.ResourceType;
-import com.exactpro.th2.schema.inframgr.models.Th2CustomResource;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
@@ -46,11 +46,11 @@ public class Kubernetes implements Closeable {
         return schemaName;
     }
 
-    public void createOrReplaceCustomResource(Th2CustomResource repoResource) {
+    public void createOrReplaceCustomResource(RepositoryResource repoResource) {
         createOrReplaceCustomResource(repoResource, namespace);
     }
 
-    public void createOrReplaceCustomResource(Th2CustomResource repoResource, String namespace) {
+    public void createOrReplaceCustomResource(RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -100,11 +100,11 @@ public class Kubernetes implements Closeable {
         }
     }
 
-    public void createCustomResource(Th2CustomResource repoResource) {
+    public void createCustomResource(RepositoryResource repoResource) {
         createCustomResource(repoResource, namespace);
     }
 
-    public void createCustomResource(Th2CustomResource repoResource, String namespace) {
+    public void createCustomResource(RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -134,12 +134,12 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public void replaceCustomResource(Th2CustomResource repoResource) throws ResourceNotFoundException {
+    public void replaceCustomResource(RepositoryResource repoResource) throws ResourceNotFoundException {
         replaceCustomResource(repoResource, namespace);
     }
 
 
-    public void replaceCustomResource(Th2CustomResource repoResource, String namespace) throws ResourceNotFoundException {
+    public void replaceCustomResource(RepositoryResource repoResource, String namespace) throws ResourceNotFoundException {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -172,11 +172,27 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public Map<String, K8sCustomResource> loadCustomResources(ResourceType type, String apiGroup, String apiVersion) {
+    private K8sCustomResource loadCustomResource(String namespace, ResourceType type, String name) {
+        CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
+                .withGroup(RepositoryResource.getApiGroup(type.k8sApiVersion()))
+                .withVersion(RepositoryResource.getVersion(type.k8sApiVersion()))
+                .withScope("Namespaced")
+                .withPlural(type.k8sName())
+                .build();
+
+        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+        return mixedOperation.inNamespace(namespace).withName(name).get();
+    }
+
+    public K8sCustomResource loadCustomResource(ResourceType type, String name) {
+        return loadCustomResource(namespace, type, name);
+    }
+
+    public Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
 
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
-                .withGroup(apiGroup)
-                .withVersion(apiVersion)
+                .withGroup(RepositoryResource.getApiGroup(type.k8sApiVersion()))
+                .withVersion(RepositoryResource.getVersion(type.k8sApiVersion()))
                 .withScope("Namespaced")
                 .withPlural(type.k8sName())
                 .build();
@@ -191,11 +207,11 @@ public class Kubernetes implements Closeable {
         return resources;
     }
 
-    public boolean deleteCustomResource(Th2CustomResource repoResource) {
+    public boolean deleteCustomResource(RepositoryResource repoResource) {
         return deleteCustomResource(repoResource, namespace);
     }
 
-    public boolean deleteCustomResource(Th2CustomResource repoResource, String namespace) {
+    public boolean deleteCustomResource(RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -218,7 +234,7 @@ public class Kubernetes implements Closeable {
 
     }
 
-    private CustomResourceDefinitionContext getCrdContext(Th2CustomResource resource) {
+    private CustomResourceDefinitionContext getCrdContext(RepositoryResource resource) {
 
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
                 .withGroup(resource.getApiGroup())
@@ -263,8 +279,8 @@ public class Kubernetes implements Closeable {
         List<Watch> watches = new LinkedList<>();
 
         for (ResourceType t : ResourceType.values())
-            if (t.isK8sResource()) {
-                Th2CustomResource resource = new Th2CustomResource();
+            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
+                RepositoryResource resource = new RepositoryResource(t);
                 resource.setKind(t.kind());
 
                 KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
@@ -370,5 +386,9 @@ public class Kubernetes implements Closeable {
         public Map<String, Secret> getSecrets() {
             return mapOf(client.secrets().list().getItems());
         }
+        public K8sCustomResource loadCustomResource(ResourceType type, String name) {
+            return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
+        }
+
     }
 }

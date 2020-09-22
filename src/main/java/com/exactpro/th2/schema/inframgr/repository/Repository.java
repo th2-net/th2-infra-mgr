@@ -16,10 +16,10 @@
 package com.exactpro.th2.schema.inframgr.repository;
 
 import com.exactpro.th2.schema.inframgr.Config;
+import com.exactpro.th2.schema.inframgr.models.RepositoryResource;
 import com.exactpro.th2.schema.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.schema.inframgr.models.ResourceEntry;
 import com.exactpro.th2.schema.inframgr.models.ResourceType;
-import com.exactpro.th2.schema.inframgr.models.Th2CustomResource;
 import com.exactpro.th2.schema.inframgr.util.Hash;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -38,7 +38,7 @@ public class Repository {
 
         String ymlFileContents = Files.readString(ymlFile.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        Th2CustomResource cr = mapper.readValue(ymlFileContents, Th2CustomResource.class);
+        RepositoryResource cr = mapper.readValue(ymlFileContents, RepositoryResource.class);
 
         ResourceEntry rdu = new ResourceEntry();
         rdu.setKind(ResourceType.forKind(cr.getKind()));
@@ -55,26 +55,27 @@ public class Repository {
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<ResourceEntry> resources = new HashSet<>();
-        for (ResourceType t : ResourceType.values()) {
-            File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
-            if (dir.exists()) {
+        for (ResourceType t : ResourceType.values())
+            if (t.isRepositoryResource()) {
+                File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
+                if (dir.exists()) {
 
-                if (!dir.isDirectory()) {
-                    logger.error("entry expected to be a directory: {}", dir.getAbsoluteFile());
-                    continue;
-                }
-
-                File[] files = dir.listFiles();
-                for (File f : files) {
-                    if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
-                        ResourceEntry rdu = loadYMLFile(f);
-
-                        if (rdu.getKind() != t)
-                            logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}", f.getAbsolutePath(), rdu.getKind().kind(), t.path());
-
-                        resources.add(rdu);
+                    if (!dir.isDirectory()) {
+                        logger.error("entry expected to be a directory: {}", dir.getAbsoluteFile());
+                        continue;
                     }
-                }
+
+                    File[] files = dir.listFiles();
+                    for (File f : files) {
+                        if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
+                            ResourceEntry resourceEntry = Repository.loadYMLFile(f);
+
+                            if (resourceEntry.getKind() != t)
+                                logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}", f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
+
+                            resources.add(resourceEntry);
+                        }
+                    }
             }
         }
         return resources;
@@ -95,7 +96,7 @@ public class Repository {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
-        Set<ResourceEntry> resources = loadBranchYMLFiles(new File(path));
+        Set<ResourceEntry> resources = Repository.loadBranchYMLFiles(new File(path));
 
         RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
         snapshot.setResources(resources);
@@ -103,7 +104,7 @@ public class Repository {
     }
 
 
-    private static void saveYMLFile(File ymlFile, Th2CustomResource object) throws Exception {
+    private static void saveYMLFile(File ymlFile, RepositoryResource object) throws Exception {
         ymlFile.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
@@ -119,7 +120,7 @@ public class Repository {
         File file = getFile(config, branch, data);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        Th2CustomResource cr = new Th2CustomResource(data);
+        RepositoryResource cr = new RepositoryResource(data);
         Repository.saveYMLFile(file, cr);
         data.setSourceHash(cr.getSourceHash());
     }
@@ -128,7 +129,7 @@ public class Repository {
         File file = getFile(config, branch, data);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        Th2CustomResource cr = new Th2CustomResource(data);
+        RepositoryResource cr = new RepositoryResource(data);
         Repository.saveYMLFile(file, cr);
         data.setSourceHash(cr.getSourceHash());
     }

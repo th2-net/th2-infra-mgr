@@ -171,7 +171,7 @@ public class K8sOperator {
                 }
 
                 Stringifier.stringify(resourceEntry.getSpec());
-                Th2CustomResource resource = new Th2CustomResource(resourceEntry);
+                RepositoryResource resource = new RepositoryResource(resourceEntry);
                 if (actionReplace) {
                     logger.info("Detected external manipulation on {}.{}.{}, recreating resource"
                             , namespace, kind, name) ;

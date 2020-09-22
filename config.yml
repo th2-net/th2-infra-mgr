@@ -3,6 +3,7 @@ git:
   localRepositoryRoot: "${REPOSITORY_LOCAL_CACHE}"
   privateKeyFile: "${PRIVATE_KEY_FILE}"
   ignoreInsecureHosts: true
+
 rabbitmq:
   host: "${RABBITMQ_HOST}"
   port: "${RABBITMQ_PORT}"
@@ -10,12 +11,19 @@ rabbitmq:
   user: "${RABBITMQ_USER}"
   password: "${RABBITMQ_PASS}"
 
+cassandra:
+  password: "${CASSANDRA_PASS}"
+  keyspacePrefix: "${CASSANDRA_KEYSPACE_PREFIX}"
+
 kubernetes:
   useCustomConfig: false
   namespacePrefix: "${K8S_NAMESPACE_PREFIX}"
 
+  ingress: "${K8S_INGRESS}"
   configMaps:
     rabbitmq: "${K8S_CONFIG_MAP_RABBITMQ}"
+    cassandra: "${K8S_CONFIG_MAP_CASSANDRA}"
+    logging: "${K8S_CONFIG_MAP_LOGGING}"
   secretNames:
     - "chart-secrets"
     - "git-chart-creds"

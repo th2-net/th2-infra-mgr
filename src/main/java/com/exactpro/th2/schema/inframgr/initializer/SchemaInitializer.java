@@ -17,7 +17,10 @@
 package com.exactpro.th2.schema.inframgr.initializer;
 
 import com.exactpro.th2.schema.inframgr.Config;
+import com.exactpro.th2.schema.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.schema.inframgr.models.RepositoryResource;
+import com.exactpro.th2.schema.inframgr.models.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -35,11 +38,18 @@ public class SchemaInitializer {
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
     private static final String RABBITMQ_CONFIG_MAP_NAME = "rabbitmq";
+    private static final String CASSANDRA_CONFIG_MAP_NAME = "cassandra";
+    private static final String LOGGING_CONFIG_MAP_NAME = "logging";
 
     private static final String RABBITMQ_HOST_KEY = "RABBITMQ_HOST";
     private static final String RABBITMQ_PORT_KEY = "RABBITMQ_MANAGEMENT_PORT";
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
+
+    private static final String CASSANDRA_JSON_KEY = "cradle.json";
+    private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
+    private static final String CASSANDRA_JSON_PASSWORD_KEY = "password";
+
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -53,12 +63,15 @@ public class SchemaInitializer {
             return;
 
         // namespace not found, create it
+        logger.info("Creating namespace \"{}\"", kube.getNamespaceName());
         kube.createNamespace();
-        logger.info("Created namespace \"{}\"", kube.getNamespaceName());
 
-        copySecrets(config.getKubernetes(), kube);
+        copySecrets(config, kube);
+        copyLoggingConfigMap(config, kube);
+        copyIngress(config, kube);
 
         ensureVHost(config, schemaName, kube);
+        ensureKeyspace(config, schemaName,  kube);
     }
 
 
@@ -104,7 +117,7 @@ public class SchemaInitializer {
                 logger.info("vHost \"{}\" created", vHostName);
             }
         } catch (Exception e) {
-            logger.error("Exception creating \"{}\"", vHostName, e);
+            logger.error("Exception creating vHost \"{}\"", vHostName, e);
             return;
         }
 
@@ -125,12 +138,88 @@ public class SchemaInitializer {
     }
 
 
-    private static void copySecrets(Config.K8sConfig config, Kubernetes kube) {
+    public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String configMapName = configMaps.get(CASSANDRA_CONFIG_MAP_NAME);
+
+        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
+        if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
+            logger.error("Failed to load ConfigMap({})", configMapName);
+            return;
+        }
+
+        Map<String, String> cmData = cm.getData();
+
+        Config.Cassandra cassandraConfig = config.getCassandra();
+        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
+
+        // copy config map with updated keyspace and password to namespace
+        try {
+            logger.info("Creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName());
+
+            ObjectMapper mapper = new ObjectMapper();
+            var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
+            cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
+            cradleMQJson.put(CASSANDRA_JSON_PASSWORD_KEY, cassandraConfig.getPassword());
+            cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
+
+            kube.createOrReplaceConfigMap(cm);
+        } catch (Exception e) {
+            logger.error("Exception creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName(), e);
+        }
+    }
+
+
+    public static void copyLoggingConfigMap(Config config, Kubernetes kube) {
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String configMapName = configMaps.get(LOGGING_CONFIG_MAP_NAME);
+
+        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
+        if (cm == null || cm.getData() == null)   {
+            logger.error("Failed to load ConfigMap({})", configMapName);
+            return;
+        }
+
+        Map<String, String> cmData = cm.getData();
+
+        // copy config map
+        try {
+            logger.info("Creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName());
+            kube.createOrReplaceConfigMap(cm);
+        } catch (Exception e) {
+            logger.error("Exception creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName(), e);
+        }
+    }
+
+    private static void copyIngress(Config config, Kubernetes kube) {
+
+        String ingressName = config.getKubernetes().getIngress();
+        try {
+            logger.info("Creating ingress \"{}\" in namespace \"{}\"", ingressName, kube.getNamespaceName());
+            K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
+
+            RepositoryResource.Metadata meta = new RepositoryResource.Metadata();
+            meta.setName(ingressName);
+
+            RepositoryResource resource = new RepositoryResource(ResourceType.HelmRelease);
+            resource.setSpec(ingress.getSpec());
+            resource.setMetadata(meta);
+
+            kube.createOrReplaceCustomResource(resource);
+        } catch (Exception e) {
+            logger.error("Exception creating ingress \"{}\" in namespace \"{}\"", ingressName, kube.getNamespaceName(), e);
+        }
+    }
+
+
+    private static void copySecrets(Config config, Kubernetes kube) {
 
         Map<String, Secret> workingNamespaceSecrets = kube.currentNamespace().getSecrets();
         Map<String, Secret> targetNamespaceSecrets = kube.getSecrets();
 
-        for (String secretName : config.getSecretNames()) {
+        for (String secretName : config.getKubernetes().getSecretNames()) {
 
             Secret secret = workingNamespaceSecrets.get(secretName);
             if (secret == null) {
@@ -154,6 +243,5 @@ public class SchemaInitializer {
                 }
         }
     }
-
 
 }

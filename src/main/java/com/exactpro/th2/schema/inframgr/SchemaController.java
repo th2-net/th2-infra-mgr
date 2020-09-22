@@ -145,7 +145,7 @@ public class SchemaController {
                     if (entry.getKind().isK8sResource()) {
                         try {
                             Stringifier.stringify(entry.getSpec());
-                            kube.createOrReplaceCustomResource(new Th2CustomResource(entry));
+                            kube.createOrReplaceCustomResource(new RepositoryResource(entry));
                         } catch (Exception e) {
                             if (k8se == null)
                                 k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
@@ -286,15 +286,16 @@ public class SchemaController {
                         if (entry.getPayload().getKind().isK8sResource()) {
                             try {
                                 Stringifier.stringify(entry.getPayload().getSpec());
+                                RepositoryResource resource = new RepositoryResource(entry.getPayload());
                                 switch (entry.getOperation()) {
                                     case add:
-                                        kube.createCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        kube.createCustomResource(resource);
                                         break;
                                     case update:
-                                        kube.replaceCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        kube.replaceCustomResource(resource);
                                         break;
                                     case remove:
-                                        kube.deleteCustomResource(new Th2CustomResource(entry.getPayload()));
+                                        kube.deleteCustomResource(resource);
                                         break;
                                 }
                             } catch (Exception e) {

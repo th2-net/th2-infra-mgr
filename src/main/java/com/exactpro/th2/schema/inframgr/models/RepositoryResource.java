@@ -13,14 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.schema.inframgr.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-public class Th2CustomResource {
-    public static String GROUP = "th2.exactpro.com";
-    public static String VERSION = "v1";
-    public static String API_VERSION = GROUP + "/" + VERSION;
+public class RepositoryResource {
 
     public static class Metadata {
         private String name;
@@ -31,23 +29,29 @@ public class Th2CustomResource {
             this.name = name;
         }
     }
+
     private String apiVersion;
     private String kind;
     private Metadata metadata;
     private Object spec;
     private String hash;
 
-    public Th2CustomResource() {
-        this.setApiVersion(API_VERSION);
+    public RepositoryResource() {
     }
 
-    public Th2CustomResource(ResourceEntry data) {
-        setApiVersion(Th2CustomResource.API_VERSION);
-        setMetadata(new Th2CustomResource.Metadata());
-        getMetadata().setName(data.getName());
+    public RepositoryResource(ResourceType type) {
+        this.apiVersion = type.k8sApiVersion();
+        this.kind = type.name();
+    }
+
+    public RepositoryResource(ResourceEntry data) {
+        setApiVersion(data.getKind().k8sApiVersion());
         setKind(data.getKind().kind());
         setSpec(data.getSpec());
         setSourceHash(data.getSourceHash());
+
+        setMetadata(new RepositoryResource.Metadata());
+        getMetadata().setName(data.getName());
     }
 
     public String getApiVersion() {
@@ -64,6 +68,7 @@ public class Th2CustomResource {
 
     public void setKind(String kind) {
         this.kind = kind;
+        this.apiVersion = ResourceType.forKind(kind).k8sApiVersion();
     }
 
     public Metadata getMetadata() {
@@ -84,11 +89,21 @@ public class Th2CustomResource {
 
     @JsonIgnore
     public String getApiGroup() {
+        return RepositoryResource.getApiGroup(apiVersion);
+    }
+
+    @JsonIgnore
+    public static String getApiGroup(String apiVersion) {
         return apiVersion.substring(0, apiVersion.indexOf("/"));
     }
 
     @JsonIgnore
     public String getVersion() {
+        return RepositoryResource.getVersion(apiVersion);
+    }
+
+    @JsonIgnore
+    public static String getVersion(String apiVersion) {
         return apiVersion.substring(apiVersion.indexOf("/") + 1);
     }
 
@@ -101,6 +116,4 @@ public class Th2CustomResource {
     public void setSourceHash(String hash) {
         this.hash = hash;
     }
-
-
 }

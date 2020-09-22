@@ -18,10 +18,10 @@ package com.exactpro.th2.schema.inframgr.k8s;
 import com.exactpro.th2.schema.inframgr.Config;
 import com.exactpro.th2.schema.inframgr.SchemaEventRouter;
 import com.exactpro.th2.schema.inframgr.initializer.SchemaInitializer;
+import com.exactpro.th2.schema.inframgr.models.RepositoryResource;
 import com.exactpro.th2.schema.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.schema.inframgr.models.ResourceEntry;
 import com.exactpro.th2.schema.inframgr.models.ResourceType;
-import com.exactpro.th2.schema.inframgr.models.Th2CustomResource;
 import com.exactpro.th2.schema.inframgr.repository.Gitter;
 import com.exactpro.th2.schema.inframgr.repository.Repository;
 import com.exactpro.th2.schema.inframgr.repository.RepositoryUpdateEvent;
@@ -47,11 +47,11 @@ public class K8sSynchronization {
     private Config config;
     private static volatile boolean startupSynchronizationComplete;
 
-    private K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
+    private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
     private void synchronizeNamespace(String schemaName, Map<ResourceType, Map<String, ResourceEntry>> repositoryEntries) throws Exception {
 
-        try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName);) {
+        try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
@@ -59,12 +59,12 @@ public class K8sSynchronization {
             // load custom resources from k8s
             Map<ResourceType, Map<String, K8sCustomResource>> k8sEntries = new HashMap<>();
             for (ResourceType t : ResourceType.values())
-                if (t.isK8sResource())
-                    k8sEntries.put(t, kube.loadCustomResources(t, Th2CustomResource.GROUP, Th2CustomResource.VERSION));
+                if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease))
+                    k8sEntries.put(t, kube.loadCustomResources(t));
 
             // synchronize by resource type
             for (ResourceType resourceType : ResourceType.values())
-                if (resourceType.isK8sResource()) {
+                if (resourceType.isK8sResource() && !resourceType.equals(ResourceType.HelmRelease)) {
                     Map<String, ResourceEntry> entries = repositoryEntries.get(resourceType);
                     Map<String, K8sCustomResource> customResources = k8sEntries.get(resourceType);
 
@@ -77,7 +77,7 @@ public class K8sSynchronization {
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
                             logger.info("Creating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
-                            Th2CustomResource resource = new Th2CustomResource(entry);
+                            RepositoryResource resource = new RepositoryResource(entry);
                             try {
                                 Stringifier.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
@@ -91,7 +91,7 @@ public class K8sSynchronization {
                             if (!(entry.getSourceHash() == null || entry.getSourceHash().equals(cr.getSourceHashLabel()))) {
                                 // update custopm resource
                                 logger.info("Updating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
-                                Th2CustomResource resource = new Th2CustomResource(entry);
+                                RepositoryResource resource = new RepositoryResource(entry);
                                 try {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
@@ -110,13 +110,11 @@ public class K8sSynchronization {
                             ResourceEntry entry = new ResourceEntry();
                             entry.setKind(resourceType);
                             entry.setName(resourceName);
-                            kube.deleteCustomResource(new Th2CustomResource(entry));
+                            kube.deleteCustomResource(new RepositoryResource(entry));
                         } catch (Exception e) {
                             logger.error("Exception deleting Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e);
                         }
             }
-        } catch (Exception e) {
-            throw e;
         }
     }
 
@@ -184,7 +182,7 @@ public class K8sSynchronization {
             executor.shutdown();
             try {
                 executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
 
         } catch (Exception e) {

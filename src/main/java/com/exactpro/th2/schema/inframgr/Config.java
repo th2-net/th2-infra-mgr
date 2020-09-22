@@ -172,6 +172,53 @@ public class Config {
         }
     }
 
+    public static class Cassandra {
+        private String host;
+        private String port;
+        private String user;
+        private String password;
+        private String keyspacePrefix;
+
+        public String getHost() {
+            return host;
+        }
+
+        public void setHost(String host) {
+            this.host = host;
+        }
+
+        public String getPort() {
+            return port;
+        }
+
+        public void setPort(String port) {
+            this.port = port;
+        }
+
+        public String getUser() {
+            return user;
+        }
+
+        public void setUser(String user) {
+            this.user = user;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public String getKeyspacePrefix() {
+            return keyspacePrefix;
+        }
+
+        public void setKeyspacePrefix(String keyspacePrefix) {
+            this.keyspacePrefix = keyspacePrefix;
+        }
+    }
 
     public static class K8sConfig {
         private boolean useCustomConfig;
@@ -182,6 +229,7 @@ public class Config {
         private String clientKeyFile;
         private String clientCertificate;
         private String clientKey;
+        private String ingress;
         private Set<String> secretNames;
         private Map<String, String> configMaps;
         private String namespacePrefix;
@@ -273,24 +321,33 @@ public class Config {
         public void setConfigMaps(Map<String, String> configMaps) {
             this.configMaps = configMaps;
         }
+
+        public String getIngress() {
+            return ingress;
+        }
+
+        public void setIngress(String ingress) {
+            this.ingress = ingress;
+        }
     }
 
+    private GitConfig git;
     public GitConfig getGit() {
         return git;
     }
-
     public void setGit(Config.GitConfig git) {
         this.git = git;
     }
 
+    private K8sConfig kubernetes;
     public K8sConfig getKubernetes() {
         return kubernetes;
     }
-
     public void setKubernetes(K8sConfig kubernetes) {
         this.kubernetes = kubernetes;
     }
 
+    private RabbitMQConfig rabbitmq;
     @JsonProperty("rabbitmq")
     public RabbitMQConfig getRabbitMQ() {
         return rabbitmq;
@@ -301,7 +358,11 @@ public class Config {
         this.rabbitmq = rabbitmq;
     }
 
-    private GitConfig git;
-    private K8sConfig kubernetes;
-    private RabbitMQConfig rabbitmq;
+    private Cassandra cassandra;
+    public Cassandra getCassandra() {
+        return cassandra;
+    }
+    public void setCassandra(Cassandra cassandra) {
+        this.cassandra = cassandra;
+    }
 }
