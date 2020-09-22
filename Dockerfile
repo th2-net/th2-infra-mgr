@@ -1,7 +1,7 @@
-FROM gradle:6.4-jdk11 AS gradle-image
+FROM gradle:6.6-jdk11 AS build
+ARG app_version=0.0.0
 COPY ./ .
-RUN gradle build
-
+RUN gradle build -Prelease_version=${app_version}
 
 RUN mkdir /home/service
 RUN mkdir /home/service/repository
