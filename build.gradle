@@ -14,6 +14,11 @@ repositories {
 	mavenCentral()
 }
 
+configurations.all {
+	exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+	exclude group: 'org.springframework.boot', module: 'logback-classic'
+}
+
 dependencies {
 	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.8.1.202007141445-r'
 	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:5.8.1.202007141445-r'
@@ -25,6 +30,7 @@ dependencies {
 
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.slf4j:slf4j-log4j12:1.7.21'
 
 	testImplementation('org.springframework.boot:spring-boot-starter-test') {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
@@ -34,6 +40,11 @@ dependencies {
 
 	compileOnly 'org.projectlombok:lombok:1.18.12'
 	annotationProcessor 'org.projectlombok:lombok:1.18.12'
+}
+
+bootJar {
+	exclude('log4j.properties')
+	exclude('config.yml')
 }
 
 task printProjectInfo {
