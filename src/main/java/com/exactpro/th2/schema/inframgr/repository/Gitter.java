@@ -36,13 +36,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 
 public class Gitter {
 
-    private static volatile Map<String, Gitter> instance = new HashMap<>();
+    private static volatile Map<String, Gitter> instance = new ConcurrentHashMap<>();
     private Config.GitConfig config;
     private String branch;
     private Lock lock;
@@ -71,13 +72,7 @@ public class Gitter {
 
     public static Gitter getBranch(Config.GitConfig config, String branch) {
 
-        if (instance.get(branch) == null)
-            synchronized (instance) {
-                if (instance.get(branch) == null)
-                    instance.put(branch, new Gitter(config, branch));
-            }
-
-        return instance.get(branch);
+        return instance.computeIfAbsent(branch, k -> new Gitter(config, k));
     }
 
     // TODO : initialize transport on instance creation

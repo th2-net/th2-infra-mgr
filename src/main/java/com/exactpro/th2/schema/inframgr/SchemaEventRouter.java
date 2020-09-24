@@ -18,9 +18,9 @@ package com.exactpro.th2.schema.inframgr;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SchemaEventRouter {
     private static class EventCache extends LinkedHashMap<String, SchemaEvent> {
@@ -37,7 +37,7 @@ public class SchemaEventRouter {
 
     private SchemaEventRouter() {
         subject = PublishSubject.create();
-        acceptedEvents = new HashMap<>();
+        acceptedEvents = new ConcurrentHashMap<>();
     }
 
     public static SchemaEventRouter getInstance() {
@@ -53,14 +53,7 @@ public class SchemaEventRouter {
 
     private EventCache getEventCache(String eventType) {
 
-        EventCache eventCache = acceptedEvents.get(eventType);
-        if (eventCache == null)
-            synchronized(acceptedEvents) {
-                eventCache = acceptedEvents.get(eventType);
-                if (eventCache == null)
-                    eventCache = new EventCache();
-                acceptedEvents.put(eventType, eventCache);
-            }
+        EventCache eventCache = acceptedEvents.computeIfAbsent(eventType, k -> new EventCache());
         return eventCache;
     }
 
@@ -79,7 +72,7 @@ public class SchemaEventRouter {
             }
         }
         if (doSend)
-            addEvent(event);
+            subject.onNext(event);
         return doSend;
     }
 
