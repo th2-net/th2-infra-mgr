@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.exactpro.th2.schema'
-version = '0.5.2'
+version = release_version
 sourceCompatibility = '11'
 
 apply plugin: 'distribution'
@@ -43,4 +43,18 @@ task printProjectInfo {
 
 test {
 	useJUnitPlatform()
+}
+
+jar {
+	manifest {
+		attributes(
+				'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+				'Specification-Title':      '',
+				'Specification-Vendor':     'Exactpro Systems LLC',
+				'Implementation-Title':     project.archivesBaseName,
+				'Implementation-Vendor':    'Exactpro Systems LLC',
+				'Implementation-Vendor-Id': 'com.exactpro',
+				'Implementation-Version':   project.version
+		)
+	}
 }
