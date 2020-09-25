@@ -48,7 +48,6 @@ public class SchemaInitializer {
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
-    private static final String CASSANDRA_JSON_PASSWORD_KEY = "password";
 
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
@@ -154,14 +153,13 @@ public class SchemaInitializer {
         Config.Cassandra cassandraConfig = config.getCassandra();
         String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
 
-        // copy config map with updated keyspace and password to namespace
+        // copy config map with updated keyspace name
         try {
             logger.info("Creating ConfigMap \"{}\" in namespace \"{}\"", configMapName, kube.getNamespaceName());
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
-            cradleMQJson.put(CASSANDRA_JSON_PASSWORD_KEY, cassandraConfig.getPassword());
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
 
             kube.createOrReplaceConfigMap(cm);
