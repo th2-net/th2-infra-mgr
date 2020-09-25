@@ -6,8 +6,6 @@ git:
 
 rabbitmq:
   vhostPrefix: "${RABBITMQ_VHOST_PREFIX}"
-  user: "${RABBITMQ_USER}"
-  password: "${RABBITMQ_PASS}"
 
 cassandra:
   password: "${CASSANDRA_PASS}"

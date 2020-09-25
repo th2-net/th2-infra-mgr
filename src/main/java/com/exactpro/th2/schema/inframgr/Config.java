@@ -32,37 +32,69 @@ import java.util.Set;
 
 public class Config {
     public static final String CONFIG_FILE = "config.yml";
+    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
     private static volatile Config instance;
+    private Logger logger;
+    private StringSubstitutor stringSubstitutor;
 
     private Config() {
+        logger = LoggerFactory.getLogger(Config.class);
+        stringSubstitutor = new StringSubstitutor(StringLookupFactory.INSTANCE.environmentVariableStringLookup());
     }
 
-    private static void readConfiguration() throws IOException {
+    private void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
+
+        String fileContent = new String(Files.readAllBytes(file.toPath()));
+        String enrichedContent = stringSubstitutor.replace(fileContent);
+        mapper.readerForUpdating(object).readValue(enrichedContent);
+    }
+
+    private void readConfiguration() throws IOException {
 
         try {
-            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-            StringSubstitutor stringSubstitutor = new StringSubstitutor(StringLookupFactory.INSTANCE.environmentVariableStringLookup());
+            File file = new File(CONFIG_FILE);
 
-            File configFile = new File(CONFIG_FILE);
-            String contents = stringSubstitutor.replace(new String(Files.readAllBytes(configFile.toPath())));
-            mapper.readerForUpdating(instance).readValue(contents);
+            parseFile(file, new ObjectMapper(new YAMLFactory()), this);
 
-            if (instance.rabbitmq == null)
-                instance.rabbitmq = new RabbitMQConfig();
+            if (rabbitmq == null)
+                rabbitmq = new RabbitMQConfig();
 
         } catch(UnrecognizedPropertyException e) {
-            Logger logger = LoggerFactory.getLogger(Config.class);
-            logger.error("bad configuration: unknown property(\"{}\") specified in configuration file", e.getPropertyName());
+            logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
+                    , e.getPropertyName()
+                    , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         }
     }
+
+    private void updateWithRabbitMQManagementSettings() throws IOException {
+
+        try {
+            File file = new File(RABBITMQ_MANAGEMENT_CONFIG_FILE);
+            // back off safely as this configuration file is not mandatory
+            if (!(file.exists() && file.isFile()))
+                return;
+
+            parseFile(file, new ObjectMapper(), this.getRabbitMQ());
+
+        } catch(UnrecognizedPropertyException e) {
+            logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
+                    , e.getPropertyName()
+                    , RABBITMQ_MANAGEMENT_CONFIG_FILE);
+            throw new RuntimeException("Configuration exception", e);
+        }
+    }
+
 
     public static Config getInstance() throws IOException {
         if (instance == null) {
             synchronized (Config.class) {
                 if (instance == null) {
-                    instance = new Config();
-                    readConfiguration();
+                    Config config = new Config();
+                    config.readConfiguration();
+                    config.updateWithRabbitMQManagementSettings();
+
+                    instance = config;
                 }
             }
         }
@@ -127,7 +159,7 @@ public class Config {
     public static class RabbitMQConfig {
         private String host;
         private String port;
-        private String user;
+        private String username;
         private String password;
         private String vhostPrefix;
 
@@ -147,12 +179,12 @@ public class Config {
             this.port = port;
         }
 
-        public String getUser() {
-            return user;
+        public String getUsername() {
+            return username;
         }
 
-        public void setUser(String user) {
-            this.user = user;
+        public void setUsername(String username) {
+            this.username = username;
         }
 
         public String getPassword() {
@@ -172,10 +204,10 @@ public class Config {
         }
     }
 
-    public static class Cassandra {
+    public static class CassandraConfig {
         private String host;
         private String port;
-        private String user;
+        private String username;
         private String password;
         private String keyspacePrefix;
 
@@ -195,12 +227,12 @@ public class Config {
             this.port = port;
         }
 
-        public String getUser() {
-            return user;
+        public String getUsername() {
+            return username;
         }
 
-        public void setUser(String user) {
-            this.user = user;
+        public void setUsername(String username) {
+            this.username = username;
         }
 
         public String getPassword() {
@@ -358,11 +390,11 @@ public class Config {
         this.rabbitmq = rabbitmq;
     }
 
-    private Cassandra cassandra;
-    public Cassandra getCassandra() {
+    private CassandraConfig cassandra;
+    public CassandraConfig getCassandra() {
         return cassandra;
     }
-    public void setCassandra(Cassandra cassandra) {
+    public void setCassandra(CassandraConfig cassandra) {
         this.cassandra = cassandra;
     }
 }

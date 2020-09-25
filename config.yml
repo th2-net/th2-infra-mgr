@@ -8,7 +8,7 @@ rabbitmq:
   host: "${RABBITMQ_HOST}"
   port: "${RABBITMQ_PORT}"
   vhostPrefix: "${RABBITMQ_VHOST_PREFIX}"
-  user: "${RABBITMQ_USER}"
+  username: "${RABBITMQ_USER}"
   password: "${RABBITMQ_PASS}"
 
 cassandra:

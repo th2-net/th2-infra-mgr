@@ -1,0 +1,6 @@
+{
+    "host": "${RABBITMQ_HOST}",
+    "port": "${RABBITMQ_PORT}",
+    "username": "${RABBITMQ_USER}",
+    "password": "${RABBITMQ_PASS}"
+}

@@ -97,7 +97,7 @@ public class SchemaInitializer {
 
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
         String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
-        String user = rabbitMQConfig.getUser();
+        String user = rabbitMQConfig.getUsername();
         String pass = rabbitMQConfig.getPassword();
 
         RestTemplateBuilder builder = new RestTemplateBuilder();
@@ -150,7 +150,7 @@ public class SchemaInitializer {
 
         Map<String, String> cmData = cm.getData();
 
-        Config.Cassandra cassandraConfig = config.getCassandra();
+        Config.CassandraConfig cassandraConfig = config.getCassandra();
         String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
 
         // copy config map with updated keyspace name
