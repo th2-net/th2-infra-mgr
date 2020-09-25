@@ -18,14 +18,10 @@ package com.exactpro.th2.schema.inframgr;
 import com.exactpro.th2.schema.inframgr.repository.RepositoryUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import rx.Subscription;
 import rx.schedulers.Schedulers;
 
@@ -37,45 +33,52 @@ import java.util.concurrent.Executors;
 @Controller
 public class SubscriptionController {
 
+    private final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
     private ExecutorService executor = Executors.newCachedThreadPool();
 
     @GetMapping("/subscriptions/schema/{name}")
-    public ResponseEntity<ResponseBodyEmitter> subscribe(@PathVariable(name="name") String schemaName) {
-
-        final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
-        ResponseBodyEmitter eventEmitter = new ResponseBodyEmitter(-1L);
+    public SseEmitter subscribe(@PathVariable(name="name") String schemaName) {
 
         String sessionId = String.format("%016x", (new Random()).nextLong());
+
+        var ref = new Object() {
+            Subscription subscription = null;
+        };
+        SseEmitter eventEmitter = new SseEmitter(-1L);
+        eventEmitter.onError(throwable -> {
+            logger.info("Subscription \"{}\": Unsubscribing on thread \"{}\""
+                    , sessionId
+                    , Thread.currentThread().getName()
+            );
+            if (!(ref.subscription == null || ref.subscription.isUnsubscribed()))
+                ref.subscription.unsubscribe();
+        });
 
         executor.execute(() -> {
 
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
-
-                var ref = new Object() {
-                    Subscription subscription = null;
-                };
                 ref.subscription = router.getObservable()
-                        .filter(event -> (event.getSchema().equals(schemaName) && event.getEventType().equals(RepositoryUpdateEvent.EVENT_TYPE)))
+                        .filter(event -> (event.getSchema().equals(schemaName) && (event instanceof RepositoryUpdateEvent)))
                         .observeOn(Schedulers.io())
                         .subscribe(event -> {
 
                             try {
-                                eventEmitter.send(event.getEventBody() + "\n");
+                                eventEmitter.send(SseEmitter.event()
+                                        .name(event.getEventType())
+                                        .data(event.getEventBody())
+                                        .id(event.getEventKey())
+                                        );
                                 logger.info("Subscription \"{}\": sent update event {} on thread \"{}\""
                                         , sessionId
                                         , event.getEventBody()
                                         , Thread.currentThread().getName()
                                 );
                             } catch (IOException e) {
-
-                                logger.info("Subscription \"{}\": closed. Unsubscribing on thread \"{}\""
+                                logger.error("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
                                         , sessionId
                                         , Thread.currentThread().getName()
+                                        , e.getMessage()
                                 );
-
-                                if (!(ref.subscription == null || ref.subscription.isUnsubscribed()))
-                                    ref.subscription.unsubscribe();
-                                eventEmitter.completeWithError(e);
                             }
                         });
 
@@ -86,8 +89,6 @@ public class SubscriptionController {
                 );
         });
 
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.setContentType(MediaType.TEXT_EVENT_STREAM);
-        return new ResponseEntity(eventEmitter, responseHeaders, HttpStatus.OK);
+        return eventEmitter;
     }
 }
