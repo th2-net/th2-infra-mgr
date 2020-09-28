@@ -70,12 +70,11 @@ public class K8sOperator {
 
                 @Override
                 public void onClose(KubernetesClientException cause) {
-                    logger.error("exception watching resources", cause);
-
+                    logger.error("Exception watching resources", cause);
                 }
             });
         } catch (Exception e) {
-            logger.error("Exception registering watchers. exiting", e);
+            logger.error("Exception registering watchers. Exiting", e);
             return;
         }
 
@@ -102,22 +101,28 @@ public class K8sOperator {
             String kind = res.getKind();
             String hash = res.getSourceHashLabel();
 
+            logger.debug("Received {} event on resource \"{}\" in namespace \"{}\"", action.name(), name, namespace);
+
             Lock lock = cache.lockFor(namespace, kind, name);
             try {
                 lock.lock();
 
-                // do prelimenary check against the cache to avoid repository downloading
+                // do preliminary check against the cache to avoid repository downloading
                 K8sResourceCache.CacheEntry cacheEntry = cache.get(namespace, kind, name);
                 String cachedHash = cacheEntry == null ? null : cacheEntry.getHash();
                 if (action.equals(Watcher.Action.DELETED) && cacheEntry != null && cacheEntry.isMarkedAsDeleted()
-                        && Objects.equals(cachedHash, hash))
-
+                        && Objects.equals(cachedHash, hash)) {
+                    logger.debug("No action needed for resource {} in namespace {}", name, namespace);
                     return;
+                }
 
                 if (!action.equals(Watcher.Action.DELETED) && cacheEntry != null && !cacheEntry.isMarkedAsDeleted()
-                        && Objects.equals(cachedHash, hash))
+                        && Objects.equals(cachedHash, hash)) {
 
+                    logger.debug("No action needed for resource {} in namespace {}", name, namespace);
                     return;
+                }
+
 
                 // action is needed as optimistic check did not draw enough conclusions
                 Gitter gitter = Gitter.getBranch(config.getGit(), kube.extractSchemaName(namespace));
