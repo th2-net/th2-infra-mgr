@@ -32,7 +32,7 @@ import java.util.Set;
 
 public class Config {
     public static final String CONFIG_FILE = "config.yml";
-    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMq-mng.json";
+    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
     private static volatile Config instance;
     private Logger logger;
 
