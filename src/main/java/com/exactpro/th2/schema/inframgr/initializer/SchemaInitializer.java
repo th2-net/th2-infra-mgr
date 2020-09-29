@@ -96,7 +96,7 @@ public class SchemaInitializer {
         }
 
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-        String apiUrl = String.format("%s:%s/api/vhosts/%s", host, port, vHostName);
+        String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
         String user = rabbitMQConfig.getUsername();
         String pass = rabbitMQConfig.getPassword();
 
