@@ -7,7 +7,6 @@ RUN mkdir /home/service
 RUN mkdir /home/service/repository
 RUN mkdir /home/service/keys
 RUN cp ./build/libs/*.jar /home/service/application.jar
-RUN cp ./build/resources/main/config.yml /home/service/
 
 FROM openjdk:12-alpine
 COPY --from=build /home/service /home/service

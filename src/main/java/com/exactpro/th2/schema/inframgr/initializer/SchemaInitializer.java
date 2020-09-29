@@ -96,14 +96,14 @@ public class SchemaInitializer {
         }
 
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-        String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
+        String apiUrl = String.format("%s:%s/api/vhosts/%s", host, port, vHostName);
         String user = rabbitMQConfig.getUsername();
         String pass = rabbitMQConfig.getPassword();
 
         RestTemplateBuilder builder = new RestTemplateBuilder();
         RestTemplate restTemplate = builder.basicAuthentication(user, pass).build();
 
-        // check if vHost already exists on server
+        // check if vHost already exists on the server
         try {
             try {
                 restTemplate.getForObject(apiUrl, RabbitMQvHost.class);
@@ -179,8 +179,6 @@ public class SchemaInitializer {
             logger.error("Failed to load ConfigMap({})", configMapName);
             return;
         }
-
-        Map<String, String> cmData = cm.getData();
 
         // copy config map
         try {

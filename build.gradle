@@ -6,7 +6,6 @@ plugins {
 
 group = 'com.exactpro.th2.schema'
 version = release_version
-sourceCompatibility = '11'
 
 apply plugin: 'distribution'
 
@@ -45,11 +44,6 @@ dependencies {
 bootJar {
 	exclude('log4j.properties')
 	exclude('config.yml')
-}
-
-task printProjectInfo {
-	printf("PROJECT_NAME=[%s]\n", project.name)
-	printf("PROJECT_VERSION=[%s]\n", version)
 }
 
 test {

@@ -32,19 +32,18 @@ import java.util.Set;
 
 public class Config {
     public static final String CONFIG_FILE = "config.yml";
-    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
+    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMq-mng.json";
     private static volatile Config instance;
     private Logger logger;
-    private StringSubstitutor stringSubstitutor;
 
     private Config() {
         logger = LoggerFactory.getLogger(Config.class);
-        stringSubstitutor = new StringSubstitutor(StringLookupFactory.INSTANCE.environmentVariableStringLookup());
     }
 
     private void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
 
         String fileContent = new String(Files.readAllBytes(file.toPath()));
+        StringSubstitutor stringSubstitutor = new StringSubstitutor(StringLookupFactory.INSTANCE.environmentVariableStringLookup());
         String enrichedContent = stringSubstitutor.replace(fileContent);
         mapper.readerForUpdating(object).readValue(enrichedContent);
     }

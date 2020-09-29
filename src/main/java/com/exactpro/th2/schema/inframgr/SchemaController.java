@@ -47,7 +47,7 @@ public class SchemaController {
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
     private static final String SOURCE_BRANCH = "master";
 
-    private Logger logger = LoggerFactory.getLogger(SchemaController.class);
+    private final Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
     @GetMapping("/schemas")
     @ResponseBody
@@ -73,8 +73,7 @@ public class SchemaController {
         Gitter gitter = Gitter.getBranch(config, name);
         try {
             gitter.lock();
-            RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
-            return snapshot;
+            return Repository.getSnapshot(gitter);
         } catch (Exception e) {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         } finally {
@@ -136,7 +135,7 @@ public class SchemaController {
                 return snapshot;
 
             //synchronize with k8s
-            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
+            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name)) {
 
                 SchemaInitializer.ensureSchema(name, kube);
                 K8sProvisioningException k8se = null;
@@ -181,7 +180,7 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         // deserialize request body
-        List<RequestEntry> operations = null;
+        List<RequestEntry> operations;
         try {
             ObjectMapper mapper = new ObjectMapper();
             operations = mapper.readValue(requestBody, new TypeReference<>() {});
@@ -277,7 +276,7 @@ public class SchemaController {
                     return snapshot;
 
                 //synchronize with k8s
-                try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name);) {
+                try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name)) {
 
                     SchemaInitializer.ensureSchema(name, kube);
                     K8sProvisioningException k8se = null;
@@ -311,7 +310,7 @@ public class SchemaController {
                     if (k8se != null)
                         throw k8se;
                 } catch (Exception e) {
-                    logger.error("Exception provisioning resource(s) to Kubernetes ({})", e);
+                    logger.error("Exception provisioning resource(s) to Kubernetes", e);
                     throw e;
                 }
             }
