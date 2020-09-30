@@ -24,33 +24,35 @@ import com.exactpro.th2.schema.inframgr.util.Hash;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.HashSet;
 import java.util.Set;
 
 public class Repository {
 
-    private static ResourceEntry loadYMLFile(File ymlFile) throws Exception{
+    private static ResourceEntry loadYMLFile(File file) throws IOException {
 
-        String ymlFileContents = Files.readString(ymlFile.toPath());
+        String contents = Files.readString(file.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        RepositoryResource cr = mapper.readValue(ymlFileContents, RepositoryResource.class);
+        RepositoryResource resource = mapper.readValue(contents, RepositoryResource.class);
 
-        ResourceEntry rdu = new ResourceEntry();
-        rdu.setKind(ResourceType.forKind(cr.getKind()));
-        rdu.setName(cr.getMetadata().getName());
-        rdu.setSpec(cr.getSpec());
+        ResourceEntry entry = new ResourceEntry();
+        entry.setKind(ResourceType.forKind(resource.getKind()));
+        entry.setName(resource.getMetadata().getName());
+        entry.setSpec(resource.getSpec());
 
-        rdu.setSourceHash(Hash.digest(ymlFileContents));
+        entry.setSourceHash(Hash.digest(contents));
 
-        return rdu;
+        return entry;
     }
 
-    private static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws Exception {
+    private static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws IOException {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
@@ -81,18 +83,34 @@ public class Repository {
         return resources;
     }
 
-    private static File getFile(Config.GitConfig config, String branch, ResourceEntry data) {
+    private static File getFile(Config.GitConfig config, String branch, ResourceEntry entry) {
+
         File file = new File (
                 config.getLocalRepositoryRoot()
                         + "/" + branch
-                        + "/" + data.getKind().path()
-                        + "/" + data.getName()
+                        + "/" + entry.getKind().path()
+                        + "/" + entry.getName()
                         + ".yml");
         return file;
     }
 
 
-    public static RepositorySnapshot getSnapshot(Gitter gitter) throws Exception {
+    /**
+     * This method will checkout latest version from the repository
+     * and will create RepositorySnapshot from it.
+     *
+     * @param  gitter
+     *         Gitter object that will be used to checkout data from the repository.
+     *         Must be locked externally as this method does not lock repository by itself
+     *
+     * @return Latest snapshot of repository
+     *
+     * @throws IOException
+     *         If repository IO operation fails
+     * @throws GitAPIException
+     *         If git checkout operation fails
+     */
+    public static RepositorySnapshot getSnapshot(Gitter gitter) throws IOException, GitAPIException {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
@@ -104,39 +122,41 @@ public class Repository {
     }
 
 
-    private static void saveYMLFile(File ymlFile, RepositoryResource object) throws Exception {
-        ymlFile.getParentFile().mkdir();
+    private static void saveYMLFile(File file, RepositoryResource resource) throws IOException {
+
+        file.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
-        String ymlData = mapper.writeValueAsString(object);
-        object.setSourceHash(Hash.digest(ymlData));
-        Files.writeString(ymlFile.toPath(), ymlData);
-        //mapper.writeValue(ymlFile, object);
+        String contents = mapper.writeValueAsString(resource);
+        resource.setSourceHash(Hash.digest(contents));
+        Files.writeString(file.toPath(), contents);
     }
 
 
-    public static void add(Config.GitConfig config, String branch, ResourceEntry data) throws Exception {
-        File file = getFile(config, branch, data);
+    public static void add(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+
+        File file = getFile(config, branch, entry);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        RepositoryResource cr = new RepositoryResource(data);
-        Repository.saveYMLFile(file, cr);
-        data.setSourceHash(cr.getSourceHash());
+        RepositoryResource resource = new RepositoryResource(entry);
+        Repository.saveYMLFile(file, resource);
+        entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void update(Config.GitConfig config, String branch, ResourceEntry data) throws Exception {
-        File file = getFile(config, branch, data);
+    public static void update(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+
+        File file = getFile(config, branch, entry);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        RepositoryResource cr = new RepositoryResource(data);
-        Repository.saveYMLFile(file, cr);
-        data.setSourceHash(cr.getSourceHash());
+        RepositoryResource resource = new RepositoryResource(entry);
+        Repository.saveYMLFile(file, resource);
+        entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void remove(Config.GitConfig config, String branch, ResourceEntry data) throws Exception {
+    public static void remove(Config.GitConfig config, String branch, ResourceEntry entry){
 
-        File file = getFile(config, branch, data);
+        File file = getFile(config, branch, entry);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         file.delete();

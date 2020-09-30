@@ -19,14 +19,18 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class Hash {
-    public static String digest(String data) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");
-        byte[] digest = md.digest(data.getBytes());
-        StringBuilder sb = new StringBuilder();
-        for (byte b : digest)
-            sb.append(String.format("%02x", b));
+    public static String digest(String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(data.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest)
+                sb.append(String.format("%02x", b));
 
-        return sb.toString();
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
 

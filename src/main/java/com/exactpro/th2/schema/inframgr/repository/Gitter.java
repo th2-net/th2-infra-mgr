@@ -21,6 +21,7 @@ import com.jcraft.jsch.JSchException;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.TransportConfigCallback;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
 import org.eclipse.jgit.errors.EntryExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
@@ -32,6 +33,7 @@ import org.eclipse.jgit.transport.SshTransport;
 import org.eclipse.jgit.util.FS;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -129,7 +131,7 @@ public class Gitter {
         return commits.keySet();
     }
 
-    private String checkout(Config.GitConfig config, String branch, String targetDir) throws Exception {
+    private String checkout(Config.GitConfig config, String branch, String targetDir) throws IOException, GitAPIException {
         final String repositoryDir = targetDir + "/.git";
 
         // create bracnh directory if it does not exist
@@ -164,7 +166,7 @@ public class Gitter {
         return ref.getObjectId().getName();
     }
 
-    public String checkout() throws Exception {
+    public String checkout() throws IOException, GitAPIException {
 
         final String targetDir = config.getLocalRepositoryRoot() + "/" + branch;
         return checkout(config, branch, targetDir);

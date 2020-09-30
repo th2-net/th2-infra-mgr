@@ -131,7 +131,6 @@ public class K8sOperator {
                 ResourceEntry resourceEntry = null;
                 try {
                     gitter.lock();
-                    gitter.checkout();
                     RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
 
                     // check if we need to re-synchronize k8s at all

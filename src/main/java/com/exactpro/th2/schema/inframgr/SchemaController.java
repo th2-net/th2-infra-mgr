@@ -112,10 +112,9 @@ public class SchemaController {
         try {
             RepositorySnapshot snapshot;
             Set<ResourceEntry> resources;
-            String commitRef;
             try {
                 gitter.lock();
-                commitRef = gitter.createBranch(SOURCE_BRANCH);
+                gitter.createBranch(SOURCE_BRANCH);
 
                 snapshot = Repository.getSnapshot(gitter);
                 resources = snapshot.getResources();
@@ -125,7 +124,7 @@ public class SchemaController {
 
             // send repository update event
             SchemaEventRouter router = SchemaEventRouter.getInstance();
-            RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
+            RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, snapshot.getCommitRef());
             event.setSyncingK8s(true);
             router.addEvent(event);
 
@@ -221,7 +220,6 @@ public class SchemaController {
             boolean wasPropagated = false;
             try {
                 gitter.lock();
-                gitter.checkout();
                 snapshot = Repository.getSnapshot(gitter);
                 RepositorySettings repoSettings = snapshot.getRepositorySettings();
                 if (repoSettings != null && repoSettings.isK8sPropagationEnabled())

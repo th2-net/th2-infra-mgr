@@ -129,7 +129,6 @@ public class K8sSynchronization {
             RepositorySnapshot snapshot;
             try {
                 gitter.lock();
-                gitter.checkout();
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
                 gitter.unlock();
