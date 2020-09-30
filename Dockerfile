@@ -12,4 +12,8 @@ FROM openjdk:12-alpine
 COPY --from=build /home/service /home/service
 WORKDIR /home/service/
 EXPOSE 8080
-ENTRYPOINT ["java", "-Dlog4j.configuration=file:/home/service/log4j.properties", "-jar", "/home/service/application.jar"]
+ENTRYPOINT ["java" \
+    , "-Dlog4j.configuration=file:/home/service/config/log4j.properties" \
+    , "-Dinframgr.config.dir=config" \
+    , "-jar" \
+    , "/home/service/application.jar"]

@@ -36,7 +36,7 @@ public class InfraManagerApplication {
 
 		} catch (Exception e) {
 			Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
-			logger.error("Exiting with exception ({})", e.getMessage());
+			logger.error("Exiting with exception", e);
 		}
 	}
 }

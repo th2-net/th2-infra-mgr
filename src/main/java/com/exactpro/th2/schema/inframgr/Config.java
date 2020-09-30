@@ -31,13 +31,17 @@ import java.util.Map;
 import java.util.Set;
 
 public class Config {
-    public static final String CONFIG_FILE = "config.yml";
-    public static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
+    private static final String CONFIG_FILE = "config.yml";
+    private static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
+    private static final String CONFIG_DIR_SYSTEM_PROPERTY ="inframgr.config.dir";
     private static volatile Config instance;
     private Logger logger;
+    private String configDir;
 
     private Config() {
         logger = LoggerFactory.getLogger(Config.class);
+        configDir = System.getProperty(CONFIG_DIR_SYSTEM_PROPERTY, ".");
+        configDir += "/";
     }
 
     private void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
@@ -51,7 +55,7 @@ public class Config {
     private void readConfiguration() throws IOException {
 
         try {
-            File file = new File(CONFIG_FILE);
+            File file = new File(configDir + CONFIG_FILE);
 
             parseFile(file, new ObjectMapper(new YAMLFactory()), this);
 
@@ -69,7 +73,7 @@ public class Config {
     private void updateWithRabbitMQManagementSettings() throws IOException {
 
         try {
-            File file = new File(RABBITMQ_MANAGEMENT_CONFIG_FILE);
+            File file = new File(configDir + RABBITMQ_MANAGEMENT_CONFIG_FILE);
             // back off safely as this configuration file is not mandatory
             if (!(file.exists() && file.isFile()))
                 return;
