@@ -12,7 +12,6 @@ rabbitmq:
   password: "${RABBITMQ_PASS}"
 
 cassandra:
-  password: "${CASSANDRA_PASS}"
   keyspacePrefix: "${CASSANDRA_KEYSPACE_PREFIX}"
 
 kubernetes:
