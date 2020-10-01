@@ -28,6 +28,9 @@ public enum ResourceType {
     Th2Recon("Th2Recon", "recons", "th2recons", "th2.exactpro.com/v1"),
     Th2Verifier("Th2Verifier", "verifiers", "th2verifiers", "th2.exactpro.com/v1"),
     Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
+    Th2MessageStore("Th2MessageStore", "message-stores", "th2messagestores", "th2.exactpro.com/v1"),
+    Th2EventStore("Th2EventStore", "event-stores", "th2eventstores", "th2.exactpro.com/v1"),
+    Th2GenericBox("Th2GenericBox", "generics", "th2genericboxes", "th2.exactpro.com/v1"),
     SettingsFile("SettingsFile", "", null, null),
     UIFile("UIFile", "ui-files", null, null);
 

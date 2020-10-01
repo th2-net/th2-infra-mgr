@@ -276,6 +276,7 @@ public class Config {
     public static class K8sConfig {
         private boolean useCustomConfig;
         private String masterURL;
+        private String defaultNamespace;
         private String apiVersion;
         private boolean ignoreInsecureHosts;
         private String clientCertificateFile;
@@ -301,6 +302,14 @@ public class Config {
 
         public void setMasterURL(String masterURL) {
             this.masterURL = masterURL;
+        }
+
+        public String getDefaultNamespace() {
+            return defaultNamespace;
+        }
+
+        public void setDefaultNamespace(String namespace) {
+            this.defaultNamespace = namespace;
         }
 
         public String getApiVersion() {

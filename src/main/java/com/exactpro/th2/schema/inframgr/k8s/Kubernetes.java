@@ -332,6 +332,7 @@ public class Kubernetes implements Closeable {
         ConfigBuilder configBuilder = new ConfigBuilder();
         configBuilder
                 .withMasterUrl(config.getMasterURL())
+                .withNamespace(config.getDefaultNamespace())
                 .withApiVersion(config.getApiVersion())
                 .withTrustCerts(config.ignoreInsecureHosts());
 
