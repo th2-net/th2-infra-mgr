@@ -165,6 +165,7 @@ public class Config {
         private String username;
         private String password;
         private String vhostPrefix;
+        private String hostForSchema;
 
         public String getHost() {
             return host;
@@ -199,11 +200,19 @@ public class Config {
         }
 
         public String getVhostPrefix() {
-            return vhostPrefix;
+            return vhostPrefix == null ? "" : vhostPrefix;
         }
 
         public void setVhostPrefix(String vhostPrefix) {
             this.vhostPrefix = vhostPrefix;
+        }
+
+        public String getHostForSchema() {
+            return hostForSchema;
+        }
+
+        public void setHostForSchema(String hostForSchema) {
+            this.hostForSchema = hostForSchema;
         }
     }
 
@@ -213,6 +222,7 @@ public class Config {
         private String username;
         private String password;
         private String keyspacePrefix;
+        private String hostForSchema;
 
         public String getHost() {
             return host;
@@ -247,11 +257,19 @@ public class Config {
         }
 
         public String getKeyspacePrefix() {
-            return keyspacePrefix;
+            return keyspacePrefix == null ? "" : keyspacePrefix;
         }
 
         public void setKeyspacePrefix(String keyspacePrefix) {
             this.keyspacePrefix = keyspacePrefix;
+        }
+
+        public String getHostForSchema() {
+            return hostForSchema;
+        }
+
+        public void setHostForSchema(String hostForSchema) {
+            this.hostForSchema = hostForSchema;
         }
     }
 
@@ -342,7 +360,7 @@ public class Config {
         }
 
         public String getNamespacePrefix() {
-            return namespacePrefix;
+            return namespacePrefix == null ? "" : namespacePrefix;
         }
 
         public void setNamespacePrefix(String namespacePrefix) {

@@ -37,16 +37,16 @@ public class SchemaInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
-    private static final String RABBITMQ_CONFIG_MAP_NAME = "rabbitmq";
-    private static final String CASSANDRA_CONFIG_MAP_NAME = "cassandra";
-    private static final String LOGGING_CONFIG_MAP_NAME = "logging";
+    private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
+    private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
+    private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
-    private static final String RABBITMQ_HOST_KEY = "RABBITMQ_HOST";
-    private static final String RABBITMQ_PORT_KEY = "RABBITMQ_MANAGEMENT_PORT";
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
+    private static final String RABBITMQ_JSON_HOST_KEY = "host";
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
+    private static final String CASSANDRA_JSON_HOST_KEY = "host";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
 
@@ -77,7 +77,7 @@ public class SchemaInitializer {
     public static void ensureVHost(Config config, String schemaName, Kubernetes kube) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(RABBITMQ_CONFIG_MAP_NAME);
+        String configMapName = configMaps.get(RABBITMQ_CONFIGMAP_PARAM);
         Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
@@ -87,8 +87,8 @@ public class SchemaInitializer {
         }
 
         Map<String, String> cmData = cm.getData();
-        String host = rabbitMQConfig.getHost() != null ? rabbitMQConfig.getHost() : cmData.get(RABBITMQ_HOST_KEY);
-        String port = rabbitMQConfig.getPort() != null ? rabbitMQConfig.getPort() : cmData.get(RABBITMQ_PORT_KEY);
+        String host = rabbitMQConfig.getHost();
+        String port = rabbitMQConfig.getPort();
 
         if (host == null || port == null) {
             logger.error("RabbitMQ server definition is incomplete (host={}, port={})", host, port);
@@ -127,6 +127,8 @@ public class SchemaInitializer {
 
             ObjectMapper mapper = new ObjectMapper();
             var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
+            if (rabbitMQConfig.getHostForSchema() != null)
+                rabbitMQJson.put(RABBITMQ_JSON_HOST_KEY, rabbitMQConfig.getHostForSchema());
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
 
@@ -140,7 +142,7 @@ public class SchemaInitializer {
     public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(CASSANDRA_CONFIG_MAP_NAME);
+        String configMapName = configMaps.get(CASSANDRA_CONFIGMAP_PARAM);
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
@@ -159,6 +161,8 @@ public class SchemaInitializer {
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
+            if (cassandraConfig.getHostForSchema() != null)
+                cradleMQJson.put(CASSANDRA_JSON_HOST_KEY, cassandraConfig.getHostForSchema());
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
 
@@ -172,7 +176,7 @@ public class SchemaInitializer {
     public static void copyLoggingConfigMap(Config config, Kubernetes kube) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(LOGGING_CONFIG_MAP_NAME);
+        String configMapName = configMaps.get(LOGGING_CONFIGMAP_PARAM);
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null)   {
@@ -239,5 +243,4 @@ public class SchemaInitializer {
                 }
         }
     }
-
 }
