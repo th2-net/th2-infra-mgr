@@ -24,11 +24,14 @@ import com.exactpro.th2.schema.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.schema.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.schema.inframgr.models.*;
 import com.exactpro.th2.schema.inframgr.repository.Gitter;
+import com.exactpro.th2.schema.inframgr.repository.InconsistentRepositoryStateException;
 import com.exactpro.th2.schema.inframgr.repository.Repository;
 import com.exactpro.th2.schema.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.schema.inframgr.util.Stringifier;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -64,17 +67,20 @@ public class SchemaController {
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot getSchemaFiles(@PathVariable(name="name") String name) throws Exception {
+    public RepositorySnapshot getSchemaFiles(@PathVariable(name="name") String schemaName) throws Exception {
 
-        if (name.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
-        Config.GitConfig config = Config.getInstance().getGit();
-        Gitter gitter = Gitter.getBranch(config, name);
+        Config.GitConfig gitConfig = Config.getInstance().getGit();
+        final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
         try {
             gitter.lock();
             return Repository.getSnapshot(gitter);
+        } catch (RefNotAdvertisedException | RefNotFoundException e) {
+            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
         } catch (Exception e) {
+            logger.error("Exception retrieving schema {} from repository", schemaName, e);
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         } finally {
             gitter.unlock();
@@ -83,63 +89,57 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot createSchema(@PathVariable(name="name") String name) throws Exception {
+    public RepositorySnapshot createSchema(@PathVariable(name="name") String schemaName) throws Exception {
 
-        if (name.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         Pattern pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
-        if (!pattern.matcher(name).matches())
+        if (!pattern.matcher(schemaName).matches())
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
-
         Config config = Config.getInstance();
-        Config.GitConfig git = config.getGit();
+        Config.GitConfig gitConfig = config.getGit();
 
         // check if the schema already exists
         Set<String> branches;
         try {
-             branches = Gitter.getBranches(git);
+             branches = Gitter.getBranches(gitConfig);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
-        if (branches.contains(name))
-                throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
-
+        if (branches.contains(schemaName))
+            throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
 
         // create schema
-        Gitter gitter = Gitter.getBranch(git, name);
+        final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
         try {
             RepositorySnapshot snapshot;
-            Set<ResourceEntry> resources;
             try {
                 gitter.lock();
                 gitter.createBranch(SOURCE_BRANCH);
-
                 snapshot = Repository.getSnapshot(gitter);
-                resources = snapshot.getResources();
             } finally {
                 gitter.unlock();
             }
 
             // send repository update event
             SchemaEventRouter router = SchemaEventRouter.getInstance();
-            RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, snapshot.getCommitRef());
+            RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
             event.setSyncingK8s(true);
             router.addEvent(event);
-
 
             RepositorySettings repoSettings = snapshot.getRepositorySettings();
             if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
                 return snapshot;
 
             //synchronize with k8s
-            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name)) {
+            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
-                SchemaInitializer.ensureSchema(name, kube);
+                SchemaInitializer.ensureSchema(schemaName, kube);
                 K8sProvisioningException k8se = null;
 
-                for (ResourceEntry entry : resources)
+                for (ResourceEntry entry : snapshot.getResources())
                     if (entry.getKind().isK8sResource()) {
                         try {
                             Stringifier.stringify(entry.getSpec());
@@ -166,6 +166,7 @@ public class SchemaController {
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
+            logger.error("Exception creating schema \"{}\"", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
     }
@@ -173,9 +174,10 @@ public class SchemaController {
 
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot updateSchema(@PathVariable(name="name") String name, @RequestBody String requestBody) throws Exception {
+    public RepositorySnapshot updateSchema(@PathVariable(name="name") String schemaName, @RequestBody String requestBody)
+            throws Exception {
 
-        if (name.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         // deserialize request body
@@ -187,65 +189,37 @@ public class SchemaController {
             throw new BadRequestException(e.getMessage());
         }
 
-        // validate resource names
-        Pattern regex = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
-        for (RequestEntry entry : operations)
-            if (!regex.matcher(entry.getPayload().getName()).matches())
-                throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
-                        "Invalid resource name : \"%s\" (%s)"
-                        , entry.getPayload().getName()
-                        , entry.getPayload().getKind().kind()
-                ));
+        validateResourceNames(operations);
 
         Config config = Config.getInstance();
-        Config.GitConfig git = config.getGit();
+        Config.GitConfig gitConfig = config.getGit();
 
         // check if the schema exists
         Set<String> branches;
         try {
-            branches = Gitter.getBranches(git);
+            branches = Gitter.getBranches(gitConfig);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
-        if (!branches.contains(name))
+        if (!branches.contains(schemaName))
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
 
-        // update schema
+        // apply updates
         try {
-            Gitter gitter = Gitter.getBranch(git, name);
-
-            String commitRef;
+            final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
             RepositorySnapshot snapshot;
-
+            String commitRef;
             boolean wasPropagated = false;
+
             try {
                 gitter.lock();
+
                 snapshot = Repository.getSnapshot(gitter);
                 RepositorySettings repoSettings = snapshot.getRepositorySettings();
-                if (repoSettings != null && repoSettings.isK8sPropagationEnabled())
-                    wasPropagated = true;
+                if (repoSettings != null)
+                    wasPropagated = repoSettings.isK8sPropagationEnabled();
 
-                // apply operations
-                try {
-                    for (RequestEntry entry : operations) {
-                        switch (entry.getOperation()) {
-                            case add:
-                                Repository.add(git, name, entry.getPayload());
-                                break;
-                            case update:
-                                Repository.update(git, name, entry.getPayload());
-                                break;
-                            case remove:
-                                Repository.remove(git, name, entry.getPayload());
-                                break;
-                        }
-                    }
-                } catch (Exception e) {
-                    gitter.reset();
-                    throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
-                }
-
-                commitRef = gitter.commit("schema update");
+                commitRef = updateRepository(gitter, operations);
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
                 gitter.unlock();
@@ -254,12 +228,12 @@ public class SchemaController {
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");
             } else {
-                RepositorySettings repoSettings = snapshot.getRepositorySettings();
-
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
-                RepositoryUpdateEvent event = new RepositoryUpdateEvent(name, commitRef);
+                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, commitRef);
 
-                if (repoSettings != null && repoSettings.isK8sPropagationEnabled() && !wasPropagated) {
+                RepositorySettings repoSettings = snapshot.getRepositorySettings();
+                boolean propagating = (repoSettings != null) && repoSettings.isK8sPropagationEnabled();
+                if (propagating && !wasPropagated) {
                     // we need to resynchronize whole schema
                     // delegate this job to K8sSynchronization
                     event.setSyncingK8s(false);
@@ -270,55 +244,121 @@ public class SchemaController {
                 event.setSyncingK8s(true);
                 router.addEvent(event);
 
-                if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
-                    return snapshot;
-
-                //synchronize with k8s
-                try (Kubernetes kube = new Kubernetes(config.getKubernetes(), name)) {
-
-                    SchemaInitializer.ensureSchema(name, kube);
-                    K8sProvisioningException k8se = null;
-
-                    for (RequestEntry entry : operations)
-                        if (entry.getPayload().getKind().isK8sResource()) {
-                            try {
-                                Stringifier.stringify(entry.getPayload().getSpec());
-                                RepositoryResource resource = new RepositoryResource(entry.getPayload());
-                                switch (entry.getOperation()) {
-                                    case add:
-                                        kube.createCustomResource(resource);
-                                        break;
-                                    case update:
-                                        kube.replaceCustomResource(resource);
-                                        break;
-                                    case remove:
-                                        kube.deleteCustomResource(resource);
-                                        break;
-                                }
-                            } catch (Exception e) {
-                                if (k8se == null)
-                                    k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
-                                k8se.addItem(entry.getPayload());
-                                logger.error("Exception provisioning {} resource \"{}\" to Kubernetes"
-                                        , entry.getPayload().getKind().kind()
-                                        , entry.getPayload().getName()
-                                        , e);
-                            }
-                        }
-                    if (k8se != null)
-                        throw k8se;
-                } catch (Exception e) {
-                    logger.error("Exception provisioning resource(s) to Kubernetes", e);
-                    throw e;
-                }
+                if (propagating)
+                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName);
             }
 
             return snapshot;
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
-            logger.error("Exception provisioning request", e);
+            logger.error("Exception updating schema \"{}\" request", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
+    }
+
+
+    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName)
+            throws ServiceException {
+
+        try (Kubernetes kube = new Kubernetes(k8sConfig, schemaName)) {
+
+            SchemaInitializer.ensureSchema(schemaName, kube);
+            K8sProvisioningException k8se = null;
+
+            for (RequestEntry entry : operations)
+                if (entry.getPayload().getKind().isK8sResource()) {
+                    try {
+                        Stringifier.stringify(entry.getPayload().getSpec());
+                        RepositoryResource resource = new RepositoryResource(entry.getPayload());
+                        switch (entry.getOperation()) {
+                            case add:
+                                kube.createCustomResource(resource);
+                                break;
+                            case update:
+                                kube.replaceCustomResource(resource);
+                                break;
+                            case remove:
+                                kube.deleteCustomResource(resource);
+                                break;
+                        }
+                    } catch (Exception e) {
+                        if (k8se == null)
+                            k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
+                        k8se.addItem(entry.getPayload());
+                        logger.error("Exception provisioning {} resource \"{}\" to Kubernetes"
+                                , entry.getPayload().getKind().kind()
+                                , entry.getPayload().getName()
+                                , e);
+                    }
+                }
+            if (k8se != null)
+                throw k8se;
+        } catch (Exception e) {
+            logger.error("Exception provisioning resource(s) to Kubernetes", e);
+            ServiceException se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            se.addSuppressed(e);
+        }
+    }
+
+
+    private String updateRepository(Gitter gitter, List<RequestEntry> operations) throws ServiceException {
+
+        String branchName = gitter.getBranch();
+        try {
+
+            try {
+                for (RequestEntry entry : operations)
+                    switch (entry.getOperation()) {
+                        case add:
+                            Repository.add(gitter.getConfig(), branchName, entry.getPayload());
+                            break;
+                        case update:
+                            Repository.update(gitter.getConfig(), branchName, entry.getPayload());
+                            break;
+                        case remove:
+                            Repository.remove(gitter.getConfig(), branchName, entry.getPayload());
+                            break;
+                    }
+                return gitter.commitAndPush("schema update");
+
+            } catch (InconsistentRepositoryStateException irsePassThrough) {
+                // pass this exception for processing on outer level
+                throw irsePassThrough;
+            } catch (Exception e) {
+                logger.error("Exception updating repository for branch \"{}\"", branchName, e);
+                gitter.reset();
+                throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+            }
+
+        } catch (InconsistentRepositoryStateException irse) {
+            // this exception is thrown when inconsistent state of git repository is expected
+            // discard local cache and re-download repository
+            logger.error("Inconsistent repository state exception for branch \"{}\"", branchName, irse);
+
+            ServiceException se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, irse.getMessage());
+            se.addSuppressed(irse);
+
+            try {
+                gitter.recreateCache();
+            } catch (Exception re) {
+                logger.error("Exception recreating repository's local cache for branch \"{}\"", branchName, re);
+                se.addSuppressed(re);
+            }
+            throw se;
+        }
+    }
+
+
+    private void validateResourceNames(List<RequestEntry> operations) {
+
+        Pattern regex = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
+        for (RequestEntry entry : operations)
+            if (!regex.matcher(entry.getPayload().getName()).matches())
+                throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
+                        "Invalid resource name : \"%s\" (%s)"
+                        , entry.getPayload().getName()
+                        , entry.getPayload().getKind().kind()
+                ));
     }
 }
