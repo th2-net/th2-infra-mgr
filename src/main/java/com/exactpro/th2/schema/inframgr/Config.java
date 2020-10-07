@@ -15,6 +15,10 @@
  */
 package com.exactpro.th2.schema.inframgr;
 
+import com.exactpro.th2.schema.inframgr.util.cfg._CassandraConfig;
+import com.exactpro.th2.schema.inframgr.util.cfg._GitConfig;
+import com.exactpro.th2.schema.inframgr.util.cfg._K8sConfig;
+import com.exactpro.th2.schema.inframgr.util.cfg._RabbitMQConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
@@ -27,8 +31,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.Map;
-import java.util.Set;
 
 public class Config {
     private static final String CONFIG_FILE = "config.yml";
@@ -88,7 +90,6 @@ public class Config {
         }
     }
 
-
     public static Config getInstance() throws IOException {
         if (instance == null) {
             synchronized (Config.class) {
@@ -103,294 +104,6 @@ public class Config {
         }
 
         return instance;
-    }
-
-
-    public static class GitConfig {
-        private  String remoteRepository;
-        private boolean ignoreInsecureHosts;
-
-        private  String localRepositoryRoot;
-
-        private  String privateKeyFile;
-
-        private  String privateKey;
-        private  byte[] privateKeyBytes;
-
-        public  String getRemoteRepository() {
-            return remoteRepository;
-        }
-
-        public  void setRemoteRepository(String remoteRepository) {
-            this.remoteRepository = remoteRepository;
-        }
-
-        public boolean ignoreInsecureHosts() {
-            return ignoreInsecureHosts;
-        }
-
-        public void setIgnoreInsecureHosts(boolean ignoreInsecureHosts) {
-            this.ignoreInsecureHosts = ignoreInsecureHosts;
-        }
-
-        public  String getLocalRepositoryRoot() {
-            return localRepositoryRoot;
-        }
-
-        public  void setLocalRepositoryRoot(String localRepositoryRoot) {
-            this.localRepositoryRoot = localRepositoryRoot;
-        }
-
-        public  String getPrivateKeyFile() {
-            return privateKeyFile;
-        }
-
-        public  void setPrivateKeyFile(String privateKeyFile) {
-            this.privateKeyFile = privateKeyFile;
-        }
-
-        public  byte[] getPrivateKey() {
-            return privateKeyBytes;
-        }
-
-        public  void setPrivateKey(String privateKey) {
-            this.privateKey = privateKey;
-            this.privateKeyBytes = privateKey.getBytes();
-        }
-    }
-
-    public static class RabbitMQConfig {
-        private String host;
-        private String port;
-        private String username;
-        private String password;
-        private String vhostPrefix;
-        private String hostForSchema;
-
-        public String getHost() {
-            return host;
-        }
-
-        public void setHost(String host) {
-            this.host = host;
-        }
-
-        public String getPort() {
-            return port;
-        }
-
-        public void setPort(String port) {
-            this.port = port;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public String getVhostPrefix() {
-            return vhostPrefix == null ? "" : vhostPrefix;
-        }
-
-        public void setVhostPrefix(String vhostPrefix) {
-            this.vhostPrefix = vhostPrefix;
-        }
-
-        public String getHostForSchema() {
-            return hostForSchema;
-        }
-
-        public void setHostForSchema(String hostForSchema) {
-            this.hostForSchema = hostForSchema;
-        }
-    }
-
-    public static class CassandraConfig {
-        private String host;
-        private String port;
-        private String username;
-        private String password;
-        private String keyspacePrefix;
-        private String hostForSchema;
-
-        public String getHost() {
-            return host;
-        }
-
-        public void setHost(String host) {
-            this.host = host;
-        }
-
-        public String getPort() {
-            return port;
-        }
-
-        public void setPort(String port) {
-            this.port = port;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public String getKeyspacePrefix() {
-            return keyspacePrefix == null ? "" : keyspacePrefix;
-        }
-
-        public void setKeyspacePrefix(String keyspacePrefix) {
-            this.keyspacePrefix = keyspacePrefix;
-        }
-
-        public String getHostForSchema() {
-            return hostForSchema;
-        }
-
-        public void setHostForSchema(String hostForSchema) {
-            this.hostForSchema = hostForSchema;
-        }
-    }
-
-    public static class K8sConfig {
-        private boolean useCustomConfig;
-        private String masterURL;
-        private String defaultNamespace;
-        private String apiVersion;
-        private boolean ignoreInsecureHosts;
-        private String clientCertificateFile;
-        private String clientKeyFile;
-        private String clientCertificate;
-        private String clientKey;
-        private String ingress;
-        private Set<String> secretNames;
-        private Map<String, String> configMaps;
-        private String namespacePrefix;
-
-        public boolean useCustomConfig() {
-            return useCustomConfig;
-        }
-
-        public void setUseCustomConfig(boolean useCustomConfig) {
-            this.useCustomConfig = useCustomConfig;
-        }
-
-        public String getMasterURL() {
-            return masterURL;
-        }
-
-        public void setMasterURL(String masterURL) {
-            this.masterURL = masterURL;
-        }
-
-        public String getDefaultNamespace() {
-            return defaultNamespace;
-        }
-
-        public void setDefaultNamespace(String namespace) {
-            this.defaultNamespace = namespace;
-        }
-
-        public String getApiVersion() {
-            return apiVersion;
-        }
-
-        public void setApiVersion(String apiVersion) {
-            this.apiVersion = apiVersion;
-        }
-
-        public boolean ignoreInsecureHosts() {
-            return ignoreInsecureHosts;
-        }
-
-        public void setIgnoreInsecureHosts(boolean ignoreInsecureHosts) {
-            this.ignoreInsecureHosts = ignoreInsecureHosts;
-        }
-
-        public String getClientCertificateFile() {
-            return clientCertificateFile;
-        }
-
-        public void setClientCertificateFile(String clientCertificateFile) {
-            this.clientCertificateFile = clientCertificateFile;
-        }
-
-        public String getClientKeyFile() {
-            return clientKeyFile;
-        }
-
-        public void setClientKeyFile(String clientKeyFile) {
-            this.clientKeyFile = clientKeyFile;
-        }
-
-        public String getClientCertificate() {
-            return clientCertificate;
-        }
-
-        public void setClientCertificate(String clientCertificate) {
-            this.clientCertificate = clientCertificate;
-        }
-
-        public String getClientKey() {
-            return clientKey;
-        }
-
-        public void setClientKey(String clientKey) {
-            this.clientKey = clientKey;
-        }
-
-        public Set<String> getSecretNames() {
-            return secretNames;
-        }
-
-        public void setSecretNames(Set<String> secretNames) {
-            this.secretNames = secretNames;
-        }
-
-        public String getNamespacePrefix() {
-            return namespacePrefix == null ? "" : namespacePrefix;
-        }
-
-        public void setNamespacePrefix(String namespacePrefix) {
-            this.namespacePrefix = namespacePrefix;
-        }
-
-        public Map<String, String> getConfigMaps() {
-            return configMaps;
-        }
-
-        public void setConfigMaps(Map<String, String> configMaps) {
-            this.configMaps = configMaps;
-        }
-
-        public String getIngress() {
-            return ingress;
-        }
-
-        public void setIngress(String ingress) {
-            this.ingress = ingress;
-        }
     }
 
     private GitConfig git;
@@ -427,4 +140,9 @@ public class Config {
     public void setCassandra(CassandraConfig cassandra) {
         this.cassandra = cassandra;
     }
+
+    public static class GitConfig  extends _GitConfig {}
+    public static class RabbitMQConfig extends _RabbitMQConfig {}
+    public static class CassandraConfig extends _CassandraConfig {}
+    public static class K8sConfig extends _K8sConfig {}
 }
