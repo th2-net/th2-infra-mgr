@@ -99,7 +99,7 @@ public class K8sOperator {
             String namespace = meta.getNamespace();
             String name = meta.getName();
             String kind = res.getKind();
-            String hash = res.getSourceHashLabel();
+            String hash = res.getSourceHash();
 
             logger.debug("Received {} event on resource \"{}\" in namespace \"{}\"", action.name(), name, namespace);
 

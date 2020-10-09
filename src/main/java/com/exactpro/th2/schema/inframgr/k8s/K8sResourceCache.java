@@ -60,7 +60,7 @@ public enum K8sResourceCache {
         String key = keyFor(namespace, ResourceType.forKind(resource.getKind()), resource.getMetadata().getName());
 
         CacheEntry entry = new CacheEntry();
-        entry.setHash(resource.getSourceHashLabel());
+        entry.setHash(resource.getSourceHash());
 
         cache.put(key, entry);
     }

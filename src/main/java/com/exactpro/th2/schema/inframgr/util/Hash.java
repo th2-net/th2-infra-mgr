@@ -21,7 +21,7 @@ import java.security.NoSuchAlgorithmException;
 public class Hash {
     public static String digest(String data) {
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(data.getBytes());
             StringBuilder sb = new StringBuilder();
             for (byte b : digest)

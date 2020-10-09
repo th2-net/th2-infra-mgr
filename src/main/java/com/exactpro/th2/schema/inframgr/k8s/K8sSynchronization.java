@@ -88,7 +88,7 @@ public class K8sSynchronization {
                             // compare object's hashes and update custom resources who's hash labels do not match
                             K8sCustomResource cr = customResources.get(resourceName);
 
-                            if (!(entry.getSourceHash() == null || entry.getSourceHash().equals(cr.getSourceHashLabel()))) {
+                            if (!(entry.getSourceHash() == null || entry.getSourceHash().equals(cr.getSourceHash()))) {
                                 // update custopm resource
                                 logger.info("Updating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
                                 RepositoryResource resource = new RepositoryResource(entry);

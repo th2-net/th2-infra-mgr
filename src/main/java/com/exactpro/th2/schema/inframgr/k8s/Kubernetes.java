@@ -70,7 +70,7 @@ public class Kubernetes implements Closeable {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
-                        k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                        k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.getMetadata().setResourceVersion(null);
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
@@ -87,7 +87,7 @@ public class Kubernetes implements Closeable {
                         .withNamespace(namespace)
                         .build();
                 k8sResource.setMetadata(metaData);
-                k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                k8sResource.setSourceHash(repoResource.getSourceHash());
                 k8sResource.setKind(repoResource.getKind());
                 k8sResource.setSpec(repoResource.getSpec());
                 mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -121,7 +121,7 @@ public class Kubernetes implements Closeable {
                     .withNamespace(namespace)
                     .build();
             k8sResource.setMetadata(metaData);
-            k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+            k8sResource.setSourceHash(repoResource.getSourceHash());
             k8sResource.setKind(repoResource.getKind());
             k8sResource.setSpec(repoResource.getSpec());
             mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -157,7 +157,7 @@ public class Kubernetes implements Closeable {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
-                        k8sResource.setSourceHashLabel(repoResource.getSourceHash());
+                        k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.getMetadata().setResourceVersion(null);
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
