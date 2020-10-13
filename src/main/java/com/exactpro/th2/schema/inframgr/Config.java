@@ -20,6 +20,7 @@ import com.exactpro.th2.schema.inframgr.util.cfg._GitConfig;
 import com.exactpro.th2.schema.inframgr.util.cfg._K8sConfig;
 import com.exactpro.th2.schema.inframgr.util.cfg._RabbitMQConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -80,7 +81,9 @@ public class Config {
             if (!(file.exists() && file.isFile()))
                 return;
 
-            parseFile(file, new ObjectMapper(), this.getRabbitMQ());
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            parseFile(file, mapper, this.getRabbitMQ());
 
         } catch(UnrecognizedPropertyException e) {
             logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
