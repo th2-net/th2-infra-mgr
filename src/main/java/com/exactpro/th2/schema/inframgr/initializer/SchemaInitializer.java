@@ -87,38 +87,38 @@ public class SchemaInitializer {
         }
 
         Map<String, String> cmData = cm.getData();
-        String host = rabbitMQConfig.getHost();
-        String port = rabbitMQConfig.getPort();
-
-        if (host == null || port == null) {
-            logger.error("RabbitMQ server definition is incomplete (host={}, port={})", host, port);
-            return;
-        }
-
+//        String host = rabbitMQConfig.getHost();
+//        String port = rabbitMQConfig.getPort();
+//
+//        if (host == null || port == null) {
+//            logger.error("RabbitMQ server definition is incomplete (host={}, port={})", host, port);
+//            return;
+//        }
+//
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-        String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
-        String user = rabbitMQConfig.getUsername();
-        String pass = rabbitMQConfig.getPassword();
-
-        RestTemplateBuilder builder = new RestTemplateBuilder();
-        RestTemplate restTemplate = builder.basicAuthentication(user, pass).build();
-
-        // check if vHost already exists on the server
-        try {
-            try {
-                restTemplate.getForObject(apiUrl, RabbitMQvHost.class);
-                // no exception at this point means that
-                // vHost already exists on server and we do not need to do anything
-                logger.info("vHost \"{}\" already exists on server, leaving", vHostName);
-            } catch (HttpClientErrorException.NotFound e) {
-                // vHost was not found on query, create it
-                restTemplate.put(apiUrl, null);
-                logger.info("vHost \"{}\" created", vHostName);
-            }
-        } catch (Exception e) {
-            logger.error("Exception creating vHost \"{}\"", vHostName, e);
-            return;
-        }
+//        String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
+//        String user = rabbitMQConfig.getUsername();
+//        String pass = rabbitMQConfig.getPassword();
+//
+//        RestTemplateBuilder builder = new RestTemplateBuilder();
+//        RestTemplate restTemplate = builder.basicAuthentication(user, pass).build();
+//
+//        // check if vHost already exists on the server
+//        try {
+//            try {
+//                restTemplate.getForObject(apiUrl, RabbitMQvHost.class);
+//                // no exception at this point means that
+//                // vHost already exists on server and we do not need to do anything
+//                logger.info("vHost \"{}\" already exists on server, leaving", vHostName);
+//            } catch (HttpClientErrorException.NotFound e) {
+//                // vHost was not found on query, create it
+//                restTemplate.put(apiUrl, null);
+//                logger.info("vHost \"{}\" created", vHostName);
+//            }
+//        } catch (Exception e) {
+//            logger.error("Exception creating vHost \"{}\"", vHostName, e);
+//            return;
+//        }
 
 
         // copy config map with updated vHost value to namespace
