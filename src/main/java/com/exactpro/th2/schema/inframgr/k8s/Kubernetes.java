@@ -19,6 +19,7 @@ import com.exactpro.th2.schema.inframgr.Config;
 import com.exactpro.th2.schema.inframgr.models.RepositoryResource;
 import com.exactpro.th2.schema.inframgr.models.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -274,8 +275,41 @@ public class Kubernetes implements Closeable {
     }
 
 
+    public static class ResourceWatcher<T> {
+        public Watcher<T> wrap(Watcher watcher) {
+            return new Watcher<T>() {
+                @Override
+                public void eventReceived(Action action, T resource) {
+                    watcher.eventReceived(action, resource);
+                }
+
+                @Override
+                public void onClose(KubernetesClientException cause) {
+                    watcher.onClose(cause);
+                }
+            };
+        }
+    }
+
+
+    private Watcher<HasMetadata> wrapFilteringWatcher(Watcher watcher) {
+        return new Watcher<>() {
+            @Override
+            public void eventReceived(Action action, HasMetadata resource) {
+                if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
+                    watcher.eventReceived(action, resource);
+            }
+            @Override
+            public void onClose(KubernetesClientException cause) {
+                watcher.onClose(cause);
+            }
+        };
+    }
+
+
     public List<Watch> registerWatchers(Watcher watcher) {
 
+        Watcher<HasMetadata> filteringWatcher = wrapFilteringWatcher(watcher);
         List<Watch> watches = new LinkedList<>();
 
         for (ResourceType t : ResourceType.values())
@@ -287,19 +321,32 @@ public class Kubernetes implements Closeable {
                 CustomResourceDefinitionContext crdContext = getCrdContext(resource);
 
                 var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-                Watch watch =  mixedOperation.inAnyNamespace().watch(new Watcher<>() {
-                    @Override
-                    public void eventReceived(Action action, K8sCustomResource resource) {
-                        if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
-                            watcher.eventReceived(action, resource);
-                    }
+                watches.add(mixedOperation.inAnyNamespace().watch(new ResourceWatcher<K8sCustomResource>().wrap(filteringWatcher)));
+            }
 
-                    @Override
-                    public void onClose(KubernetesClientException cause) {
-                        watcher.onClose(cause);
-                    }
-                });
-                watches.add(watch);
+        return watches;
+    }
+
+    public List<Watch> registerWatchersAll(Watcher watcher) {
+
+        Watcher<HasMetadata> filteringWatcher = wrapFilteringWatcher(watcher);
+
+        List<Watch> watches = new LinkedList<>();
+        watches.add(client.apps().deployments().inAnyNamespace().watch(new ResourceWatcher<Deployment>().wrap(filteringWatcher)));
+        watches.add(client.services().inAnyNamespace().watch(new ResourceWatcher<Service>().wrap(filteringWatcher)));
+        watches.add(client.configMaps().inAnyNamespace().watch(new ResourceWatcher<ConfigMap>().wrap(filteringWatcher)));
+        watches.add(client.pods().inAnyNamespace().watch(new ResourceWatcher<Pod>().wrap(filteringWatcher)));
+
+        for (ResourceType t : ResourceType.values())
+            if (t.isK8sResource()) {
+                RepositoryResource resource = new RepositoryResource(t);
+                resource.setKind(t.kind());
+
+                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
+                CustomResourceDefinitionContext crdContext = getCrdContext(resource);
+
+                var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+                watches.add(mixedOperation.inAnyNamespace().watch(new ResourceWatcher<K8sCustomResource>().wrap(filteringWatcher)));
             }
 
         return watches;

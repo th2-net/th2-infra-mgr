@@ -16,8 +16,11 @@
 package com.exactpro.th2.schema.inframgr;
 
 import com.exactpro.th2.schema.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.schema.inframgr.statuswatcher.StatusCache;
+import com.exactpro.th2.schema.inframgr.statuswatcher.StatusUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +29,7 @@ import rx.Subscription;
 import rx.schedulers.Schedulers;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +39,9 @@ public class SubscriptionController {
 
     private final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
     private ExecutorService executor = Executors.newCachedThreadPool();
+
+    @Autowired
+    private StatusCache statusCache;
 
     @GetMapping("/subscriptions/schema/{name}")
     public SseEmitter subscribe(@PathVariable(name="name") String schemaName) {
@@ -58,7 +65,10 @@ public class SubscriptionController {
 
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 ref.subscription = router.getObservable()
-                        .filter(event -> (event.getSchema().equals(schemaName) && (event instanceof RepositoryUpdateEvent)))
+                        .filter(event -> (
+                                event.getSchema().equals(schemaName)
+                                        && ((event instanceof RepositoryUpdateEvent || event instanceof StatusUpdateEvent))
+                        ))
                         .observeOn(Schedulers.io())
                         .subscribe(event -> {
 
@@ -86,7 +96,29 @@ public class SubscriptionController {
                         , sessionId
                         , schemaName
                         , Thread.currentThread().getName()
+
+
                 );
+
+                // send current known deployment statuses
+                try {
+                    List<StatusUpdateEvent> statusUpdateEvents = statusCache.getStatuses(schemaName);
+                    if (statusUpdateEvents != null)
+                        for (StatusUpdateEvent event : statusUpdateEvents)
+                            eventEmitter.send(SseEmitter.event()
+                                    .name(event.getEventType())
+                                    .data(event.getEventBody())
+                                    .id(event.getEventKey())
+                            );
+                } catch (IOException e) {
+                    logger.error("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
+                            , sessionId
+                            , Thread.currentThread().getName()
+                            , e.getMessage()
+                    );
+                }
+
+
         });
 
         return eventEmitter;

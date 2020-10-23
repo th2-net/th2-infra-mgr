@@ -21,12 +21,6 @@ import java.util.Map;
 public enum ResourceType {
     HelmRelease("HelmRelease", null, "helmreleases", "helm.fluxcd.io/v1"),
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
-    Th2Act("Th2Act", "acts", "th2acts", "th2.exactpro.com/v1"),
-    Th2BookChecker("Th2BookChecker", "book-checkers", "th2bookcheckers", "th2.exactpro.com/v1"),
-    Th2Codec("Th2Codec", "codecs", "th2codecs", "th2.exactpro.com/v1"),
-    Th2Connector("Th2Connector", "connectors", "th2connectors", "th2.exactpro.com/v1"),
-    Th2Recon("Th2Recon", "recons", "th2recons", "th2.exactpro.com/v1"),
-    Th2Verifier("Th2Verifier", "verifiers", "th2verifiers", "th2.exactpro.com/v1"),
     Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
     Th2MessageStore("Th2MessageStore", "message-stores", "th2messagestores", "th2.exactpro.com/v1"),
     Th2EventStore("Th2EventStore", "event-stores", "th2eventstores", "th2.exactpro.com/v1"),
@@ -39,8 +33,8 @@ public enum ResourceType {
     private String k8sName;
     private String k8sApiVersion;
 
-    ResourceType(String value, String path, String k8sName, String k8sApiVersion) {
-        this.kind = value;
+    ResourceType(String kind, String path, String k8sName, String k8sApiVersion) {
+        this.kind = kind;
         this.path = path;
         this.k8sName = k8sName;
         this.k8sApiVersion = k8sApiVersion;
@@ -57,8 +51,8 @@ public enum ResourceType {
     public String k8sApiVersion() {
         return k8sApiVersion;
     }
-    public static ResourceType forKind(String value) {
-        return kinds.get(value);
+    public static ResourceType forKind(String kind) {
+        return kinds.get(kind);
     }
 
     public static ResourceType forPath(String path) {
