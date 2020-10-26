@@ -15,8 +15,6 @@
  */
 package com.exactpro.th2.schema.inframgr.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 public class ResourceEntry {
 
     private ResourceType kind;
@@ -48,7 +46,6 @@ public class ResourceEntry {
         this.spec = spec;
     }
 
-    @JsonIgnore
     public String getSourceHash() {
         return hash;
     }
