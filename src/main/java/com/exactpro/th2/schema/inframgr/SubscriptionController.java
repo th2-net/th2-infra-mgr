@@ -83,7 +83,7 @@ public class SubscriptionController {
                                         , event.getEventBody()
                                         , Thread.currentThread().getName()
                                 );
-                            } catch (IOException e) {
+                            } catch (Exception e) {
                                 logger.error("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
                                         , sessionId
                                         , Thread.currentThread().getName()
