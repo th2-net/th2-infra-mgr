@@ -4,7 +4,7 @@ plugins {
 	id 'java'
 }
 
-group = 'com.exactpro.th2.schema'
+group = 'com.exactpro.th2'
 version = release_version
 
 apply plugin: 'distribution'
