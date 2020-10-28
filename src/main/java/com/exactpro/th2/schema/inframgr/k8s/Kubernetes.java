@@ -185,9 +185,11 @@ public class Kubernetes implements Closeable {
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
+
     public K8sCustomResource loadCustomResource(ResourceType type, String name) {
         return loadCustomResource(namespace, type, name);
     }
+
 
     public Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
 
@@ -208,9 +210,11 @@ public class Kubernetes implements Closeable {
         return resources;
     }
 
+
     public boolean deleteCustomResource(RepositoryResource repoResource) {
         return deleteCustomResource(repoResource, namespace);
     }
+
 
     public boolean deleteCustomResource(RepositoryResource repoResource, String namespace) {
 
@@ -235,6 +239,7 @@ public class Kubernetes implements Closeable {
 
     }
 
+
     private CustomResourceDefinitionContext getCrdContext(RepositoryResource resource) {
 
         CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
@@ -246,6 +251,7 @@ public class Kubernetes implements Closeable {
 
         return crdContext;
     }
+
 
     public boolean existsNamespace() {
 
@@ -275,41 +281,8 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public static class ResourceWatcher<T> {
-        public Watcher<T> wrap(Watcher watcher) {
-            return new Watcher<T>() {
-                @Override
-                public void eventReceived(Action action, T resource) {
-                    watcher.eventReceived(action, resource);
-                }
-
-                @Override
-                public void onClose(KubernetesClientException cause) {
-                    watcher.onClose(cause);
-                }
-            };
-        }
-    }
-
-
-    private Watcher<HasMetadata> wrapFilteringWatcher(Watcher watcher) {
-        return new Watcher<>() {
-            @Override
-            public void eventReceived(Action action, HasMetadata resource) {
-                if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
-                    watcher.eventReceived(action, resource);
-            }
-            @Override
-            public void onClose(KubernetesClientException cause) {
-                watcher.onClose(cause);
-            }
-        };
-    }
-
-
     public List<Watch> registerWatchers(Watcher watcher) {
 
-        Watcher<HasMetadata> filteringWatcher = wrapFilteringWatcher(watcher);
         List<Watch> watches = new LinkedList<>();
 
         for (ResourceType t : ResourceType.values())
@@ -320,33 +293,72 @@ public class Kubernetes implements Closeable {
                 KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
                 CustomResourceDefinitionContext crdContext = getCrdContext(resource);
 
-                var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-                watches.add(mixedOperation.inAnyNamespace().watch(new ResourceWatcher<K8sCustomResource>().wrap(filteringWatcher)));
+                watches.add(new RecoveringWatch(
+                        client
+                        , watcher
+                        , crdContext
+                        , (_client, _watcher, _crdContext) ->
+                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class)
+                                .inAnyNamespace()
+                                .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
+                );
+
             }
 
         return watches;
     }
 
+
     public List<Watch> registerWatchersAll(Watcher watcher) {
 
-        Watcher<HasMetadata> filteringWatcher = wrapFilteringWatcher(watcher);
-
         List<Watch> watches = new LinkedList<>();
-        watches.add(client.apps().deployments().inAnyNamespace().watch(new ResourceWatcher<Deployment>().wrap(filteringWatcher)));
-        watches.add(client.services().inAnyNamespace().watch(new ResourceWatcher<Service>().wrap(filteringWatcher)));
-        watches.add(client.configMaps().inAnyNamespace().watch(new ResourceWatcher<ConfigMap>().wrap(filteringWatcher)));
-        watches.add(client.pods().inAnyNamespace().watch(new ResourceWatcher<Pod>().wrap(filteringWatcher)));
+
+        // Deployment watcher
+        watches.add(new RecoveringWatch(
+                client
+                , watcher
+                , (_client, _watcher) -> _client.apps().deployments().inAnyNamespace().watch(new FilteringWatcher<Deployment>().wrap(_watcher))).watch()
+        );
+
+        // Pod watcher
+        watches.add(new RecoveringWatch(
+                client
+                , watcher
+                , (_client, _watcher) -> _client.pods().inAnyNamespace().watch(new FilteringWatcher<Pod>().wrap(_watcher))).watch()
+        );
+
+        // Service watcher
+        watches.add(new RecoveringWatch(
+                client
+                , watcher
+                , (_client, _watcher) -> _client.services().inAnyNamespace().watch(new FilteringWatcher<Service>().wrap(_watcher))).watch()
+        );
+
+        // Configmap watcher
+        watches.add(new RecoveringWatch(
+                client
+                , watcher
+                , (_client, _watcher) -> _client.configMaps().inAnyNamespace().watch(new FilteringWatcher<ConfigMap>().wrap(_watcher))).watch()
+        );
+
 
         for (ResourceType t : ResourceType.values())
             if (t.isK8sResource()) {
-                RepositoryResource resource = new RepositoryResource(t);
+                final RepositoryResource resource = new RepositoryResource(t);
                 resource.setKind(t.kind());
 
                 KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
                 CustomResourceDefinitionContext crdContext = getCrdContext(resource);
 
-                var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-                watches.add(mixedOperation.inAnyNamespace().watch(new ResourceWatcher<K8sCustomResource>().wrap(filteringWatcher)));
+                watches.add(new RecoveringWatch(
+                        client
+                        , watcher
+                        , crdContext
+                        , (_client, _watcher, _crdContext) ->
+                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class)
+                                .inAnyNamespace()
+                                .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
+                );
             }
 
         return watches;
@@ -401,15 +413,18 @@ public class Kubernetes implements Closeable {
         client = new DefaultKubernetesClient(configBuilder.build());
     }
 
+
     public Map<String, Secret> getSecrets() {
         return mapOf(client.secrets().inNamespace(namespace).list().getItems());
     }
+
 
     public Secret createOrReplaceSecret(Secret secret) {
         secret.getMetadata().setResourceVersion(null);
         secret.getMetadata().setNamespace(namespace);
         return client.secrets().inNamespace(namespace).createOrReplace(secret);
     }
+
 
     public String getNamespaceName() {
         return namespace;
@@ -425,10 +440,84 @@ public class Kubernetes implements Closeable {
         return _currentNamespace;
     }
 
+    private class FilteringWatcher<T extends HasMetadata> {
+        public Watcher<T> wrap(Watcher watcher) {
+            return new Watcher<>() {
+                @Override
+                public void eventReceived(Action action, T resource) {
+                    if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
+                        watcher.eventReceived(action, resource);
+                }
+
+                @Override
+                public void onClose(KubernetesClientException cause) {
+                    watcher.onClose(cause);
+                }
+            };
+        }
+    }
+
+
+    private static class RecoveringWatch implements Watch {
+        private KubernetesClient client;
+        private final Watcher watcher;
+        private CustomResourceDefinitionContext crdContext;
+        private Initializer initializer;
+        private CrdInitializer crdInitializer;
+
+        RecoveringWatch(KubernetesClient client, Watcher watcher, Initializer initializer) {
+            this.client = client;
+            this.watcher = watcher;
+            this.initializer = initializer;
+        }
+
+        RecoveringWatch(KubernetesClient client, Watcher watcher, CustomResourceDefinitionContext crdContext, CrdInitializer crdInitializer) {
+            this.client = client;
+            this.watcher = watcher;
+            this.crdContext = crdContext;
+            this.crdInitializer = crdInitializer;
+        }
+
+        private Watch watch;
+        public Watch watch() {
+            Watcher localWatcher = new Watcher() {
+                @Override
+                public void eventReceived(Action action, Object resource) {
+                    watcher.eventReceived(action, resource);
+                }
+
+                @Override
+                public void onClose(KubernetesClientException cause) {
+                    watcher.onClose(cause);
+                    if (cause != null)
+                        watch();
+                }
+            };
+            if (initializer != null)
+                this.watch = initializer.watch(client, localWatcher);
+            else
+                this.watch = crdInitializer.watch(client, localWatcher, crdContext);
+            return watch;
+        }
+
+        @Override
+        public void close() {
+            watch.close();
+        }
+
+        interface Initializer {
+            Watch watch(KubernetesClient client, Watcher watcher);
+        }
+
+        interface CrdInitializer {
+            Watch watch(KubernetesClient client, Watcher watcher, CustomResourceDefinitionContext crdContext);
+        }
+    }
+
+
     public final class CurrentNamespace {
         public ConfigMap getConfigMap(String name) {
-            ConfigMap configMap = client.configMaps().withName(name).get();
-            return configMap;
+            return client.configMaps().withName(name).get();
         }
 
         public Map<String, Secret> getSecrets() {
