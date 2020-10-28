@@ -1,5 +1,5 @@
 variables:
-  APP_NAME: "infra-mgr"
+  APP_NAME: "th2-infra-mgr"
   MAJOR_VERSION: "0"
   MINOR_VERSION: "7"
   MAINTENANCE_VERSION: '0'
