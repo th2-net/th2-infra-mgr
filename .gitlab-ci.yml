@@ -3,7 +3,7 @@ variables:
   MAJOR_VERSION: "0"
   MINOR_VERSION: "7"
   MAINTENANCE_VERSION: '0'
-  DOCKER_PUBLISH_ENABLED: 'false'
+  DOCKER_PUBLISH_ENABLED: 'true'
 
 include:
   - project: 'vivarium/th2/pipelines'
