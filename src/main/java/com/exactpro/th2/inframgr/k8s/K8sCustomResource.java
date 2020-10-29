@@ -21,14 +21,17 @@ import io.fabric8.kubernetes.client.CustomResource;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class K8sCustomResource extends CustomResource {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
-    public static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
+    private static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
+    public static final int RESOURCE_NAME_MAX_LENGTH = 48;
     private Object spec;
     public Object status;
+
     public void setSpec(Object spec) {
         this.spec = spec;
     }
@@ -65,5 +68,15 @@ public class K8sCustomResource extends CustomResource {
             map.put(KEY_SOURCE_HASH, hash);
         else
             map.remove(KEY_SOURCE_HASH);
+    }
+
+    @JsonIgnore
+    public static boolean isNameValid(String name) {
+        return (name.length() < RESOURCE_NAME_MAX_LENGTH && pattern.matcher(name).matches());
+
+    }
+    private static final Pattern pattern;
+    static {
+        pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
     }
 }

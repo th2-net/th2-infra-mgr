@@ -19,16 +19,12 @@ package com.exactpro.th2.inframgr;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import org.junit.jupiter.api.Test;
 
-import java.util.regex.Pattern;
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResourceNameTests {
-    Pattern pattern;
 
     public ResourceNameTests() {
-        pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
     }
 
     @Test
@@ -42,7 +38,7 @@ class ResourceNameTests {
                 "n"
         };
         for (String name: names) {
-            assertTrue(pattern.matcher(name).matches(),  name);
+            assertTrue(K8sCustomResource.isNameValid(name),  name);
         }
     }
 
@@ -58,7 +54,19 @@ class ResourceNameTests {
                 ""
         };
         for (String name: names) {
-            assertFalse(pattern.matcher(name).matches(),  name);
+            assertFalse(K8sCustomResource.isNameValid(name),  name);
         }
+    }
+
+    @Test
+    void TestLongNames() {
+
+        String barelyLegal = "";
+        for (int i = 1; i < K8sCustomResource.RESOURCE_NAME_MAX_LENGTH ; i++)
+            barelyLegal += 'x';
+        String illegal = barelyLegal + 'x';
+
+        assertTrue(K8sCustomResource.isNameValid(barelyLegal),  barelyLegal);
+        assertFalse(K8sCustomResource.isNameValid(illegal),  illegal);
     }
 }

@@ -33,7 +33,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @Controller
 public class DeploymentController {
@@ -53,8 +52,7 @@ public class DeploymentController {
 
         try {
             // check schema name against valid pattern
-            Pattern pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
-            if (!pattern.matcher(schemaName).matches())
+            if (!K8sCustomResource.isNameValid(schemaName))
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
             List<ResponseEntry> response = new ArrayList<>();

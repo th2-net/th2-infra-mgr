@@ -40,7 +40,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 @Controller
 public class SchemaController {
@@ -94,8 +93,7 @@ public class SchemaController {
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
-        Pattern pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
-        if (!pattern.matcher(schemaName).matches())
+        if (!K8sCustomResource.isNameValid(schemaName))
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
         Config config = Config.getInstance();
@@ -352,9 +350,8 @@ public class SchemaController {
 
     private void validateResourceNames(List<RequestEntry> operations) {
 
-        Pattern regex = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
         for (RequestEntry entry : operations)
-            if (!regex.matcher(entry.getPayload().getName()).matches())
+            if (!K8sCustomResource.isNameValid(entry.getPayload().getName()))
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
                         "Invalid resource name : \"%s\" (%s)"
                         , entry.getPayload().getName()
