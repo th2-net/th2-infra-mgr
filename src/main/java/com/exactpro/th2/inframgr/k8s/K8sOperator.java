@@ -20,7 +20,10 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.models.*;
 import com.exactpro.th2.inframgr.repository.Gitter;
 import com.exactpro.th2.inframgr.repository.Repository;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
+import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Stringifier;
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watcher;
@@ -29,8 +32,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,14 +43,17 @@ import java.util.concurrent.locks.Lock;
 public class K8sOperator {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sOperator.class);
+    private static final int RECOVERY_THREAD_POOL_SIZE = 3;
+
     private Config config;
     private K8sResourceCache cache;
+    private RetryableTaskQueue taskQueue;
 
 
     private void startWatchers() {
 
         // wait for startup synchronization to complete
-        logger.info("Operator is waiting for startup Kubernetes synchronization to complete");
+        logger.info("Operator is waiting for kubernetes startup  synchronization to complete");
         while (!(Thread.currentThread().isInterrupted() || K8sSynchronization.isStartupSynchronizationComplete())) {
             try {
                 Thread.sleep(1000);
@@ -94,14 +100,14 @@ public class K8sOperator {
 
         try {
             ObjectMeta meta = res.getMetadata();
-            Map<String, String> o = (Map<String, String>) res.getStatus();
 
             String namespace = meta.getNamespace();
             String name = meta.getName();
             String kind = res.getKind();
             String hash = res.getSourceHash();
 
-            logger.debug("Received {} event on resource \"{}\" in namespace \"{}\"", action.name(), name, namespace);
+            String resourceLabel = ResourcePath.annotationFor(namespace, kind, name);
+            logger.debug("Received {} event on resource {}", action.name(), resourceLabel);
 
             Lock lock = cache.lockFor(namespace, kind, name);
             try {
@@ -112,21 +118,21 @@ public class K8sOperator {
                 String cachedHash = cacheEntry == null ? null : cacheEntry.getHash();
                 if (action.equals(Watcher.Action.DELETED) && cacheEntry != null && cacheEntry.isMarkedAsDeleted()
                         && Objects.equals(cachedHash, hash)) {
-                    logger.debug("No action needed for resource {} in namespace {}", name, namespace);
+                    logger.debug("No action needed for resource {}", resourceLabel);
                     return;
                 }
 
                 if (!action.equals(Watcher.Action.DELETED) && cacheEntry != null && !cacheEntry.isMarkedAsDeleted()
                         && Objects.equals(cachedHash, hash)) {
 
-                    logger.debug("No action needed for resource {} in namespace {}", name, namespace);
+                    logger.debug("No action needed for resource {}", resourceLabel);
                     return;
                 }
 
 
                 // action is needed as optimistic check did not draw enough conclusions
                 Gitter gitter = Gitter.getBranch(config.getGit(), kube.extractSchemaName(namespace));
-                logger.info("Need to checkout branch {} from repository", gitter.getBranch()) ;
+                logger.info("Checking out branch {} from repository", gitter.getBranch()) ;
 
                 ResourceEntry resourceEntry = null;
                 try {
@@ -177,13 +183,19 @@ public class K8sOperator {
                 Stringifier.stringify(resourceEntry.getSpec());
                 RepositoryResource resource = new RepositoryResource(resourceEntry);
                 if (actionReplace) {
-                    logger.info("Detected external manipulation on {}.{}.{}, recreating resource"
-                            , namespace, kind, name) ;
-                    kube.createOrReplaceCustomResource(resource, namespace);
+                    logger.info("Detected external manipulation on {}, recreating resource", resourceLabel) ;
+
+                    // check current status of namespace
+                    Namespace n = kube.getNamespace(namespace);
+                    if (n == null || !n.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {
+                        logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. Scheduled full schema synchronization"
+                                , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
+                        taskQueue.add(new SchemaRecoveryTask(kube.extractSchemaName(namespace)), true);
+                    } else
+                        kube.createOrReplaceCustomResource(resource, namespace);
                 } else
                 if (actionDelete) {
-                    logger.info("Detected external manipulation on {}.{}.{}, deleting resource"
-                            , namespace, kind, name) ;
+                    logger.info("Detected external manipulation on {}, deleting resource", resourceLabel) ;
                     kube.deleteCustomResource(resource, namespace);
                 }
 
@@ -196,13 +208,22 @@ public class K8sOperator {
         }
     }
 
+
     @PostConstruct
     public void start() throws IOException {
 
         config = Config.getInstance();
+        taskQueue = new RetryableTaskQueue(RECOVERY_THREAD_POOL_SIZE);
 
         // start repository event listener thread
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(() -> startWatchers());
+        executor.execute(this::startWatchers);
     }
+
+    @PreDestroy
+    public void destroy() {
+        logger.info("Shutting down retryable task scheduler");
+        taskQueue.shutdown();
+    }
+
 }

@@ -15,6 +15,7 @@
  */
 package com.exactpro.th2.inframgr.k8s;
 
+import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.models.RepositoryResource;
@@ -22,10 +23,10 @@ import com.exactpro.th2.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.models.ResourceType;
 import com.exactpro.th2.inframgr.repository.Gitter;
-import com.exactpro.th2.inframgr.util.Stringifier;
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.repository.Repository;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
+import com.exactpro.th2.inframgr.util.Stringifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -42,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class K8sSynchronization {
 
-    private static final int SYNC_PARALELIZATION_THREADS = 3;
+    private static final int SYNC_PARALLELIZATION_THREADS = 3;
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
     private Config config;
     private static volatile boolean startupSynchronizationComplete;
@@ -53,6 +54,7 @@ public class K8sSynchronization {
 
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
+            String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
 
@@ -70,33 +72,34 @@ public class K8sSynchronization {
 
                     for (ResourceEntry entry: entries.values()) {
                         String resourceName = entry.getName();
+                        String resourceLabel = ResourcePath.annotationFor(namespace, resourceType.kind(), resourceName);
                         // add resource to cache
-                        cache.add(kube.formatNamespaceName(schemaName), entry);
+                        cache.add(namespace, entry);
 
                         // check repository items against k8s
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
-                            logger.info("Creating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
+                            logger.info("Creating resource {}", resourceLabel);
                             RepositoryResource resource = new RepositoryResource(entry);
                             try {
                                 Stringifier.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception creating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e.getMessage());
+                                logger.error("Exception creating resource {} ({})", resourceLabel, e);
                             }
                         } else {
                             // compare object's hashes and update custom resources who's hash labels do not match
                             K8sCustomResource cr = customResources.get(resourceName);
 
                             if (!(entry.getSourceHash() == null || entry.getSourceHash().equals(cr.getSourceHash()))) {
-                                // update custopm resource
-                                logger.info("Updating Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
+                                // update custom resource
+                                logger.info("Updating resource {}", resourceLabel);
                                 RepositoryResource resource = new RepositoryResource(entry);
                                 try {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e);
+                                    logger.error("Exception updating resource {} ({})", resourceLabel, e);
                                 }
                             }
                         }
@@ -104,22 +107,24 @@ public class K8sSynchronization {
 
                     // delete k8s resources that do not exist in repository
                     for (String resourceName : customResources.keySet())
-                        if (!entries.containsKey(resourceName))
-                        try {
-                            logger.info("Deleting Custom Resource ({}) \"{}.{}\"", resourceType.kind(), schemaName, resourceName);
-                            ResourceEntry entry = new ResourceEntry();
-                            entry.setKind(resourceType);
-                            entry.setName(resourceName);
-                            kube.deleteCustomResource(new RepositoryResource(entry));
-                        } catch (Exception e) {
-                            logger.error("Exception deleting Custom Resource ({}) \"{}.{}\" ({})", resourceType.kind(), schemaName, resourceName, e);
+                        if (!entries.containsKey(resourceName)) {
+                            String resourceLabel = ResourcePath.annotationFor(namespace, resourceType.kind(), resourceName);
+                            try {
+                                logger.info("Deleting resource {}", resourceLabel);
+                                ResourceEntry entry = new ResourceEntry();
+                                entry.setKind(resourceType);
+                                entry.setName(resourceName);
+                                kube.deleteCustomResource(new RepositoryResource(entry));
+                            } catch (Exception e) {
+                                logger.error("Exception deleting resource {} ({})", resourceLabel, e);
+                            }
                         }
             }
         }
     }
 
 
-    private void synchronizeBranch(String branch) {
+    public void synchronizeBranch(String branch) {
 
         try {
             logger.info("Checking schema settings \"{}\"", branch);
@@ -173,7 +178,7 @@ public class K8sSynchronization {
             config = Config.getInstance();
             Map<String, String> branches = Gitter.getAllBranchesCommits(config.getGit());
 
-            ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALELIZATION_THREADS);
+            ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
             for (String branch : branches.keySet())
                 if (!branch.equals("master"))
                     executor.execute(() -> synchronizeBranch(branch));
@@ -192,23 +197,27 @@ public class K8sSynchronization {
         startupSynchronizationComplete = true;
         logger.info("Kubernetes synchronization phase complete");
 
+        subscribeToRepositoryEvents();
+    }
 
-        // start repository event listener threads
+
+    private void subscribeToRepositoryEvents() {
         ExecutorService executor = Executors.newCachedThreadPool();
-        for (int i = 0; i < SYNC_PARALELIZATION_THREADS; i++)
-            executor.execute(() -> processRepositoryEvents());
+        for (int i = 0; i < SYNC_PARALLELIZATION_THREADS; i++)
+            executor.execute(this::processRepositoryEvents);
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
                 .observeOn(Schedulers.computation())
-                .filter(event ->
-                        (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
-                .subscribe(event -> {
-                    jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema()));
-                });
+                .filter(event -> (
+                                (event instanceof SynchronizationRequestEvent
+                                || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
+                ))
+                .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
-        logger.info("Kubernetes synchronization process subscribed to git events");
+        logger.info("Kubernetes synchronization process subscribed to repository events");
     }
+
 
     private void processRepositoryEvents() {
 

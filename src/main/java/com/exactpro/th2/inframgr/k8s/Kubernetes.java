@@ -32,7 +32,8 @@ import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
 
-    private String namespacePrefix;
+    public static final String PHASE_ACTIVE = "Active";
+    private final String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
         return namespacePrefix + schemaName;
@@ -260,6 +261,10 @@ public class Kubernetes implements Closeable {
             if (ns.getMetadata().getName().equals(namespace))
                 return true;
         return false;
+    }
+
+    public Namespace getNamespace(String namespace) {
+        return client.namespaces().withName(namespace).get();
     }
 
     public void createNamespace() {
