@@ -18,10 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
-import com.exactpro.th2.inframgr.models.RepositoryResource;
-import com.exactpro.th2.inframgr.models.RepositorySnapshot;
-import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.models.ResourceType;
+import com.exactpro.th2.inframgr.models.*;
 import com.exactpro.th2.inframgr.repository.Gitter;
 import com.exactpro.th2.inframgr.repository.Repository;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
@@ -50,6 +47,14 @@ public class K8sSynchronization {
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
+    private void deleteNamespace(String schemaName) {
+        try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
+            kube.deleteNamespace();
+        } catch (Exception e) {
+            logger.error("Exception removing schema \"{}\" from kubernetes", schemaName);
+        }
+    }
+
     private void synchronizeNamespace(String schemaName, Map<ResourceType, Map<String, ResourceEntry>> repositoryEntries) throws Exception {
 
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
@@ -72,7 +77,7 @@ public class K8sSynchronization {
 
                     for (ResourceEntry entry: entries.values()) {
                         String resourceName = entry.getName();
-                        String resourceLabel = ResourcePath.annotationFor(namespace, resourceType.kind(), resourceName);
+                        String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, resourceType.kind(), resourceName) + "\"";
                         // add resource to cache
                         cache.add(namespace, entry);
 
@@ -85,7 +90,7 @@ public class K8sSynchronization {
                                 Stringifier.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception creating resource {} ({})", resourceLabel, e);
+                                logger.error("Exception creating resource {}", resourceLabel, e);
                             }
                         } else {
                             // compare object's hashes and update custom resources who's hash labels do not match
@@ -99,7 +104,7 @@ public class K8sSynchronization {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating resource {} ({})", resourceLabel, e);
+                                    logger.error("Exception updating resource {}", resourceLabel, e);
                                 }
                             }
                         }
@@ -116,7 +121,7 @@ public class K8sSynchronization {
                                 entry.setName(resourceName);
                                 kube.deleteCustomResource(new RepositoryResource(entry));
                             } catch (Exception e) {
-                                logger.error("Exception deleting resource {} ({})", resourceLabel, e);
+                                logger.error("Exception deleting resource {}", resourceLabel, e);
                             }
                         }
             }
@@ -127,7 +132,7 @@ public class K8sSynchronization {
     public void synchronizeBranch(String branch) {
 
         try {
-            logger.info("Checking schema settings \"{}\"", branch);
+            logger.info("Checking settings for schema \"{}\"", branch);
 
             // get repository items
             Gitter gitter = Gitter.getBranch(config.getGit(), branch);
@@ -140,8 +145,13 @@ public class K8sSynchronization {
             }
 
             Set<ResourceEntry> repositoryEntries = snapshot.getResources();
+            RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
-            if (snapshot.getRepositorySettings() == null || !snapshot.getRepositorySettings().isK8sPropagationEnabled()) {
+            if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
+                deleteNamespace(branch);
+                return;
+            }
+            if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
                 logger.info("Ignoring schema \"{}\" as it is not configured for synchronization", branch);
                 return;
             }

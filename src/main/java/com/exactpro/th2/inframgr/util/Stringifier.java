@@ -15,7 +15,6 @@
  */
 package com.exactpro.th2.inframgr.util;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -43,13 +42,10 @@ public class Stringifier {
     }
 
     public static void stringify(Map<String, Object> map) {
-        Iterator<Map.Entry<String, Object>> i = map.entrySet().iterator();
-        while (i.hasNext()) {
-            Map.Entry<String, Object> e = i.next();
+        for (Map.Entry<String, Object> e : map.entrySet()) {
             Object value = e.getValue();
-            if (!stringify(value)) {
+            if (!stringify(value) && value != null)
                 e.setValue(value.toString());
-            }
         }
     }
 }

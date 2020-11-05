@@ -15,29 +15,54 @@
  */
 package com.exactpro.th2.inframgr.models;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RepositorySettings {
-    private Boolean k8sPropagationEnabled;
-    private Boolean k8sGovernanceEnabled;
+    // no action will be taken regarding the kubernetes
+    private static final String PROPAGATE_OFF ="off";
 
-    @JsonProperty("k8s-propagation")
-    public boolean isK8sPropagationEnabled() {
-        return k8sPropagationEnabled == null ? false : k8sPropagationEnabled;
+    // no synchronization, namespace will be deleted when this value is set
+    private static final String PROPAGATE_DENY ="deny";
+
+    // git->k8s synchronization on repository changes
+    private static final String PROPAGATE_SYNC ="sync";
+    private static final String PROPAGATE_TRUE ="true";
+
+    // git->k8s synchronization on repository or kubernetes change
+    private static final String PROPAGATE_RULE ="rule";
+
+
+    private String k8sPropagation = PROPAGATE_OFF;
+
+    @JsonGetter("k8s-propagation")
+    public String getK8sPropagation() {
+        return k8sPropagation;
     }
 
-    @JsonProperty("k8s-propagation")
-    public void setK8sPropagationEnabled(boolean k8sPropagationEnabled) {
-        this.k8sPropagationEnabled = k8sPropagationEnabled;
+    @JsonSetter("k8s-propagation")
+    public void setK8sPropagation(String k8sPropagation) {
+        if (k8sPropagation != null)
+            this.k8sPropagation = k8sPropagation;
     }
 
-    @JsonProperty("k8s-governance")
-    public Boolean isK8sGovernanceEnabled() {
-        return k8sGovernanceEnabled == null ? false : k8sGovernanceEnabled;
+    @JsonIgnore
+    public boolean isK8sSynchronizationRequired() {
+        return  k8sPropagation.equals(PROPAGATE_SYNC)
+                || k8sPropagation.equals(PROPAGATE_RULE)
+                || k8sPropagation.equals(PROPAGATE_TRUE);
     }
 
-    @JsonProperty("k8s-governance")
-    public void setK8sGovernanceEnabled(Boolean k8sGovernanceEnabled) {
-        this.k8sGovernanceEnabled = k8sGovernanceEnabled;
+    @JsonIgnore
+    public Boolean isK8sGovernanceRequired() {
+        return k8sPropagation.equals(PROPAGATE_RULE);
+    }
+
+    @JsonIgnore
+    public Boolean isK8sPropagationDenied() {
+        return k8sPropagation.equals(PROPAGATE_DENY);
     }
 }

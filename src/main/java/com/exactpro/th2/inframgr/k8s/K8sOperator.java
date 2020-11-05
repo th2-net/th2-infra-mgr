@@ -106,7 +106,7 @@ public class K8sOperator {
             String kind = res.getKind();
             String hash = res.getSourceHash();
 
-            String resourceLabel = ResourcePath.annotationFor(namespace, kind, name);
+            String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, kind, name) + "\"";
             logger.debug("Received {} event on resource {}", action.name(), resourceLabel);
 
             Lock lock = cache.lockFor(namespace, kind, name);
@@ -132,7 +132,7 @@ public class K8sOperator {
 
                 // action is needed as optimistic check did not draw enough conclusions
                 Gitter gitter = Gitter.getBranch(config.getGit(), kube.extractSchemaName(namespace));
-                logger.info("Checking out branch {} from repository", gitter.getBranch()) ;
+                logger.info("Checking out branch \"{}\" from repository", gitter.getBranch()) ;
 
                 ResourceEntry resourceEntry = null;
                 try {
@@ -141,7 +141,7 @@ public class K8sOperator {
 
                     // check if we need to re-synchronize k8s at all
                     RepositorySettings rs = snapshot.getRepositorySettings();
-                    if (!(rs.isK8sPropagationEnabled() && rs.isK8sGovernanceEnabled()))
+                    if (rs == null || !rs.isK8sGovernanceRequired())
                         return;
 
                     // refresh cache for this namespace

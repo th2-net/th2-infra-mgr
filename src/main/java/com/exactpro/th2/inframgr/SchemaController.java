@@ -22,7 +22,10 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.models.*;
+import com.exactpro.th2.inframgr.models.RepositoryResource;
+import com.exactpro.th2.inframgr.models.RepositorySettings;
+import com.exactpro.th2.inframgr.models.RepositorySnapshot;
+import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.inframgr.repository.Gitter;
 import com.exactpro.th2.inframgr.repository.InconsistentRepositoryStateException;
 import com.exactpro.th2.inframgr.repository.Repository;
@@ -121,46 +124,15 @@ public class SchemaController {
                 gitter.unlock();
             }
 
-            // send repository update event
+
             SchemaEventRouter router = SchemaEventRouter.getInstance();
             RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-            event.setSyncingK8s(true);
+            RepositorySettings rs = snapshot.getRepositorySettings();
+            event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied() || rs.isK8sSynchronizationRequired())));
             router.addEvent(event);
 
-            RepositorySettings repoSettings = snapshot.getRepositorySettings();
-            if (repoSettings == null || !repoSettings.isK8sPropagationEnabled())
-                return snapshot;
-
-            //synchronize with k8s
-            try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
-
-                SchemaInitializer.ensureSchema(schemaName, kube);
-                K8sProvisioningException k8se = null;
-
-                for (ResourceEntry entry : snapshot.getResources())
-                    if (entry.getKind().isK8sResource()) {
-                        try {
-                            Stringifier.stringify(entry.getSpec());
-                            kube.createOrReplaceCustomResource(new RepositoryResource(entry));
-                        } catch (Exception e) {
-                            if (k8se == null)
-                                k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
-                            k8se.addItem(entry);
-                            logger.error("Exception provisioning {} resource \"{}\" to Kubernetes ({})"
-                                    , entry.getKind().kind()
-                                    , entry.getName()
-                                    , e.getMessage());
-                        }
-                    }
-                if (k8se != null)
-                    throw k8se;
-
-            } catch (Exception e) {
-                logger.error("Exception provisioning resource(s) to Kubernetes ({})", e.getMessage());
-                throw e;
-            }
-
             return snapshot;
+
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
@@ -215,7 +187,7 @@ public class SchemaController {
                 snapshot = Repository.getSnapshot(gitter);
                 RepositorySettings repoSettings = snapshot.getRepositorySettings();
                 if (repoSettings != null)
-                    wasPropagated = repoSettings.isK8sPropagationEnabled();
+                    wasPropagated = repoSettings.isK8sSynchronizationRequired();
 
                 commitRef = updateRepository(gitter, operations);
                 snapshot = Repository.getSnapshot(gitter);
@@ -230,8 +202,8 @@ public class SchemaController {
                 RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, commitRef);
 
                 RepositorySettings repoSettings = snapshot.getRepositorySettings();
-                boolean propagating = (repoSettings != null) && repoSettings.isK8sPropagationEnabled();
-                if (propagating && !wasPropagated) {
+                boolean propagating = (repoSettings != null) && repoSettings.isK8sSynchronizationRequired();
+                if ((propagating && !wasPropagated) || (repoSettings != null && repoSettings.isK8sPropagationDenied())) {
                     // we need to resynchronize whole schema
                     // delegate this job to K8sSynchronization
                     event.setSyncingK8s(false);
