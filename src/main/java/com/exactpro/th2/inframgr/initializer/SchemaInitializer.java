@@ -24,11 +24,15 @@ import com.exactpro.th2.inframgr.models.ResourceType;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
+import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 
 public class SchemaInitializer {
@@ -41,12 +45,13 @@ public class SchemaInitializer {
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
-    private static final String RABBITMQ_JSON_HOST_KEY = "host";
+    private static final String RABBITMQ_JSON_USERNAME_KEY = "username";
+    private static final String RABBITMQ_SECRET_PASSWORD_KEY = "rabbitmq-password";
+    private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_HOST_KEY = "host";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
-
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -67,12 +72,38 @@ public class SchemaInitializer {
         copyLoggingConfigMap(config, kube);
         copyIngress(config, kube);
 
-        ensureVHost(config, schemaName, kube);
+        ensureRabbitMQResources(config, schemaName, kube);
         ensureKeyspace(config, schemaName,  kube);
     }
 
 
-    public static void ensureVHost(Config config, String schemaName, Kubernetes kube) {
+    public static void createRabbitMQSecret(Config config, Kubernetes kube, String username) {
+
+        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+        String secretName = rabbitMQConfig.getSecret();
+        String password = generateRandomPassword(rabbitMQConfig);
+
+        logger.info("Creating \"{}\"", ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName));
+
+        Map<String, String> data = new HashMap<>();
+        data.put(RABBITMQ_SECRET_PASSWORD_KEY, base64Encode(password));
+        data.put(RABBITMQ_SECRET_USERNAME_KEY, base64Encode(username));
+
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(secretName);
+
+        Secret secret = new Secret();
+        secret.setApiVersion(Kubernetes.API_VERSION_V1);
+        secret.setKind(Kubernetes.KIND_SECRET);
+        secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
+        secret.setMetadata(meta);
+        secret.setData(data);
+
+        kube.createOrReplaceSecret(secret);
+    }
+
+
+    public static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
         String configMapName = configMaps.get(RABBITMQ_CONFIGMAP_PARAM);
@@ -81,59 +112,33 @@ public class SchemaInitializer {
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null)   {
-            logger.error("Failed to load ConfigMap({})", configMapName);
+            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
 
         Map<String, String> cmData = cm.getData();
-//        String host = rabbitMQConfig.getHost();
-//        String port = rabbitMQConfig.getPort();
-//
-//        if (host == null || port == null) {
-//            logger.error("RabbitMQ server definition is incomplete (host={}, port={})", host, port);
-//            return;
-//        }
-//
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-//        String apiUrl = String.format("http://%s:%s/api/vhosts/%s", host, port, vHostName);
-//        String user = rabbitMQConfig.getUsername();
-//        String pass = rabbitMQConfig.getPassword();
-//
-//        RestTemplateBuilder builder = new RestTemplateBuilder();
-//        RestTemplate restTemplate = builder.basicAuthentication(user, pass).build();
-//
-//        // check if vHost already exists on the server
-//        try {
-//            try {
-//                restTemplate.getForObject(apiUrl, RabbitMQvHost.class);
-//                // no exception at this point means that
-//                // vHost already exists on server and we do not need to do anything
-//                logger.info("vHost \"{}\" already exists on server, leaving", vHostName);
-//            } catch (HttpClientErrorException.NotFound e) {
-//                // vHost was not found on query, create it
-//                restTemplate.put(apiUrl, null);
-//                logger.info("vHost \"{}\" created", vHostName);
-//            }
-//        } catch (Exception e) {
-//            logger.error("Exception creating vHost \"{}\"", vHostName, e);
-//            return;
-//        }
-
+        String username = rabbitMQConfig.getUsernamePrefix() + schemaName;
 
         // copy config map with updated vHost value to namespace
         try {
-            logger.info("Creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName));
+            logger.info("Creating RabbitMQ Secret and ConfigMap for schema \"{}\"", schemaName);
+            createRabbitMQSecret(config, kube, username);
+
+            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName));
 
             ObjectMapper mapper = new ObjectMapper();
+
             var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
-            if (rabbitMQConfig.getHostForSchema() != null)
-                rabbitMQJson.put(RABBITMQ_JSON_HOST_KEY, rabbitMQConfig.getHostForSchema());
+
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
+            rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
             cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
 
             kube.createOrReplaceConfigMap(cm);
+
         } catch (Exception e) {
-            logger.error("Exception creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName), e);
+            logger.error("Exception writing RabbitMQ configuration resources", e);
         }
     }
 
@@ -147,7 +152,7 @@ public class SchemaInitializer {
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
-            logger.error("Failed to load ConfigMap({})", configMapName);
+            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
 
@@ -158,7 +163,7 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            logger.info("Creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName));
+            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName));
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
@@ -169,7 +174,7 @@ public class SchemaInitializer {
 
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
-            logger.error("Exception creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName), e);
+            logger.error("Exception creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName), e);
         }
     }
 
@@ -183,25 +188,26 @@ public class SchemaInitializer {
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null)   {
-            logger.error("Failed to load ConfigMap({})", configMapName);
+            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
 
         // copy config map
         try {
-            logger.info("Creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName));
+            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName));
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
-            logger.error("Exception creating {}", ResourcePath.annotationFor(namespace, "ConfigMap", configMapName), e);
+            logger.error("Exception creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName), e);
         }
     }
+
 
     private static void copyIngress(Config config, Kubernetes kube) {
 
         String ingressName = config.getKubernetes().getIngress();
         String namespace = kube.getNamespaceName();
         try {
-            logger.info("Creating {}", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
+            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
             K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
 
             RepositoryResource.Metadata meta = new RepositoryResource.Metadata();
@@ -213,8 +219,20 @@ public class SchemaInitializer {
 
             kube.createOrReplaceCustomResource(resource);
         } catch (Exception e) {
-            logger.error("Exception creating ingress {}", ResourcePath.annotationFor(namespace, "Ingress", ingressName), e);
+            logger.error("Exception creating ingress \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName), e);
         }
+    }
+
+
+    private static Secret makeCopy(Secret secret) {
+        Secret secretCopy = new Secret();
+        secretCopy.setKind(secret.getKind());
+        secretCopy.setType(secret.getType());
+        secretCopy.setApiVersion(secret.getApiVersion());
+        secretCopy.setMetadata(new ObjectMeta());
+        secretCopy.getMetadata().setName(secret.getMetadata().getName());
+        secretCopy.setData(secret.getData());
+        return secretCopy;
     }
 
 
@@ -225,26 +243,44 @@ public class SchemaInitializer {
 
         String namespace = kube.getNamespaceName();
 
-        for (String secretName : config.getKubernetes().getSecretNames()) {
+        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+        String rmqSecretName = rabbitMQConfig.getSecret();
 
-            Secret secret = workingNamespaceSecrets.get(secretName);
-            if (secret == null) {
-                logger.error(
-                        "Unable to copy to {} because secret not found in working namespace",
-                         ResourcePath.annotationFor(namespace, "Secret", secretName));
-                continue;
-            }
+        for (String secretName : config.getKubernetes().getSecretNames())
+            if (!secretName.equals(rmqSecretName)) {
 
-
-            if (targetNamespaceSecrets.containsKey(secretName))
-                logger.debug("Secret {} already exists, skipping", ResourcePath.annotationFor(namespace, "Secret", secretName));
-            else
-                try {
-                    kube.createOrReplaceSecret(secret);
-                    logger.info("Copied {}", ResourcePath.annotationFor(namespace, "Secret", secretName));
-                } catch (Exception e) {
-                    logger.error("Exception copying {}", ResourcePath.annotationFor(namespace, "Secret", secretName), e);
+                Secret secret = workingNamespaceSecrets.get(secretName);
+                if (secret == null) {
+                    logger.error(
+                            "Unable to copy to \"{}\" because secret not found in working namespace",
+                             ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, secretName));
+                    continue;
                 }
-        }
+
+
+                if (targetNamespaceSecrets.containsKey(secretName))
+                    logger.debug("Secret \"{}\" already exists, skipping", ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, secretName));
+                else
+                    try {
+                        Secret copy = makeCopy(secret);
+                        kube.createOrReplaceSecret(copy);
+                        logger.info("Copied \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, secretName));
+                    } catch (Exception e) {
+                        logger.error("Exception copying \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, secretName), e);
+                    }
+            }
+    }
+
+
+    private static String generateRandomPassword(Config.RabbitMQConfig config) {
+        RandomStringGenerator pwdGenerator = new RandomStringGenerator.Builder()
+                .selectFrom(config.getPasswordChars().toCharArray())
+                .build();
+        return pwdGenerator.generate(config.getPasswordLength());
+    }
+
+
+    private static String base64Encode(String s) {
+        return new String(Base64.getEncoder().encode(s.getBytes()));
     }
 }

@@ -16,11 +16,10 @@
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.util.cfg._CassandraConfig;
+import com.exactpro.th2.inframgr.util.cfg._GitConfig;
 import com.exactpro.th2.inframgr.util.cfg._K8sConfig;
 import com.exactpro.th2.inframgr.util.cfg._RabbitMQConfig;
-import com.exactpro.th2.inframgr.util.cfg._GitConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -35,7 +34,6 @@ import java.nio.file.Files;
 
 public class Config {
     private static final String CONFIG_FILE = "config.yml";
-    private static final String RABBITMQ_MANAGEMENT_CONFIG_FILE = "rabbitMQ-mng.json";
     private static final String CONFIG_DIR_SYSTEM_PROPERTY ="inframgr.config.dir";
     private static volatile Config instance;
     private Logger logger;
@@ -73,25 +71,6 @@ public class Config {
         }
     }
 
-    private void updateWithRabbitMQManagementSettings() throws IOException {
-
-        try {
-            File file = new File(configDir + RABBITMQ_MANAGEMENT_CONFIG_FILE);
-            // back off safely as this configuration file is not mandatory
-            if (!(file.exists() && file.isFile()))
-                return;
-
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            parseFile(file, mapper, this.getRabbitMQ());
-
-        } catch(UnrecognizedPropertyException e) {
-            logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
-                    , e.getPropertyName()
-                    , RABBITMQ_MANAGEMENT_CONFIG_FILE);
-            throw new RuntimeException("Configuration exception", e);
-        }
-    }
 
     public static Config getInstance() throws IOException {
         if (instance == null) {
@@ -99,7 +78,6 @@ public class Config {
                 if (instance == null) {
                     Config config = new Config();
                     config.readConfiguration();
-                    config.updateWithRabbitMQManagementSettings();
 
                     instance = config;
                 }

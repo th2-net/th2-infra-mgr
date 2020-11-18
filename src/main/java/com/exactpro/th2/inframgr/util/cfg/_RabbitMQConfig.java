@@ -16,44 +16,23 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class _RabbitMQConfig {
-    private String host;
-    private String port;
-    private String username;
-    private String password;
+    private String secret = "rabbitmq";
     private String vhostPrefix;
-    private String hostForSchema;
+    private String usernamePrefix;
+    private Integer passwordLength = 16;
+    private String passwordChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-    public String getHost() {
-        return host;
+    public String getSecret() {
+        return secret;
     }
 
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public String getPort() {
-        return port;
-    }
-
-    public void setPort(String port) {
-        this.port = port;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    public void setSecret(String secret) {
+        if (secret != null)
+            this.secret = secret;
     }
 
     public String getVhostPrefix() {
@@ -64,11 +43,29 @@ public class _RabbitMQConfig {
         this.vhostPrefix = vhostPrefix;
     }
 
-    public String getHostForSchema() {
-        return hostForSchema;
+    public String getUsernamePrefix() {
+        return usernamePrefix == null ? getVhostPrefix() : usernamePrefix;
     }
 
-    public void setHostForSchema(String hostForSchema) {
-        this.hostForSchema = hostForSchema;
+    public void setUsernamePrefix(String usernamePrefix) {
+        this.usernamePrefix = usernamePrefix;
+    }
+
+    public Integer getPasswordLength() {
+        return passwordLength;
+    }
+
+    public void setPasswordLength(Integer passwordLength) {
+        if (passwordLength != null)
+            this.passwordLength = passwordLength;
+    }
+
+    public String getPasswordChars() {
+        return passwordChars;
+    }
+
+    public void setPasswordChars(String passwordChars) {
+        if (passwordChars != null)
+            this.passwordChars = passwordChars.trim();
     }
 }

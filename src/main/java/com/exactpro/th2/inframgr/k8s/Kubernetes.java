@@ -32,7 +32,14 @@ import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
 
+    public static final String KIND_SECRET = "Secret";
+    public static final String KIND_CONFIGMAP = "ConfigMap";
+    public static final String KIND_INGRESS = "Ingress";
+
     public static final String PHASE_ACTIVE = "Active";
+    public static final String SECRET_TYPE_OPAQUE = "Opaque";
+    public static final String API_VERSION_V1 = "v1";
+
     private final String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
