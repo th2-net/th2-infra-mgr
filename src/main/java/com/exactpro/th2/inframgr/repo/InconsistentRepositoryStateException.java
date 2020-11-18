@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.repository;
+package com.exactpro.th2.inframgr.repo;
 
 public class InconsistentRepositoryStateException extends IllegalStateException {
     public InconsistentRepositoryStateException(String message) {

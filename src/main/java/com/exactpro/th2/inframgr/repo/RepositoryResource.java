@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.models;
+package com.exactpro.th2.inframgr.repo;
 
+import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class RepositoryResource {

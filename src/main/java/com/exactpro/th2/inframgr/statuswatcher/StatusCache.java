@@ -19,7 +19,7 @@ package com.exactpro.th2.inframgr.statuswatcher;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.models.ResourceType;
+import com.exactpro.th2.inframgr.repo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;

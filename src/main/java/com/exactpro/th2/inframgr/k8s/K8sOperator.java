@@ -18,8 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.models.*;
-import com.exactpro.th2.inframgr.repository.Gitter;
-import com.exactpro.th2.inframgr.repository.Repository;
+import com.exactpro.th2.inframgr.repo.*;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Stringifier;

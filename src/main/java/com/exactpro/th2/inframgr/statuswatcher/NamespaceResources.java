@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.statuswatcher;
 
-import com.exactpro.th2.inframgr.models.ResourceType;
+import com.exactpro.th2.inframgr.repo.ResourceType;
 
 import java.util.ArrayList;
 import java.util.HashMap;

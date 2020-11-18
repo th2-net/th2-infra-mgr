@@ -13,13 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.inframgr.repository;
+package com.exactpro.th2.inframgr.repo;
 
-import com.exactpro.th2.inframgr.models.RepositoryResource;
-import com.exactpro.th2.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.models.ResourceType;
-import com.exactpro.th2.inframgr.util.Hash;
 import com.exactpro.th2.inframgr.Config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -31,6 +27,8 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -47,7 +45,7 @@ public class Repository {
         entry.setName(resource.getMetadata().getName());
         entry.setSpec(resource.getSpec());
 
-        entry.setSourceHash(Hash.digest(contents));
+        entry.setSourceHash(Repository.digest(contents));
 
         return entry;
     }
@@ -129,7 +127,7 @@ public class Repository {
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
         String contents = mapper.writeValueAsString(resource);
-        resource.setSourceHash(Hash.digest(contents));
+        resource.setSourceHash(Repository.digest(contents));
         Files.writeString(file.toPath(), contents);
     }
 
@@ -160,6 +158,20 @@ public class Repository {
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         file.delete();
+    }
+
+    public static String digest(String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(data.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest)
+                sb.append(String.format("%02x", b));
+
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

@@ -17,6 +17,7 @@ package com.exactpro.th2.inframgr.repository;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.repo.Gitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;

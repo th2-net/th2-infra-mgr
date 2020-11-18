@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.inframgr.models;
+package com.exactpro.th2.inframgr.repo;
 
+import com.exactpro.th2.inframgr.models.ResourceEntry;
+import com.exactpro.th2.inframgr.repo.RepositorySettings;
+import com.exactpro.th2.inframgr.repo.ResourceType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
