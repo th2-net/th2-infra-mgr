@@ -15,6 +15,7 @@
  */
 package com.exactpro.th2.inframgr.models;
 
+import com.exactpro.th2.inframgr.repo.RepositoryResource;
 import com.exactpro.th2.inframgr.repo.ResourceType;
 
 public class ResourceEntry {
@@ -55,4 +56,17 @@ public class ResourceEntry {
     public void setSourceHash(String hash) {
         this.hash = hash;
     }
+
+    public RepositoryResource toRepositoryResource() {
+        RepositoryResource resource = new RepositoryResource();
+        resource.setApiVersion(this.getKind().k8sApiVersion());
+        resource.setKind(this.getKind().kind());
+        resource.setSpec(this.getSpec());
+        resource.setSourceHash(this.getSourceHash());
+
+        resource.setMetadata(new RepositoryResource.Metadata());
+        resource.getMetadata().setName(this.getName());
+        return resource;
+    }
+
 }

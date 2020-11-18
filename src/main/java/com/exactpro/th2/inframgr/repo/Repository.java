@@ -136,7 +136,7 @@ public class Repository {
         File file = getFile(config, branch, entry);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        RepositoryResource resource = new RepositoryResource(entry);
+        RepositoryResource resource = entry.toRepositoryResource();
         Repository.saveYMLFile(file, resource);
         entry.setSourceHash(resource.getSourceHash());
     }
@@ -146,7 +146,7 @@ public class Repository {
         File file = getFile(config, branch, entry);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        RepositoryResource resource = new RepositoryResource(entry);
+        RepositoryResource resource = entry.toRepositoryResource();
         Repository.saveYMLFile(file, resource);
         entry.setSourceHash(resource.getSourceHash());
     }

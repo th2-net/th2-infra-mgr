@@ -18,7 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
-import com.exactpro.th2.inframgr.models.*;
+import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repo.*;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
@@ -85,7 +85,7 @@ public class K8sSynchronization {
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
                             logger.info("Creating resource {}", resourceLabel);
-                            RepositoryResource resource = new RepositoryResource(entry);
+                            RepositoryResource resource = entry.toRepositoryResource();
                             try {
                                 Stringifier.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
@@ -99,7 +99,7 @@ public class K8sSynchronization {
                             if (!(entry.getSourceHash() == null || entry.getSourceHash().equals(cr.getSourceHash()))) {
                                 // update custom resource
                                 logger.info("Updating resource {}", resourceLabel);
-                                RepositoryResource resource = new RepositoryResource(entry);
+                                RepositoryResource resource = entry.toRepositoryResource();
                                 try {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
@@ -119,7 +119,7 @@ public class K8sSynchronization {
                                 ResourceEntry entry = new ResourceEntry();
                                 entry.setKind(resourceType);
                                 entry.setName(resourceName);
-                                kube.deleteCustomResource(new RepositoryResource(entry));
+                                kube.deleteCustomResource(entry.toRepositoryResource());
                             } catch (Exception e) {
                                 logger.error("Exception deleting resource {}", resourceLabel, e);
                             }

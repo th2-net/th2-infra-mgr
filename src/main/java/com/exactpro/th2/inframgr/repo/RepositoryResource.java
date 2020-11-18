@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.repo;
 
-import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class RepositoryResource {
@@ -43,16 +42,6 @@ public class RepositoryResource {
     public RepositoryResource(ResourceType type) {
         this.apiVersion = type.k8sApiVersion();
         this.kind = type.name();
-    }
-
-    public RepositoryResource(ResourceEntry data) {
-        setApiVersion(data.getKind().k8sApiVersion());
-        setKind(data.getKind().kind());
-        setSpec(data.getSpec());
-        setSourceHash(data.getSourceHash());
-
-        setMetadata(new RepositoryResource.Metadata());
-        getMetadata().setName(data.getName());
     }
 
     public String getApiVersion() {

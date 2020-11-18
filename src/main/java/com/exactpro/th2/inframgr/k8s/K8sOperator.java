@@ -17,7 +17,7 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.models.*;
+import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repo.*;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
@@ -184,7 +184,7 @@ public class K8sOperator {
                 }
 
                 Stringifier.stringify(resourceEntry.getSpec());
-                RepositoryResource resource = new RepositoryResource(resourceEntry);
+                RepositoryResource resource = resourceEntry.toRepositoryResource();
                 if (actionReplace) {
                     logger.info("Detected external manipulation on {}, recreating resource", resourceLabel) ;
 

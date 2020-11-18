@@ -22,13 +22,8 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.repo.RepositoryResource;
-import com.exactpro.th2.inframgr.repo.RepositorySettings;
-import com.exactpro.th2.inframgr.repo.RepositorySnapshot;
 import com.exactpro.th2.inframgr.models.RequestEntry;
-import com.exactpro.th2.inframgr.repo.Gitter;
-import com.exactpro.th2.inframgr.repo.InconsistentRepositoryStateException;
-import com.exactpro.th2.inframgr.repo.Repository;
+import com.exactpro.th2.inframgr.repo.*;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.Stringifier;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -240,7 +235,7 @@ public class SchemaController {
                 if (entry.getPayload().getKind().isK8sResource()) {
                     try {
                         Stringifier.stringify(entry.getPayload().getSpec());
-                        RepositoryResource resource = new RepositoryResource(entry.getPayload());
+                        RepositoryResource resource = entry.getPayload().toRepositoryResource();
                         switch (entry.getOperation()) {
                             case add:
                                 kube.createCustomResource(resource);
