@@ -16,8 +16,6 @@
 package com.exactpro.th2.inframgr.repo;
 
 import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.repo.RepositorySettings;
-import com.exactpro.th2.inframgr.repo.ResourceType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

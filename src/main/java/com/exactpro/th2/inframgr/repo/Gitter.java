@@ -15,7 +15,6 @@
  */
 package com.exactpro.th2.inframgr.repo;
 
-import com.exactpro.th2.inframgr.Config;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import org.eclipse.jgit.api.Git;
@@ -44,7 +43,7 @@ public class Gitter {
     public static final String REFS_HEADS = "refs/heads/";
 
     private static volatile Map<String, Gitter> instance = new ConcurrentHashMap<>();
-    private Config.GitConfig config;
+    private GitConfig config;
     private String branch;
     private Lock lock;
     private TransportConfigCallback callback;
@@ -52,7 +51,7 @@ public class Gitter {
     private final String repositoryDir;
 
 
-    private Gitter(Config.GitConfig config, String branch) {
+    private Gitter(GitConfig config, String branch) {
         this.config = config;
         this.branch = branch;
         this.localCacheRoot = config.getLocalRepositoryRoot() + "/" + branch;
@@ -61,7 +60,7 @@ public class Gitter {
         this.lock = new ReentrantLock();
     }
 
-    public Config.GitConfig getConfig() {
+    public GitConfig getConfig() {
         return config;
     }
 
@@ -77,12 +76,12 @@ public class Gitter {
         lock.unlock();
     }
 
-    public static Gitter getBranch(Config.GitConfig config, String branch) {
+    public static Gitter getBranch(GitConfig config, String branch) {
 
         return instance.computeIfAbsent(branch, k -> new Gitter(config, k));
     }
 
-    private static TransportConfigCallback transportConfigCallback(Config.GitConfig config) {
+    private static TransportConfigCallback transportConfigCallback(GitConfig config) {
 
         if (config.ignoreInsecureHosts())
             JSch.setConfig("StrictHostKeyChecking", "no");
@@ -109,7 +108,7 @@ public class Gitter {
     }
 
 
-    public static Map<String, String> getAllBranchesCommits(Config.GitConfig config) throws Exception {
+    public static Map<String, String> getAllBranchesCommits(GitConfig config) throws Exception {
 
         // retrieve all remote branches
         Collection<Ref> allBranches = Git.lsRemoteRepository()
@@ -127,13 +126,13 @@ public class Gitter {
         return result;
     }
 
-    public static Set<String> getBranches(Config.GitConfig config) throws Exception {
+    public static Set<String> getBranches(GitConfig config) throws Exception {
 
         Map<String, String> commits = getAllBranchesCommits(config);
         return commits.keySet();
     }
 
-    private String checkout(Config.GitConfig config, String branch, String targetDir) throws IOException, GitAPIException {
+    private String checkout(GitConfig config, String branch, String targetDir) throws IOException, GitAPIException {
 
         // create branch directory if it does not exist
         File dir = new File(targetDir);

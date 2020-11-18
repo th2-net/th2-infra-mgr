@@ -16,7 +16,6 @@
 package com.exactpro.th2.inframgr.repo;
 
 import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.Config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -81,7 +80,7 @@ public class Repository {
         return resources;
     }
 
-    private static File getFile(Config.GitConfig config, String branch, ResourceEntry entry) {
+    private static File getFile(GitConfig config, String branch, ResourceEntry entry) {
 
         File file = new File (
                 config.getLocalRepositoryRoot()
@@ -132,7 +131,7 @@ public class Repository {
     }
 
 
-    public static void add(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void add(GitConfig config, String branch, ResourceEntry entry) throws IOException {
 
         File file = getFile(config, branch, entry);
         if (file.exists())
@@ -142,7 +141,7 @@ public class Repository {
         entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void update(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void update(GitConfig config, String branch, ResourceEntry entry) throws IOException {
 
         File file = getFile(config, branch, entry);
         if (!file.exists() || !file.isFile())
@@ -152,7 +151,7 @@ public class Repository {
         entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void remove(Config.GitConfig config, String branch, ResourceEntry entry){
+    public static void remove(GitConfig config, String branch, ResourceEntry entry){
 
         File file = getFile(config, branch, entry);
         if (!file.exists() || !file.isFile())

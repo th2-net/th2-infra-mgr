@@ -15,8 +15,9 @@
  */
 
 package com.exactpro.th2.inframgr.util.cfg;
+import com.exactpro.th2.inframgr.repo.GitConfig;
 
-public class _GitConfig {
+public class _GitConfig implements GitConfig {
     private String remoteRepository;
     private boolean ignoreInsecureHosts;
 
@@ -27,6 +28,7 @@ public class _GitConfig {
     private String privateKey;
     private byte[] privateKeyBytes;
 
+    @Override
     public String getRemoteRepository() {
         return remoteRepository;
     }
@@ -35,6 +37,7 @@ public class _GitConfig {
         this.remoteRepository = remoteRepository;
     }
 
+    @Override
     public boolean ignoreInsecureHosts() {
         return ignoreInsecureHosts;
     }
@@ -43,6 +46,7 @@ public class _GitConfig {
         this.ignoreInsecureHosts = ignoreInsecureHosts;
     }
 
+    @Override
     public String getLocalRepositoryRoot() {
         return localRepositoryRoot;
     }
@@ -51,6 +55,7 @@ public class _GitConfig {
         this.localRepositoryRoot = localRepositoryRoot;
     }
 
+    @Override
     public String getPrivateKeyFile() {
         return privateKeyFile;
     }
@@ -59,6 +64,7 @@ public class _GitConfig {
         this.privateKeyFile = privateKeyFile;
     }
 
+    @Override
     public byte[] getPrivateKey() {
         return privateKeyBytes;
     }
