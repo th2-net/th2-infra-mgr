@@ -49,9 +49,10 @@ public class K8sSynchronization {
 
     private void deleteNamespace(String schemaName) {
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
+            logger.info("Removing schema \"{}\" from kubernetes", schemaName);
             kube.deleteNamespace();
         } catch (Exception e) {
-            logger.error("Exception removing schema \"{}\" from kubernetes", schemaName);
+            logger.error("Exception removing schema \"{}\" from kubernetes", schemaName, e);
         }
     }
 

@@ -16,13 +16,12 @@
 
 package com.exactpro.th2.inframgr.statuswatcher;
 
-import com.exactpro.th2.inframgr.models.ResourceType;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.models.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -197,7 +196,7 @@ public class StatusCache {
         Config config = Config.getInstance();
         kube = new Kubernetes(config.getKubernetes(), null);
 
-        kube.registerWatchersAll(new Watcher<HasMetadata>() {
+        kube.registerWatchersAll(new Kubernetes.ExtendedWatcher<HasMetadata>() {
             @Override
             public void eventReceived(Action action, HasMetadata source) {
 
@@ -216,6 +215,11 @@ public class StatusCache {
             @Override
             public void onClose(KubernetesClientException cause) {
                 logger.error("Exception watching resources", cause);
+            }
+
+            @Override
+            public void onRecover() {
+                logger.info("Watcher recovered");
             }
         });
     }

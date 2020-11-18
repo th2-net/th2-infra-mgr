@@ -68,7 +68,7 @@ public class K8sOperator {
 
         try {
             Kubernetes kube = new Kubernetes(config.getKubernetes(), null);
-            kube.registerWatchers(new Watcher<K8sCustomResource>() {
+            kube.registerWatchers(new Kubernetes.ExtendedWatcher<K8sCustomResource>() {
                 @Override
                 public void eventReceived(Action action, K8sCustomResource res) {
                     processEvent(action, res, kube);
@@ -77,6 +77,10 @@ public class K8sOperator {
                 @Override
                 public void onClose(KubernetesClientException cause) {
                     logger.error("Exception watching resources", cause);
+                }
+                @Override
+                public void onRecover() {
+                    logger.info("Watcher recovered");
                 }
             });
         } catch (Exception e) {

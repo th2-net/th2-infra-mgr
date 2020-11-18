@@ -297,7 +297,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public List<Watch> registerWatchers(Watcher watcher) {
+    public List<Watch> registerWatchers(ExtendedWatcher watcher) {
 
         List<Watch> watches = new LinkedList<>();
 
@@ -325,7 +325,7 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public List<Watch> registerWatchersAll(Watcher watcher) {
+    public List<Watch> registerWatchersAll(ExtendedWatcher watcher) {
 
         List<Watch> watches = new LinkedList<>();
 
@@ -456,9 +456,13 @@ public class Kubernetes implements Closeable {
         return _currentNamespace;
     }
 
+    public interface ExtendedWatcher<T> extends Watcher<T> {
+        default void onRecover() {};
+    }
+
     private class FilteringWatcher<T extends HasMetadata> {
-        public Watcher<T> wrap(Watcher watcher) {
-            return new Watcher<>() {
+        public ExtendedWatcher<T> wrap(ExtendedWatcher watcher) {
+            return new ExtendedWatcher<>() {
                 @Override
                 public void eventReceived(Action action, T resource) {
                     if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
@@ -469,6 +473,8 @@ public class Kubernetes implements Closeable {
                 public void onClose(KubernetesClientException cause) {
                     watcher.onClose(cause);
                 }
+                @Override
+                public void onRecover() {watcher.onRecover();}
             };
         }
     }
@@ -476,18 +482,18 @@ public class Kubernetes implements Closeable {
 
     private static class RecoveringWatch implements Watch {
         private KubernetesClient client;
-        private final Watcher watcher;
+        private final ExtendedWatcher watcher;
         private CustomResourceDefinitionContext crdContext;
         private Initializer initializer;
         private CrdInitializer crdInitializer;
 
-        RecoveringWatch(KubernetesClient client, Watcher watcher, Initializer initializer) {
+        RecoveringWatch(KubernetesClient client, ExtendedWatcher watcher, Initializer initializer) {
             this.client = client;
             this.watcher = watcher;
             this.initializer = initializer;
         }
 
-        RecoveringWatch(KubernetesClient client, Watcher watcher, CustomResourceDefinitionContext crdContext, CrdInitializer crdInitializer) {
+        RecoveringWatch(KubernetesClient client, ExtendedWatcher watcher, CustomResourceDefinitionContext crdContext, CrdInitializer crdInitializer) {
             this.client = client;
             this.watcher = watcher;
             this.crdContext = crdContext;
@@ -496,7 +502,7 @@ public class Kubernetes implements Closeable {
 
         private Watch watch;
         public Watch watch() {
-            Watcher localWatcher = new Watcher() {
+            ExtendedWatcher localWatcher = new ExtendedWatcher() {
                 @Override
                 public void eventReceived(Action action, Object resource) {
                     watcher.eventReceived(action, resource);
@@ -507,6 +513,7 @@ public class Kubernetes implements Closeable {
                     watcher.onClose(cause);
                     if (cause != null)
                         watch();
+                    watcher.onRecover();
                 }
             };
             if (initializer != null)
@@ -522,11 +529,11 @@ public class Kubernetes implements Closeable {
         }
 
         interface Initializer {
-            Watch watch(KubernetesClient client, Watcher watcher);
+            Watch watch(KubernetesClient client, ExtendedWatcher watcher);
         }
 
         interface CrdInitializer {
-            Watch watch(KubernetesClient client, Watcher watcher, CustomResourceDefinitionContext crdContext);
+            Watch watch(KubernetesClient client, ExtendedWatcher watcher, CustomResourceDefinitionContext crdContext);
         }
     }
 
