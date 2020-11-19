@@ -25,6 +25,14 @@ public class ResourceEntry {
     private Object spec;
     private String hash;
 
+    public ResourceEntry() {}
+    public ResourceEntry(RepositoryResource resource) {
+        this.kind = ResourceType.forKind(resource.getKind());
+        this.name = resource.getMetadata().getName();
+        this.spec = resource.getSpec();
+        this.hash = resource.getSourceHash();
+    }
+
     public ResourceType getKind() {
         return kind;
     }
@@ -63,9 +71,7 @@ public class ResourceEntry {
         resource.setKind(this.getKind().kind());
         resource.setSpec(this.getSpec());
         resource.setSourceHash(this.getSourceHash());
-
-        resource.setMetadata(new RepositoryResource.Metadata());
-        resource.getMetadata().setName(this.getName());
+        resource.setMetadata(new RepositoryResource.Metadata(this.getName()));
         return resource;
     }
 

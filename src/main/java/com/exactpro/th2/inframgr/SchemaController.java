@@ -64,7 +64,7 @@ public class SchemaController {
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot getSchemaFiles(@PathVariable(name="name") String schemaName) throws Exception {
+    public SchemaControllerResponse getSchemaFiles(@PathVariable(name="name") String schemaName) throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -73,7 +73,7 @@ public class SchemaController {
         final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
         try {
             gitter.lock();
-            return Repository.getSnapshot(gitter);
+            return new SchemaControllerResponse(Repository.getSnapshot(gitter));
         } catch (RefNotAdvertisedException | RefNotFoundException e) {
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
         } catch (Exception e) {
@@ -86,7 +86,7 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot createSchema(@PathVariable(name="name") String schemaName) throws Exception {
+    public SchemaControllerResponse createSchema(@PathVariable(name="name") String schemaName) throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -126,7 +126,7 @@ public class SchemaController {
             event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied() || rs.isK8sSynchronizationRequired())));
             router.addEvent(event);
 
-            return snapshot;
+            return new SchemaControllerResponse(snapshot);
 
         } catch (ServiceException se) {
             throw se;
@@ -139,7 +139,7 @@ public class SchemaController {
 
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public RepositorySnapshot updateSchema(@PathVariable(name="name") String schemaName, @RequestBody String requestBody)
+    public SchemaControllerResponse updateSchema(@PathVariable(name="name") String schemaName, @RequestBody String requestBody)
             throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
@@ -203,7 +203,7 @@ public class SchemaController {
                     // delegate this job to K8sSynchronization
                     event.setSyncingK8s(false);
                     router.addEvent(event);
-                    return snapshot;
+                    return new SchemaControllerResponse(snapshot);
                 }
 
                 event.setSyncingK8s(true);
@@ -213,7 +213,7 @@ public class SchemaController {
                     synchronizeWithK8s(config.getKubernetes(), operations, schemaName);
             }
 
-            return snapshot;
+            return new SchemaControllerResponse(snapshot);
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
@@ -276,13 +276,13 @@ public class SchemaController {
                 for (RequestEntry entry : operations)
                     switch (entry.getOperation()) {
                         case add:
-                            Repository.add(gitter.getConfig(), branchName, entry.getPayload());
+                            Repository.add(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
                             break;
                         case update:
-                            Repository.update(gitter.getConfig(), branchName, entry.getPayload());
+                            Repository.update(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
                             break;
                         case remove:
-                            Repository.remove(gitter.getConfig(), branchName, entry.getPayload());
+                            Repository.remove(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
                             break;
                     }
                 return gitter.commitAndPush("schema update");

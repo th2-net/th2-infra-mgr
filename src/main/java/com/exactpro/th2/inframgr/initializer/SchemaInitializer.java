@@ -210,8 +210,7 @@ public class SchemaInitializer {
             logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
             K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
 
-            RepositoryResource.Metadata meta = new RepositoryResource.Metadata();
-            meta.setName(ingressName);
+            RepositoryResource.Metadata meta = new RepositoryResource.Metadata(ingressName);
 
             RepositoryResource resource = new RepositoryResource(ResourceType.HelmRelease);
             resource.setSpec(ingress.getSpec());

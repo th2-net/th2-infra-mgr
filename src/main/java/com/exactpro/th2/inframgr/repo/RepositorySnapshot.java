@@ -15,7 +15,6 @@
  */
 package com.exactpro.th2.inframgr.repo;
 
-import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,7 +23,7 @@ import java.util.Set;
 
 public class RepositorySnapshot {
     private String commitRef;
-    private Set<ResourceEntry> resources;
+    private Set<RepositoryResource> resources;
 
 
     public RepositorySnapshot(String commitRef) {
@@ -35,23 +34,22 @@ public class RepositorySnapshot {
         return commitRef;
     }
 
-    public Set<ResourceEntry> getResources() {
+    public Set<RepositoryResource> getResources() {
         return resources;
     }
 
-    public void setResources(Set<ResourceEntry> resources) {
+    public void setResources(Set<RepositoryResource> resources) {
         this.resources = resources;
     }
 
     @JsonIgnore
     public RepositorySettings getRepositorySettings() throws JsonProcessingException {
-        for (ResourceEntry entry : resources)
-            if (entry.getKind() == ResourceType.SettingsFile) {
+
+        for (RepositoryResource resource : resources)
+            if (resource.getKind().equals(ResourceType.SettingsFile.kind())) {
                 ObjectMapper mapper = new ObjectMapper();
-                RepositorySettings s = mapper.readValue(
-                        mapper.writeValueAsString(entry.getSpec()),
-                        RepositorySettings.class
-                );
+                RepositorySettings s =
+                        mapper.readValue(mapper.writeValueAsString(resource.getSpec()), RepositorySettings.class);
                 return s;
             }
         return null;

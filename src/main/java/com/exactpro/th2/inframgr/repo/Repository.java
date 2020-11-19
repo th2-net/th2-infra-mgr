@@ -15,7 +15,6 @@
  */
 package com.exactpro.th2.inframgr.repo;
 
-import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -33,27 +32,22 @@ import java.util.Set;
 
 public class Repository {
 
-    private static ResourceEntry loadYMLFile(File file) throws IOException {
+    private static RepositoryResource loadYMLFile(File file) throws IOException {
 
         String contents = Files.readString(file.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         RepositoryResource resource = mapper.readValue(contents, RepositoryResource.class);
+        resource.setSourceHash(Repository.digest(contents));
 
-        ResourceEntry entry = new ResourceEntry();
-        entry.setKind(ResourceType.forKind(resource.getKind()));
-        entry.setName(resource.getMetadata().getName());
-        entry.setSpec(resource.getSpec());
-
-        entry.setSourceHash(Repository.digest(contents));
-
-        return entry;
+        return resource;
     }
 
-    private static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws IOException {
+
+    private static Set<RepositoryResource> loadBranchYMLFiles(File repositoryRoot) throws IOException {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
-        Set<ResourceEntry> resources = new HashSet<>();
+        Set<RepositoryResource> resources = new HashSet<>();
         for (ResourceType t : ResourceType.values())
             if (t.isRepositoryResource()) {
                 File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
@@ -65,30 +59,31 @@ public class Repository {
                     }
 
                     File[] files = dir.listFiles();
-                    for (File f : files) {
-                        if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
-                            ResourceEntry resourceEntry = Repository.loadYMLFile(f);
+                    if (files != null)
+                        for (File f : files) {
+                            if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
+                                RepositoryResource resource = Repository.loadYMLFile(f);
 
-                            if (resourceEntry.getKind() != t)
-                                logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}", f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
+                                if (!resource.getKind().equals(t.kind()))
+                                    logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}"
+                                            , f.getAbsolutePath(), resource.getKind(), t.path());
 
-                            resources.add(resourceEntry);
+                                resources.add(resource);
+                            }
                         }
-                    }
             }
         }
         return resources;
     }
 
-    private static File getFile(GitConfig config, String branch, ResourceEntry entry) {
+    private static File fileFor(GitConfig config, String branch, RepositoryResource resource) {
 
-        File file = new File (
+        return new File (
                 config.getLocalRepositoryRoot()
                         + "/" + branch
-                        + "/" + entry.getKind().path()
-                        + "/" + entry.getName()
+                        + "/" + ResourceType.forKind(resource.getKind()).path()
+                        + "/" + resource.getMetadata().getName()
                         + ".yml");
-        return file;
     }
 
 
@@ -111,7 +106,7 @@ public class Repository {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
-        Set<ResourceEntry> resources = Repository.loadBranchYMLFiles(new File(path));
+        Set<RepositoryResource> resources = Repository.loadBranchYMLFiles(new File(path));
 
         RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
         snapshot.setResources(resources);
@@ -131,29 +126,25 @@ public class Repository {
     }
 
 
-    public static void add(GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void add(GitConfig config, String branch, RepositoryResource resource) throws IOException {
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        RepositoryResource resource = entry.toRepositoryResource();
         Repository.saveYMLFile(file, resource);
-        entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void update(GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void update(GitConfig config, String branch, RepositoryResource resource) throws IOException {
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        RepositoryResource resource = entry.toRepositoryResource();
         Repository.saveYMLFile(file, resource);
-        entry.setSourceHash(resource.getSourceHash());
     }
 
-    public static void remove(GitConfig config, String branch, ResourceEntry entry){
+    public static void remove(GitConfig config, String branch, RepositoryResource resource){
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         file.delete();

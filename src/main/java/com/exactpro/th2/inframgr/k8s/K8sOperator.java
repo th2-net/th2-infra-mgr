@@ -17,7 +17,6 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repo.*;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
@@ -137,7 +136,7 @@ public class K8sOperator {
                 Gitter gitter = Gitter.getBranch(config.getGit(), kube.extractSchemaName(namespace));
                 logger.info("Checking out branch \"{}\" from repository", gitter.getBranch()) ;
 
-                ResourceEntry resourceEntry = null;
+                RepositoryResource resource = null;
                 try {
                     gitter.lock();
                     RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
@@ -148,10 +147,10 @@ public class K8sOperator {
                         return;
 
                     // refresh cache for this namespace
-                    for (ResourceEntry e :snapshot.getResources()) {
-                        cache.add(namespace, e);
-                        if (e.getKind().kind().equals(kind) && e.getName().equals(name))
-                            resourceEntry = e;
+                    for (RepositoryResource r :snapshot.getResources()) {
+                        cache.add(namespace, r);
+                        if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name))
+                            resource = r;
                     }
 
                 } finally {
@@ -177,14 +176,13 @@ public class K8sOperator {
                     else {
                         actionDelete = true;
 
-                        resourceEntry = new ResourceEntry();
-                        resourceEntry.setKind(ResourceType.forKind(kind));
-                        resourceEntry.setName(name);
+                        resource = new RepositoryResource();
+                        resource.setKind(kind);
+                        resource.setMetadata(new RepositoryResource.Metadata(name));
                     }
                 }
 
-                Stringifier.stringify(resourceEntry.getSpec());
-                RepositoryResource resource = resourceEntry.toRepositoryResource();
+                Stringifier.stringify(resource.getSpec());
                 if (actionReplace) {
                     logger.info("Detected external manipulation on {}, recreating resource", resourceLabel) ;
 

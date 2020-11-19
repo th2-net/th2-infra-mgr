@@ -16,8 +16,7 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.repo.ResourceType;
+import com.exactpro.th2.inframgr.repo.RepositoryResource;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public enum K8sResourceCache {
     INSTANCE;
 
-    public class CacheEntry {
+    public static class CacheEntry {
         private boolean markedDeleted;
         private String hash;
 
@@ -48,16 +47,16 @@ public enum K8sResourceCache {
         }
     }
 
-    private Map<String, CacheEntry> cache = new HashMap<>();
-    private Map<String, Lock> locks = new HashMap<>();
+    private final Map<String, CacheEntry> cache = new HashMap<>();
+    private final Map<String, Lock> locks = new HashMap<>();
 
-    private String keyFor(String namespace, ResourceType type, String resourceName) {
-        return String.format("%s.%s.%s", namespace, type.kind(), resourceName);
+    private String keyFor(String namespace, String type, String resourceName) {
+        return String.format("%s:%s/%s", namespace, type, resourceName);
     }
 
     public synchronized void add(String namespace, K8sCustomResource resource) {
 
-        String key = keyFor(namespace, ResourceType.forKind(resource.getKind()), resource.getMetadata().getName());
+        String key = keyFor(namespace, resource.getKind(), resource.getMetadata().getName());
 
         CacheEntry entry = new CacheEntry();
         entry.setHash(resource.getSourceHash());
@@ -65,9 +64,9 @@ public enum K8sResourceCache {
         cache.put(key, entry);
     }
 
-    public synchronized void add(String namespace, ResourceEntry resource) {
+    public synchronized void add(String namespace, RepositoryResource resource) {
 
-        String key = keyFor(namespace, resource.getKind(), resource.getName());
+        String key = keyFor(namespace, resource.getKind(), resource.getMetadata().getName());
         CacheEntry entry = new CacheEntry();
         entry.setHash(resource.getSourceHash());
 
@@ -76,7 +75,7 @@ public enum K8sResourceCache {
 
     public synchronized CacheEntry get(String namespace, String resourceType, String resourceName) {
 
-        String key = keyFor(namespace, ResourceType.forKind(resourceType), resourceName);
+        String key = keyFor(namespace, resourceType, resourceName);
         return cache.get(key);
     }
 
@@ -87,7 +86,6 @@ public enum K8sResourceCache {
 
     public synchronized void remove(String namespace, String resourceType, String resourceName) {
 
-        String key = keyFor(namespace, ResourceType.forKind(resourceType), resourceName);
         CacheEntry entry = get(namespace, resourceType, resourceName);
         if (entry != null)
             entry.markAsDeleted();
@@ -95,7 +93,7 @@ public enum K8sResourceCache {
 
     public synchronized Lock lockFor(String namespace, String resourceType, String resourceName) {
 
-        String key = keyFor(namespace, ResourceType.forKind(resourceType), resourceName);
+        String key = keyFor(namespace, resourceType, resourceName);
         return locks.computeIfAbsent(key, v -> new ReentrantLock());
     }
 

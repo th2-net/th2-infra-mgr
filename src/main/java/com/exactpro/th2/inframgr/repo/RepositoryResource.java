@@ -28,6 +28,8 @@ public class RepositoryResource {
         public void setName(String name) {
             this.name = name;
         }
+        public Metadata() {}
+        public Metadata(String name) {this.name = name;}
     }
 
     private String apiVersion;
