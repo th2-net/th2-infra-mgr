@@ -77,18 +77,19 @@ public class K8sSynchronization {
                     for (RepositoryResource resource: resources.values()) {
                         String resourceName = resource.getMetadata().getName();
                         String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, type.kind(), resourceName) + "\"";
+                        String hashTag = "[" + (resource.getSourceHash() == null ? "no-hash" : resource.getSourceHash()) + "]";
                         // add resource to cache
                         cache.add(namespace, resource);
 
                         // check repository items against k8s
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
-                            logger.info("Creating resource {}", resourceLabel);
+                            logger.info("Creating resource {} {}", resourceLabel, hashTag);
                             try {
                                 Stringifier.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception creating resource {}", resourceLabel, e);
+                                logger.error("Exception creating resource {} {}", resourceLabel, hashTag, e);
                             }
                         } else {
                             // compare object's hashes and update custom resources who's hash labels do not match
@@ -96,12 +97,12 @@ public class K8sSynchronization {
 
                             if (!(resource.getSourceHash() == null || resource.getSourceHash().equals(cr.getSourceHash()))) {
                                 // update custom resource
-                                logger.info("Updating resource {}", resourceLabel);
+                                logger.info("Updating resource {} {}", resourceLabel, hashTag);
                                 try {
                                     Stringifier.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating resource {}", resourceLabel, e);
+                                    logger.error("Exception updating resource {} {}", resourceLabel, hashTag, e);
                                 }
                             }
                         }

@@ -109,7 +109,8 @@ public class K8sOperator {
             String hash = res.getSourceHash();
 
             String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, kind, name) + "\"";
-            logger.debug("Received {} event on resource {}", action.name(), resourceLabel);
+            String hashTag = "[" + (res.getSourceHash() == null ? "no-hash" : res.getSourceHash()) + "]";
+            logger.debug("Received {} event on resource {} {}", action.name(), resourceLabel, hashTag);
 
             Lock lock = cache.lockFor(namespace, kind, name);
             try {
@@ -120,14 +121,14 @@ public class K8sOperator {
                 String cachedHash = cacheEntry == null ? null : cacheEntry.getHash();
                 if (action.equals(Watcher.Action.DELETED) && cacheEntry != null && cacheEntry.isMarkedAsDeleted()
                         && Objects.equals(cachedHash, hash)) {
-                    logger.debug("No action needed for resource {}", resourceLabel);
+                    logger.debug("No action needed for resource {} {}", resourceLabel, hashTag);
                     return;
                 }
 
                 if (!action.equals(Watcher.Action.DELETED) && cacheEntry != null && !cacheEntry.isMarkedAsDeleted()
                         && Objects.equals(cachedHash, hash)) {
 
-                    logger.debug("No action needed for resource {}", resourceLabel);
+                    logger.debug("No action needed for resource {} {}", resourceLabel, hashTag);
                     return;
                 }
 
@@ -182,9 +183,14 @@ public class K8sOperator {
                     }
                 }
 
+                hash = null;
+                if (resource != null)
+                    hash = resource.getSourceHash();
+                hashTag = "[" + (hash == null ? "no-hash" : hash) + "]";
+
                 Stringifier.stringify(resource.getSpec());
                 if (actionReplace) {
-                    logger.info("Detected external manipulation on {}, recreating resource", resourceLabel) ;
+                    logger.info("Detected external manipulation on {} {}, recreating resource", resourceLabel, hashTag) ;
 
                     // check current status of namespace
                     Namespace n = kube.getNamespace(namespace);
@@ -196,7 +202,7 @@ public class K8sOperator {
                         kube.createOrReplaceCustomResource(resource, namespace);
                 } else
                 if (actionDelete) {
-                    logger.info("Detected external manipulation on {}, deleting resource", resourceLabel) ;
+                    logger.info("Detected external manipulation on {} {}, deleting resource", resourceLabel, hashTag) ;
                     kube.deleteCustomResource(resource, namespace);
                 }
 
