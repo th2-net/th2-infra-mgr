@@ -111,7 +111,8 @@ public class K8sOperator {
             String hash = res.getSourceHash();
 
             String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, kind, name) + "\"";
-            logger.debug("Received {} event on resource {}", action.name(), resourceLabel);
+            String hashTag = "[" + (hash == null ? "no-hash" : hash) + "]";
+            logger.debug("Received {} event on resource {} {}", action.name(), resourceLabel, hashTag);
 
             Lock lock = cache.lockFor(namespace, kind, name);
             try {
@@ -159,6 +160,10 @@ public class K8sOperator {
                     gitter.unlock();
                 }
 
+                hash = null;
+                if (resourceEntry != null)
+                    hash = resourceEntry.getSourceHash();
+                hashTag = "[" + (hash == null ? "no-hash" : hash) + "]";
 
                 // recheck item
                 cacheEntry = cache.get(namespace, kind, name);
@@ -187,7 +192,7 @@ public class K8sOperator {
                 Stringifier.stringify(resourceEntry.getSpec());
                 RepositoryResource resource = new RepositoryResource(resourceEntry);
                 if (actionReplace) {
-                    logger.info("Detected external manipulation on {}, recreating resource", resourceLabel) ;
+                    logger.info("Detected external manipulation on {} {}, recreating resource", resourceLabel,hashTag) ;
 
                     // check current status of namespace
                     Namespace n = kube.getNamespace(namespace);
@@ -199,7 +204,7 @@ public class K8sOperator {
                         kube.createOrReplaceCustomResource(resource, namespace);
                 } else
                 if (actionDelete) {
-                    logger.info("Detected external manipulation on {}, deleting resource", resourceLabel) ;
+                    logger.info("Detected external manipulation on {} {}, deleting resource", resourceLabel, hashTag) ;
                     kube.deleteCustomResource(resource, namespace);
                 }
 
