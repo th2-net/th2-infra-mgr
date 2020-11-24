@@ -21,7 +21,7 @@ import java.util.Map;
 public enum ResourceType {
     HelmRelease("HelmRelease", null, "helmreleases", "helm.fluxcd.io/v1"),
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
-    Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
+    Th2Dictionary("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
 
     // TODO: { remove this types after full infrastructure migration
     Th2MessageStore("Th2MessageStore", "mstores", "th2messagestores", "th2.exactpro.com/v1"),
