@@ -22,8 +22,8 @@ public enum ResourceType {
     HelmRelease("HelmRelease", null, "helmreleases", "helm.fluxcd.io/v1"),
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
     Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
-    Th2MessageStore("Th2MessageStore", "message-stores", "th2messagestores", "th2.exactpro.com/v1"),
-    Th2EventStore("Th2EventStore", "event-stores", "th2eventstores", "th2.exactpro.com/v1"),
+    Th2MessageStore("Th2MessageStore", "mstores", "th2messagestores", "th2.exactpro.com/v1"),
+    Th2EventStore("Th2EventStore", "estores", "th2eventstores", "th2.exactpro.com/v1"),
     Th2GenericBox("Th2GenericBox", "generics", "th2genericboxes", "th2.exactpro.com/v1"),
     SettingsFile("SettingsFile", "", null, null),
     UIFile("UIFile", "ui-files", null, null);
