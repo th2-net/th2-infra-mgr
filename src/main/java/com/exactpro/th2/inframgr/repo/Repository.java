@@ -54,7 +54,7 @@ public class Repository {
                 if (dir.exists()) {
 
                     if (!dir.isDirectory()) {
-                        logger.error("entry expected to be a directory: {}", dir.getAbsoluteFile());
+                        logger.error("entry expected to be a directory: \"{}\"", dir.getAbsoluteFile());
                         continue;
                     }
 
@@ -64,9 +64,17 @@ public class Repository {
                             if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
                                 RepositoryResource resource = Repository.loadYMLFile(f);
 
-                                if (!resource.getKind().equals(t.kind()))
-                                    logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}"
+                                if (!resource.getKind().equals(t.kind())) {
+                                    logger.error("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
                                             , f.getAbsolutePath(), resource.getKind(), t.path());
+                                    continue;
+                                }
+
+                                RepositoryResource.Metadata meta = resource.getMetadata();
+                                if (meta == null || !f.getName().equals(meta.getName())) {
+                                    logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
+                                    continue;
+                                }
 
                                 resources.add(resource);
                             }
