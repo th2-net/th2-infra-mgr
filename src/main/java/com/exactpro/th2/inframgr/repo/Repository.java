@@ -166,7 +166,7 @@ public class Repository {
         if (index < 0)
             return fileName;
         else
-            return fileName.substring(0, index - 1);
+            return fileName.substring(0, index);
     }
 
 
