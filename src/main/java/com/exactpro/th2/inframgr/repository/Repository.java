@@ -15,12 +15,12 @@
  */
 package com.exactpro.th2.inframgr.repository;
 
+import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.models.RepositoryResource;
 import com.exactpro.th2.inframgr.models.RepositorySnapshot;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.models.ResourceType;
 import com.exactpro.th2.inframgr.util.Hash;
-import com.exactpro.th2.inframgr.Config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -63,7 +63,7 @@ public class Repository {
                 if (dir.exists()) {
 
                     if (!dir.isDirectory()) {
-                        logger.error("entry expected to be a directory: {}", dir.getAbsoluteFile());
+                        logger.warn("entry expected to be a directory: {}", dir.getAbsoluteFile());
                         continue;
                     }
 
@@ -72,8 +72,16 @@ public class Repository {
                         if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
                             ResourceEntry resourceEntry = Repository.loadYMLFile(f);
 
-                            if (resourceEntry.getKind() != t)
-                                logger.error("skipping {} | resource is located in wrong directory. kind: {}, dir: {}", f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
+                            if (resourceEntry.getKind() != t) {
+                                logger.warn("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
+                                        , f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
+                                continue;
+                            }
+
+                            if (!extractName(f.getName()).equals(resourceEntry.getName())) {
+                                logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
+                                continue;
+                            }
 
                             resources.add(resourceEntry);
                         }
@@ -162,4 +170,13 @@ public class Repository {
         file.delete();
     }
 
+
+    private static String extractName(String fileName) {
+
+        int index = fileName.lastIndexOf(".");
+        if (index < 0)
+            return fileName;
+        else
+            return fileName.substring(0, index);
+    }
 }
