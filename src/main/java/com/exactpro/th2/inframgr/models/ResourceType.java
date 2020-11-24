@@ -22,16 +22,24 @@ public enum ResourceType {
     HelmRelease("HelmRelease", null, "helmreleases", "helm.fluxcd.io/v1"),
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
     Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
+
+    // TODO: { remove this types after full infrastructure migration
     Th2MessageStore("Th2MessageStore", "mstores", "th2messagestores", "th2.exactpro.com/v1"),
     Th2EventStore("Th2EventStore", "estores", "th2eventstores", "th2.exactpro.com/v1"),
     Th2GenericBox("Th2GenericBox", "generics", "th2genericboxes", "th2.exactpro.com/v1"),
+    // TODO:   end of block }
+
+    Th2Mstore("Th2Mstore", "mstores", "th2mstores", "th2.exactpro.com/v1"),
+    Th2Estore("Th2Estore", "estores", "th2estores", "th2.exactpro.com/v1"),
+    Th2Generic("Th2Generic", "generics", "th2generics", "th2.exactpro.com/v1"),
+
     SettingsFile("SettingsFile", "", null, null),
     UIFile("UIFile", "ui-files", null, null);
 
-    private String kind;
-    private String path;
-    private String k8sName;
-    private String k8sApiVersion;
+    private final String kind;
+    private final String path;
+    private final String k8sName;
+    private final String k8sApiVersion;
 
     ResourceType(String kind, String path, String k8sName, String k8sApiVersion) {
         this.kind = kind;
@@ -66,8 +74,8 @@ public enum ResourceType {
         return k8sName != null;
     }
 
-    private static Map<String, ResourceType> kinds = new HashMap<>();
-    private static Map<String, ResourceType> pathes = new HashMap<>();
+    private static final Map<String, ResourceType> kinds = new HashMap<>();
+    private static final Map<String, ResourceType> pathes = new HashMap<>();
     static {
         for (ResourceType t : ResourceType.values()) {
             kinds.put(t.kind(), t);
