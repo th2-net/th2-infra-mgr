@@ -32,7 +32,7 @@ import java.util.Set;
 
 public class Repository {
 
-    private static RepositoryResource loadYMLFile(File file) throws IOException {
+    private static RepositoryResource loadYAMLFile(File file) throws IOException {
 
         String contents = Files.readString(file.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -43,7 +43,7 @@ public class Repository {
     }
 
 
-    private static Set<RepositoryResource> loadBranchYMLFiles(File repositoryRoot) throws IOException {
+    private static Set<RepositoryResource> loadBranchYAMLFiles(File repositoryRoot) throws IOException {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
@@ -62,7 +62,7 @@ public class Repository {
                     if (files != null)
                         for (File f : files) {
                             if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
-                                RepositoryResource resource = Repository.loadYMLFile(f);
+                                RepositoryResource resource = Repository.loadYAMLFile(f);
 
                                 if (!resource.getKind().equals(t.kind())) {
                                     logger.error("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
@@ -114,7 +114,7 @@ public class Repository {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
-        Set<RepositoryResource> resources = Repository.loadBranchYMLFiles(new File(path));
+        Set<RepositoryResource> resources = Repository.loadBranchYAMLFiles(new File(path));
 
         RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
         snapshot.setResources(resources);
@@ -122,7 +122,7 @@ public class Repository {
     }
 
 
-    private static void saveYMLFile(File file, RepositoryResource resource) throws IOException {
+    private static void saveYAMLFile(File file, RepositoryResource resource) throws IOException {
 
         file.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
@@ -139,7 +139,7 @@ public class Repository {
         File file = fileFor(config, branch, resource);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        Repository.saveYMLFile(file, resource);
+        Repository.saveYAMLFile(file, resource);
     }
 
     public static void update(GitConfig config, String branch, RepositoryResource resource) throws IOException {
@@ -147,7 +147,7 @@ public class Repository {
         File file = fileFor(config, branch, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        Repository.saveYMLFile(file, resource);
+        Repository.saveYAMLFile(file, resource);
     }
 
     public static void remove(GitConfig config, String branch, RepositoryResource resource){
