@@ -71,7 +71,7 @@ public class Repository {
                                 }
 
                                 RepositoryResource.Metadata meta = resource.getMetadata();
-                                if (meta == null || !f.getName().equals(meta.getName())) {
+                                if (meta == null || !extractName(f.getName()).equals(meta.getName())) {
                                     logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
                                     continue;
                                 }
@@ -83,6 +83,7 @@ public class Repository {
         }
         return resources;
     }
+
 
     private static File fileFor(GitConfig config, String branch, RepositoryResource resource) {
 
@@ -157,6 +158,17 @@ public class Repository {
             throw new IllegalArgumentException("resource does not exist");
         file.delete();
     }
+
+
+    private static String extractName(String fileName) {
+
+        int index = fileName.lastIndexOf(".");
+        if (index < 0)
+            return fileName;
+        else
+            return fileName.substring(0, index - 1);
+    }
+
 
     public static String digest(String data) {
         try {
