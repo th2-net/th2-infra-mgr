@@ -23,23 +23,35 @@ infra-mgr configuration is given with config.yml file that should be on the clas
 
 ```yaml
     git:
-      remoteRepository:  
+      remoteRepository: git@some.server.com:some/repository
       # git ssh repository URL
       
-      localRepositoryRoot: 
-      #path to folder where local copy of repository will be cached
+      localRepositoryRoot: /path/to/cache
+      # path to folder where local copy of repository will be cached
+      # separate local repository will be created for every branch of remote repository
       
-      privateKeyFile: 
-      #path to private key file to 
+      privateKeyFile: /path/to/key
+      # path to private key file to be used for authentication
+      # due to underlayng library restrictions, only RSA keys generated in PEM mode are supported
       
       ignoreInsecureHosts: true
       # set to true to connect to self signed or insecure servers
 
     rabbitmq:
       vhostPrefix: schema-
+      # this prefix will be prepended to every vHost in RebbitMQ that will be automatically
+      # created by infra-operator
+      
       usernamePrefix: schema-user-
+      # when creating indiviadual user for a schema in RabbitMQ, this prefix will be prepended to schema name
+      # to form a username
+
       secret: rabbitmq
+      # secret name for generated RabiitMQ username and password to be created
+      # in schema namespace
+      
       passwordLength: 24
+      # RabbitMQ password will be generated with this length
 
     cassandra:
       keyspacePrefix: schema_
