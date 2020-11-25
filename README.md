@@ -9,13 +9,59 @@ It is deployed on its own namespace in kubernetes and synchronization is done be
 
 Schema is composed of kubernets Th2 Custom Resources (CR) of various kinds.
 For every kind of the CR is designated separate root directory in the repository.
-CR-s kubernetes yaml format files and are expected to be resided in its own directory.
-Also CR-s file names(excluding extension) must match kubernetes resource names.
+CR-s are described by kubernetes yaml resource files and are expected to be resided in its own directory.
+CR's file names(not icluding extension) must match kubernetes resource names.
 
 All schema and resource names must comply with DNS label names as defined in RFC 1123.
 https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 
 
-### Configuration
+See example shema repository for further description of its structure
 
+### Configuration
+infra-mgr configuration is given with config.yml file that should be on the classpath of the application
+
+```yaml
+    git:
+      remoteRepository:  
+      # git ssh repository URL
+      
+      localRepositoryRoot: 
+      #path to folder where local copy of repository will be cached
+      
+      privateKeyFile: 
+      #path to private key file to 
+      
+      ignoreInsecureHosts: true
+      # set to true to connect to self signed or insecure servers
+
+    rabbitmq:
+      vhostPrefix: schema-
+      usernamePrefix: schema-user-
+      secret: rabbitmq
+      passwordLength: 24
+
+    cassandra:
+      keyspacePrefix: schema_
+
+    kubernetes:
+      useCustomConfig: false
+      namespacePrefix: schema-
+
+      ingress: ingress-rules
+      secretNames:
+        - chart-secrets
+        - git-chart-creds
+        - th2-core
+        - th2-solution
+        - th2-proprietary
+        - th2-schema-test
+        - cassandra
+      configMaps:
+        cassandra: cradle
+        logging: java-logging-config
+        rabbitmq: rabbit-mq-app-config
+        rabbitmqManagement: rabbitmq-mng-params
+
+```
 ## 
