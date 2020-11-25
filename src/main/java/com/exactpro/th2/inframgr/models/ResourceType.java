@@ -23,12 +23,6 @@ public enum ResourceType {
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
     Th2Dictionary("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
 
-    // TODO: { remove this types after full infrastructure migration
-    Th2MessageStore("Th2MessageStore", "mstores", "th2messagestores", "th2.exactpro.com/v1"),
-    Th2EventStore("Th2EventStore", "estores", "th2eventstores", "th2.exactpro.com/v1"),
-    Th2GenericBox("Th2GenericBox", "generics", "th2genericboxes", "th2.exactpro.com/v1"),
-    // TODO:   end of block }
-
     Th2Mstore("Th2Mstore", "mstores", "th2mstores", "th2.exactpro.com/v1"),
     Th2Estore("Th2Estore", "estores", "th2estores", "th2.exactpro.com/v1"),
     Th2Generic("Th2Generic", "generics", "th2generics", "th2.exactpro.com/v1"),
