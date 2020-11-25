@@ -1,9 +1,9 @@
 # infra-mgr
 infra-mgr is a component responsible for rolling out schemas from git repository to kubernetes.
 It watches for changes in the repositories and deploys changed components to kubernets.
-Depending on the schema configuration, it also monitors kubernetes and if it detects external manipulation on deployed component, redeploys it from latest repository version.
+Depending on the schema configuration, it also monitors kubernetes and if it detects external manipulation on deployed component, redeploys them from latest repository version.
 
-
+### Schema
 A collection of the interconnected components is called a schema and is contained in the single branch of the repository.
 It is deployed on its own namespace in kubernetes and synchronization is done between repository branch and kubernetes namespace.
 
@@ -16,6 +16,6 @@ All schema and resource names must comply with DNS label names as defined in RFC
 https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
 
 
-## Configuration
+### Configuration
 
 ## 
