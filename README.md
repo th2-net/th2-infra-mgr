@@ -19,7 +19,7 @@ https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-lab
 See example shema repository for further description of its structure
 
 ### Configuration
-infra-mgr configuration is given with config.yml file that should be on the classpath of the application
+infra-mgr configuration is given with *config.yml* file that should be on the classpath of the application
 
 ```yaml
     git:
