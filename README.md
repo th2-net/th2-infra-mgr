@@ -55,12 +55,18 @@ infra-mgr configuration is given with config.yml file that should be on the clas
 
     cassandra:
       keyspacePrefix: schema_
-
+      # this parameter will be prepended to schema name and will be used as a 
+      # keyspace name in cassandra for the schema
+      
     kubernetes:
-      useCustomConfig: false
       namespacePrefix: schema-
+      # this parameter will be prepended to schema name and will be used as a 
+      # namespace name for the schema
 
-      ingress: ingress-rules
+      ingress: ingress-name
+      # name of the ingress HelmRelease to be copied from infra-mgr namespace to schema namespace
+      # when deploying schema to kubernetes
+
       secretNames:
         - chart-secrets
         - git-chart-creds
@@ -69,6 +75,9 @@ infra-mgr configuration is given with config.yml file that should be on the clas
         - th2-proprietary
         - th2-schema-test
         - cassandra
+      # list of the secrets to be copied from infra-mgr namespace to schema namespace
+      # when deploying schema to kubernetes
+
       configMaps:
         cassandra: cradle
         logging: java-logging-config
