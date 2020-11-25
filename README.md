@@ -83,6 +83,8 @@ infra-mgr configuration is given with config.yml file that should be on the clas
         logging: java-logging-config
         rabbitmq: rabbit-mq-app-config
         rabbitmqManagement: rabbitmq-mng-params
+      # individual ConfigMaps for components to be copied from infra-mgr namespace to schema namespace
+      # this ConfigMaps will be populated with schema specific data before copying to target namespace
 
 ```
 ## 
