@@ -57,13 +57,14 @@ public class Repository {
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<ResourceEntry> resources = new HashSet<>();
+        Set<String> keys = new HashSet<>();
         for (ResourceType t : ResourceType.values())
             if (t.isRepositoryResource()) {
                 File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
                 if (dir.exists()) {
 
                     if (!dir.isDirectory()) {
-                        logger.warn("entry expected to be a directory: {}", dir.getAbsoluteFile());
+                        logger.warn("entry expected to be a directory: \"{}\"", dir.getAbsoluteFile());
                         continue;
                     }
 
@@ -72,24 +73,30 @@ public class Repository {
                         if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
                             ResourceEntry resourceEntry = Repository.loadYMLFile(f);
 
-                            if (resourceEntry.getKind() != t) {
-                                logger.warn("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
-                                        , f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
-                                continue;
-                            }
-
                             if (!extractName(f.getName()).equals(resourceEntry.getName())) {
                                 logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
                                 continue;
                             }
 
+                            if (!resourceEntry.getKind().path().equals(t.path())) {
+                                logger.warn("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
+                                        , f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
+                                continue;
+                            }
+
+                            String key = resourceEntry.getKind() + "/" + resourceEntry.getName();
+                            if (keys.contains(key))
+                                continue;
+
                             resources.add(resourceEntry);
+                            keys.add(key);
                         }
                     }
             }
         }
         return resources;
     }
+
 
     private static File getFile(Config.GitConfig config, String branch, ResourceEntry entry) {
 

@@ -1,32 +1,31 @@
 git:
-  remoteRepository: "${REPOSITORY}"
-  localRepositoryRoot: "${REPOSITORY_LOCAL_CACHE}"
-  privateKeyFile: "${PRIVATE_KEY_FILE}"
+  remoteRepository: git@gitlab.exactpro.com:giorgi.mania/schema-files.git
+  localRepositoryRoot: /home/exp.exactpro.com/giorgi.mania/.schema-repo
+  privateKeyFile: /home/exp.exactpro.com/giorgi.mania/.ssh/infra-mgr
   ignoreInsecureHosts: true
 
 rabbitmq:
-  host: "${RABBITMQ_HOST}"
-  port: "${RABBITMQ_PORT}"
-  vhostPrefix: "${RABBITMQ_VHOST_PREFIX}"
-  username: "${RABBITMQ_USER}"
-  password: "${RABBITMQ_PASS}"
+  vhostPrefix: dev-gm-
+  usernamePrefix: dev-gm-
+  secret: rabbitmq
+  passwordLength: 12
 
 cassandra:
-  keyspacePrefix: "${CASSANDRA_KEYSPACE_PREFIX}"
+  keyspacePrefix: dev_gm_
 
 kubernetes:
   useCustomConfig: false
-  namespacePrefix: "${K8S_NAMESPACE_PREFIX}"
+  namespacePrefix: dev-gm-
 
-  ingress: "${K8S_INGRESS}"
+  ingress: ingress-rules
   configMaps:
-    rabbitmq: "${K8S_CONFIG_MAP_RABBITMQ}"
-    cassandra: "${K8S_CONFIG_MAP_CASSANDRA}"
-    logging: "${K8S_CONFIG_MAP_LOGGING}"
+    rabbitmq: rabbit-mq-app-config
+    cassandra: cradle
+    logging: java-logging-config
   secretNames:
-    - "chart-secrets"
-    - "git-chart-creds"
-    - "th2-core"
-    - "th2-solution"
-    - "cassandra"
-    - "rabbitmq"
+    - chart-secrets
+    - git-chart-creds
+    - th2-core
+    - th2-solution
+    - th2-proprietary
+    - cassandra
