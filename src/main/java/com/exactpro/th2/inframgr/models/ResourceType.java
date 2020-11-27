@@ -23,7 +23,7 @@ public enum ResourceType {
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
     Th2Dictionary("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
 
-    Th2Rpt("Th2Rpt", "core", "th2rpts", "th2.exactpro.com/v1"),
+    Th2CoreBox("Th2CoreBox", "core", "th2coreboxes", "th2.exactpro.com/v1"),
     Th2Mstore("Th2Mstore", "core", "th2mstores", "th2.exactpro.com/v1"),
     Th2Estore("Th2Estore", "core", "th2estores", "th2.exactpro.com/v1"),
     Th2Box("Th2Box", "boxes", "th2boxes", "th2.exactpro.com/v1"),
