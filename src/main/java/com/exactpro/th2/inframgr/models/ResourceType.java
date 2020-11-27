@@ -23,9 +23,10 @@ public enum ResourceType {
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
     Th2Dictionary("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
 
-    Th2Mstore("Th2Mstore", "mstores", "th2mstores", "th2.exactpro.com/v1"),
-    Th2Estore("Th2Estore", "estores", "th2estores", "th2.exactpro.com/v1"),
-    Th2Generic("Th2Generic", "generics", "th2generics", "th2.exactpro.com/v1"),
+    Th2CoreBox("Th2CoreBox", "core", "th2coreboxes", "th2.exactpro.com/v1"),
+    Th2Mstore("Th2Mstore", "core", "th2mstores", "th2.exactpro.com/v1"),
+    Th2Estore("Th2Estore", "core", "th2estores", "th2.exactpro.com/v1"),
+    Th2Box("Th2Box", "boxes", "th2boxes", "th2.exactpro.com/v1"),
 
     SettingsFile("SettingsFile", "", null, null),
     UIFile("UIFile", "ui-files", null, null);
@@ -58,7 +59,7 @@ public enum ResourceType {
     }
 
     public static ResourceType forPath(String path) {
-        return pathes.get(path);
+        return paths.get(path);
     }
 
     public boolean isRepositoryResource() {
@@ -69,11 +70,11 @@ public enum ResourceType {
     }
 
     private static final Map<String, ResourceType> kinds = new HashMap<>();
-    private static final Map<String, ResourceType> pathes = new HashMap<>();
+    private static final Map<String, ResourceType> paths = new HashMap<>();
     static {
         for (ResourceType t : ResourceType.values()) {
             kinds.put(t.kind(), t);
-            pathes.put(t.path(), t);
+            paths.put(t.path(), t);
         }
     }
 }
