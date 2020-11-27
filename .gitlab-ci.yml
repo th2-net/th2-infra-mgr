@@ -2,7 +2,7 @@ variables:
   APP_NAME: "th2-infra-mgr"
   MAJOR_VERSION: "0"
   MINOR_VERSION: "8"
-  MAINTENANCE_VERSION: "2"
+  MAINTENANCE_VERSION: "6"
   DOCKER_PUBLISH_ENABLED: "true"
 
 include:

@@ -48,6 +48,8 @@ public class Repository {
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<RepositoryResource> resources = new HashSet<>();
+        Set<String> keySet = new HashSet<>();
+
         for (ResourceType t : ResourceType.values())
             if (t.isRepositoryResource()) {
                 File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
@@ -63,20 +65,25 @@ public class Repository {
                         for (File f : files) {
                             if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
                                 RepositoryResource resource = Repository.loadYAMLFile(f);
-
-                                if (!resource.getKind().equals(t.kind())) {
-                                    logger.error("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
-                                            , f.getAbsolutePath(), resource.getKind(), t.path());
-                                    continue;
-                                }
-
                                 RepositoryResource.Metadata meta = resource.getMetadata();
+
                                 if (meta == null || !extractName(f.getName()).equals(meta.getName())) {
                                     logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
                                     continue;
                                 }
 
+                                if (!ResourceType.forKind(resource.getKind()).path().equals(t.path())) {
+                                    logger.error("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
+                                            , f.getAbsolutePath(), resource.getKind(), t.path());
+                                    continue;
+                                }
+
+                                String key = resource.getKind() + "/" + meta.getName();
+                                if (keySet.contains(key))
+                                    continue;
+
                                 resources.add(resource);
+                                keySet.add(key);
                             }
                         }
             }

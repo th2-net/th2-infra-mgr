@@ -21,17 +21,20 @@ import java.util.Map;
 public enum ResourceType {
     HelmRelease("HelmRelease", null, "helmreleases", "helm.fluxcd.io/v1"),
     Th2Link("Th2Link", "links", "th2links", "th2.exactpro.com/v1"),
-    Th2Dictionaries("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
-    Th2MessageStore("Th2MessageStore", "mstores", "th2messagestores", "th2.exactpro.com/v1"),
-    Th2EventStore("Th2EventStore", "estores", "th2eventstores", "th2.exactpro.com/v1"),
-    Th2GenericBox("Th2GenericBox", "generics", "th2genericboxes", "th2.exactpro.com/v1"),
+    Th2Dictionary("Th2Dictionary", "dictionaries", "th2dictionaries", "th2.exactpro.com/v1"),
+
+    Th2CoreBox("Th2CoreBox", "core", "th2coreboxes", "th2.exactpro.com/v1"),
+    Th2Mstore("Th2Mstore", "core", "th2mstores", "th2.exactpro.com/v1"),
+    Th2Estore("Th2Estore", "core", "th2estores", "th2.exactpro.com/v1"),
+    Th2Box("Th2Box", "boxes", "th2boxes", "th2.exactpro.com/v1"),
+
     SettingsFile("SettingsFile", "", null, null),
     UIFile("UIFile", "ui-files", null, null);
 
-    private String kind;
-    private String path;
-    private String k8sName;
-    private String k8sApiVersion;
+    private final String kind;
+    private final String path;
+    private final String k8sName;
+    private final String k8sApiVersion;
 
     ResourceType(String kind, String path, String k8sName, String k8sApiVersion) {
         this.kind = kind;
@@ -56,7 +59,7 @@ public enum ResourceType {
     }
 
     public static ResourceType forPath(String path) {
-        return pathes.get(path);
+        return paths.get(path);
     }
 
     public boolean isRepositoryResource() {
@@ -66,12 +69,12 @@ public enum ResourceType {
         return k8sName != null;
     }
 
-    private static Map<String, ResourceType> kinds = new HashMap<>();
-    private static Map<String, ResourceType> pathes = new HashMap<>();
+    private static final Map<String, ResourceType> kinds = new HashMap<>();
+    private static final Map<String, ResourceType> paths = new HashMap<>();
     static {
         for (ResourceType t : ResourceType.values()) {
             kinds.put(t.kind(), t);
-            pathes.put(t.path(), t);
+            paths.put(t.path(), t);
         }
     }
 }
