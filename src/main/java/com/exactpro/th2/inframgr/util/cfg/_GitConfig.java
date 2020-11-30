@@ -15,7 +15,7 @@
  */
 
 package com.exactpro.th2.inframgr.util.cfg;
-import com.exactpro.th2.inframgr.repo.GitConfig;
+import com.exactpro.th2.infrarepo.GitConfig;
 
 public class _GitConfig implements GitConfig {
     private String remoteRepository;

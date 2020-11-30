@@ -15,8 +15,8 @@
  */
 package com.exactpro.th2.inframgr.models;
 
-import com.exactpro.th2.inframgr.repo.RepositoryResource;
-import com.exactpro.th2.inframgr.repo.ResourceType;
+import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.ResourceType;
 
 public class ResourceEntry {
 

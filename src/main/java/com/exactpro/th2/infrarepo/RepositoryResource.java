@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.repo;
+package com.exactpro.th2.infrarepo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

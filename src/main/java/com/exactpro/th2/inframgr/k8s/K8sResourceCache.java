@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.RepositoryResource;
 
 import java.util.HashMap;
 import java.util.Map;
