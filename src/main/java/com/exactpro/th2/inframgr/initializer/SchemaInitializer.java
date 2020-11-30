@@ -19,8 +19,8 @@ package com.exactpro.th2.inframgr.initializer;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.models.RepositoryResource;
-import com.exactpro.th2.inframgr.models.ResourceType;
+import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.ResourceType;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -210,8 +210,7 @@ public class SchemaInitializer {
             logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
             K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
 
-            RepositoryResource.Metadata meta = new RepositoryResource.Metadata();
-            meta.setName(ingressName);
+            RepositoryResource.Metadata meta = new RepositoryResource.Metadata(ingressName);
 
             RepositoryResource resource = new RepositoryResource(ResourceType.HelmRelease);
             resource.setSpec(ingress.getSpec());

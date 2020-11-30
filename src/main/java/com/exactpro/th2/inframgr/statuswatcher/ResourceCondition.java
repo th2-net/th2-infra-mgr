@@ -17,7 +17,7 @@
 package com.exactpro.th2.inframgr.statuswatcher;
 
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
-import com.exactpro.th2.inframgr.models.ResourceType;
+import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentCondition;

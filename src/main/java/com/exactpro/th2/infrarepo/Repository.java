@@ -13,14 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.inframgr.repository;
+package com.exactpro.th2.infrarepo;
 
-import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.models.RepositoryResource;
-import com.exactpro.th2.inframgr.models.RepositorySnapshot;
-import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.inframgr.models.ResourceType;
-import com.exactpro.th2.inframgr.util.Hash;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
@@ -31,82 +25,81 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.Set;
 
 public class Repository {
 
-    private static ResourceEntry loadYMLFile(File file) throws IOException {
+    private static RepositoryResource loadYAMLFile(File file) throws IOException {
 
         String contents = Files.readString(file.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         RepositoryResource resource = mapper.readValue(contents, RepositoryResource.class);
+        resource.setSourceHash(Repository.digest(contents));
 
-        ResourceEntry entry = new ResourceEntry();
-        entry.setKind(ResourceType.forKind(resource.getKind()));
-        entry.setName(resource.getMetadata().getName());
-        entry.setSpec(resource.getSpec());
-
-        entry.setSourceHash(Hash.digest(contents));
-
-        return entry;
+        return resource;
     }
 
-    private static Set<ResourceEntry> loadBranchYMLFiles(File repositoryRoot) throws IOException {
+
+    private static Set<RepositoryResource> loadBranchYAMLFiles(File repositoryRoot) throws IOException {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
-        Set<ResourceEntry> resources = new HashSet<>();
-        Set<String> keys = new HashSet<>();
+        Set<RepositoryResource> resources = new HashSet<>();
+        Set<String> keySet = new HashSet<>();
+
         for (ResourceType t : ResourceType.values())
             if (t.isRepositoryResource()) {
                 File dir = new File(repositoryRoot.getAbsolutePath() + "/" + t.path());
                 if (dir.exists()) {
 
                     if (!dir.isDirectory()) {
-                        logger.warn("entry expected to be a directory: \"{}\"", dir.getAbsoluteFile());
+                        logger.error("entry expected to be a directory: \"{}\"", dir.getAbsoluteFile());
                         continue;
                     }
 
                     File[] files = dir.listFiles();
-                    for (File f : files) {
-                        if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
-                            ResourceEntry resourceEntry = Repository.loadYMLFile(f);
+                    if (files != null)
+                        for (File f : files) {
+                            if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
+                                RepositoryResource resource = Repository.loadYAMLFile(f);
+                                RepositoryResource.Metadata meta = resource.getMetadata();
 
-                            if (!extractName(f.getName()).equals(resourceEntry.getName())) {
-                                logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
-                                continue;
+                                if (meta == null || !extractName(f.getName()).equals(meta.getName())) {
+                                    logger.warn("skipping \"{}\" | resource name does not match filename", f.getAbsolutePath());
+                                    continue;
+                                }
+
+                                if (!ResourceType.forKind(resource.getKind()).path().equals(t.path())) {
+                                    logger.error("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
+                                            , f.getAbsolutePath(), resource.getKind(), t.path());
+                                    continue;
+                                }
+
+                                String key = resource.getKind() + "/" + meta.getName();
+                                if (keySet.contains(key))
+                                    continue;
+
+                                resources.add(resource);
+                                keySet.add(key);
                             }
-
-                            if (!resourceEntry.getKind().path().equals(t.path())) {
-                                logger.warn("skipping \"{}\" | resource is located in wrong directory. kind: {}, dir: {}"
-                                        , f.getAbsolutePath(), resourceEntry.getKind().kind(), t.path());
-                                continue;
-                            }
-
-                            String key = resourceEntry.getKind() + "/" + resourceEntry.getName();
-                            if (keys.contains(key))
-                                continue;
-
-                            resources.add(resourceEntry);
-                            keys.add(key);
                         }
-                    }
             }
         }
         return resources;
     }
 
 
-    private static File getFile(Config.GitConfig config, String branch, ResourceEntry entry) {
+    private static File fileFor(GitConfig config, String branch, RepositoryResource resource) {
 
-        File file = new File (
+        return new File (
                 config.getLocalRepositoryRoot()
                         + "/" + branch
-                        + "/" + entry.getKind().path()
-                        + "/" + entry.getName()
+                        + "/" + ResourceType.forKind(resource.getKind()).path()
+                        + "/" + resource.getMetadata().getName()
                         + ".yml");
-        return file;
     }
 
 
@@ -129,7 +122,7 @@ public class Repository {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
-        Set<ResourceEntry> resources = Repository.loadBranchYMLFiles(new File(path));
+        Set<RepositoryResource> resources = Repository.loadBranchYAMLFiles(new File(path));
 
         RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
         snapshot.setResources(resources);
@@ -137,41 +130,37 @@ public class Repository {
     }
 
 
-    private static void saveYMLFile(File file, RepositoryResource resource) throws IOException {
+    private static void saveYAMLFile(File file, RepositoryResource resource) throws IOException {
 
         file.getParentFile().mkdir();
         ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
                 .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
                 .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
         String contents = mapper.writeValueAsString(resource);
-        resource.setSourceHash(Hash.digest(contents));
+        resource.setSourceHash(Repository.digest(contents));
         Files.writeString(file.toPath(), contents);
     }
 
 
-    public static void add(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void add(GitConfig config, String branch, RepositoryResource resource) throws IOException {
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        RepositoryResource resource = new RepositoryResource(entry);
-        Repository.saveYMLFile(file, resource);
-        entry.setSourceHash(resource.getSourceHash());
+        Repository.saveYAMLFile(file, resource);
     }
 
-    public static void update(Config.GitConfig config, String branch, ResourceEntry entry) throws IOException {
+    public static void update(GitConfig config, String branch, RepositoryResource resource) throws IOException {
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        RepositoryResource resource = new RepositoryResource(entry);
-        Repository.saveYMLFile(file, resource);
-        entry.setSourceHash(resource.getSourceHash());
+        Repository.saveYAMLFile(file, resource);
     }
 
-    public static void remove(Config.GitConfig config, String branch, ResourceEntry entry){
+    public static void remove(GitConfig config, String branch, RepositoryResource resource){
 
-        File file = getFile(config, branch, entry);
+        File file = fileFor(config, branch, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         file.delete();
@@ -186,4 +175,20 @@ public class Repository {
         else
             return fileName.substring(0, index);
     }
+
+
+    public static String digest(String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(data.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest)
+                sb.append(String.format("%02x", b));
+
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

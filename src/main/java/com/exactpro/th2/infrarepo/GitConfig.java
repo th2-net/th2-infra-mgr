@@ -13,25 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.exactpro.th2.inframgr.util;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+package com.exactpro.th2.infrarepo;
 
-public class Hash {
-    public static String digest(String data) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(data.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest)
-                sb.append(String.format("%02x", b));
+public interface GitConfig {
+    String getRemoteRepository();
 
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    boolean ignoreInsecureHosts();
+
+    String getLocalRepositoryRoot();
+
+    String getPrivateKeyFile();
+
+    byte[] getPrivateKey();
 }
-
-

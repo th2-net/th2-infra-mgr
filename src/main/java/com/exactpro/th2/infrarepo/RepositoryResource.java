@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.models;
+package com.exactpro.th2.infrarepo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -28,6 +28,8 @@ public class RepositoryResource {
         public void setName(String name) {
             this.name = name;
         }
+        public Metadata() {}
+        public Metadata(String name) {this.name = name;}
     }
 
     private String apiVersion;
@@ -42,16 +44,6 @@ public class RepositoryResource {
     public RepositoryResource(ResourceType type) {
         this.apiVersion = type.k8sApiVersion();
         this.kind = type.name();
-    }
-
-    public RepositoryResource(ResourceEntry data) {
-        setApiVersion(data.getKind().k8sApiVersion());
-        setKind(data.getKind().kind());
-        setSpec(data.getSpec());
-        setSourceHash(data.getSourceHash());
-
-        setMetadata(new RepositoryResource.Metadata());
-        getMetadata().setName(data.getName());
     }
 
     public String getApiVersion() {

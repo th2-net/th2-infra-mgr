@@ -15,12 +15,23 @@
  */
 package com.exactpro.th2.inframgr.models;
 
+import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.ResourceType;
+
 public class ResourceEntry {
 
     private ResourceType kind;
     private String name;
     private Object spec;
     private String hash;
+
+    public ResourceEntry() {}
+    public ResourceEntry(RepositoryResource resource) {
+        this.kind = ResourceType.forKind(resource.getKind());
+        this.name = resource.getMetadata().getName();
+        this.spec = resource.getSpec();
+        this.hash = resource.getSourceHash();
+    }
 
     public ResourceType getKind() {
         return kind;
@@ -53,4 +64,15 @@ public class ResourceEntry {
     public void setSourceHash(String hash) {
         this.hash = hash;
     }
+
+    public RepositoryResource toRepositoryResource() {
+        RepositoryResource resource = new RepositoryResource();
+        resource.setApiVersion(this.getKind().k8sApiVersion());
+        resource.setKind(this.getKind().kind());
+        resource.setSpec(this.getSpec());
+        resource.setSourceHash(this.getSourceHash());
+        resource.setMetadata(new RepositoryResource.Metadata(this.getName()));
+        return resource;
+    }
+
 }
