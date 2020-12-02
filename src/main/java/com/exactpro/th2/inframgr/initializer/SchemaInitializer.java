@@ -19,9 +19,9 @@ package com.exactpro.th2.inframgr.initializer;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -42,6 +42,7 @@ public class SchemaInitializer {
     private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
+    private static final String PROMETHEUS_CONFIGMAP_PARAM = "prometheus";
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -69,7 +70,11 @@ public class SchemaInitializer {
         kube.createNamespace();
 
         copySecrets(config, kube);
-        copyLoggingConfigMap(config, kube);
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        copyConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube);
+        copyConfigMap(configMaps, PROMETHEUS_CONFIGMAP_PARAM, kube);
+
         copyIngress(config, kube);
 
         ensureRabbitMQResources(config, schemaName, kube);
@@ -179,13 +184,16 @@ public class SchemaInitializer {
     }
 
 
-    public static void copyLoggingConfigMap(Config config, Kubernetes kube) {
+    public static void copyConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube) {
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(LOGGING_CONFIGMAP_PARAM);
+
+        String configMapName = configMaps.get(configMapKey);
+        if (configMapName == null || configMapName.isEmpty()) {
+            logger.warn("ConfigMap for \"{}\" not configured, ignoring", configMapKey);
+            return;
+        }
 
         String namespace = kube.getNamespaceName();
-
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null)   {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
