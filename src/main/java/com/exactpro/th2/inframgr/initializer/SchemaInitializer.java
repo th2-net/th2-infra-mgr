@@ -41,6 +41,7 @@ public class SchemaInitializer {
 
     private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
+    private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
     private static final String PROMETHEUS_CONFIGMAP_PARAM = "prometheus";
 
@@ -51,7 +52,6 @@ public class SchemaInitializer {
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
-    private static final String CASSANDRA_JSON_HOST_KEY = "host";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
@@ -148,12 +148,10 @@ public class SchemaInitializer {
     }
 
 
-    public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
+    private static void copyCassandraConfigMap(String configMapName, String keyspaceName, Kubernetes kube) {
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(CASSANDRA_CONFIGMAP_PARAM);
-
-        String namespace = kube.getNamespaceName();
+        if (configMapName == null || configMapName.isEmpty())
+            return;
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
@@ -161,10 +159,8 @@ public class SchemaInitializer {
             return;
         }
 
+        String namespace = kube.getNamespaceName();
         Map<String, String> cmData = cm.getData();
-
-        Config.CassandraConfig cassandraConfig = config.getCassandra();
-        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
 
         // copy config map with updated keyspace name
         try {
@@ -172,8 +168,6 @@ public class SchemaInitializer {
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
-            if (cassandraConfig.getHostForSchema() != null)
-                cradleMQJson.put(CASSANDRA_JSON_HOST_KEY, cassandraConfig.getHostForSchema());
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
 
@@ -181,6 +175,17 @@ public class SchemaInitializer {
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName), e);
         }
+    }
+
+
+    public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
+
+        Config.CassandraConfig cassandraConfig = config.getCassandra();
+        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube);
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube);
     }
 
 
