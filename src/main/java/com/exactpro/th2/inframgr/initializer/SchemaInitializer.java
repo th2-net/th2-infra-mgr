@@ -40,7 +40,9 @@ public class SchemaInitializer {
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
     private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
+    private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
+    private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
     private static final String PROMETHEUS_CONFIGMAP_PARAM = "prometheus";
 
@@ -51,7 +53,6 @@ public class SchemaInitializer {
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
-    private static final String CASSANDRA_JSON_HOST_KEY = "host";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
@@ -108,11 +109,10 @@ public class SchemaInitializer {
     }
 
 
-    public static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube) {
+    public static void copyRabbitMQConfigMap(String configMapName, String vHostName, String username, Kubernetes kube) {
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(RABBITMQ_CONFIGMAP_PARAM);
-        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+        if (configMapName == null || configMapName.isEmpty())
+            return;
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
@@ -121,7 +121,32 @@ public class SchemaInitializer {
             return;
         }
 
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
         Map<String, String> cmData = cm.getData();
+
+        // copy config map with updated vHost value to namespace
+        try {
+            logger.info("Creating \"{}\"", resourceLabel);
+
+            ObjectMapper mapper = new ObjectMapper();
+
+            var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
+            rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
+            rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
+            cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
+
+            kube.createOrReplaceConfigMap(cm);
+        } catch (Exception e) {
+            logger.error("Exception copying \"{}\"", resourceLabel, e);
+        }
+    }
+
+
+    public static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube) {
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
         String username = rabbitMQConfig.getUsernamePrefix() + schemaName;
 
@@ -129,31 +154,18 @@ public class SchemaInitializer {
         try {
             logger.info("Creating RabbitMQ Secret and ConfigMap for schema \"{}\"", schemaName);
             createRabbitMQSecret(config, kube, username);
-
-            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName));
-
-            ObjectMapper mapper = new ObjectMapper();
-
-            var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
-
-            rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
-            rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
-            cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
-
-            kube.createOrReplaceConfigMap(cm);
-
+            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, kube);
+            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_EXTERNAL_CONFIGMAP_PARAM), vHostName, username, kube);
         } catch (Exception e) {
             logger.error("Exception writing RabbitMQ configuration resources", e);
         }
     }
 
 
-    public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
+    private static void copyCassandraConfigMap(String configMapName, String keyspaceName, Kubernetes kube) {
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(CASSANDRA_CONFIGMAP_PARAM);
-
-        String namespace = kube.getNamespaceName();
+        if (configMapName == null || configMapName.isEmpty())
+            return;
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
@@ -161,10 +173,8 @@ public class SchemaInitializer {
             return;
         }
 
+        String namespace = kube.getNamespaceName();
         Map<String, String> cmData = cm.getData();
-
-        Config.CassandraConfig cassandraConfig = config.getCassandra();
-        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
 
         // copy config map with updated keyspace name
         try {
@@ -172,8 +182,6 @@ public class SchemaInitializer {
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
-            if (cassandraConfig.getHostForSchema() != null)
-                cradleMQJson.put(CASSANDRA_JSON_HOST_KEY, cassandraConfig.getHostForSchema());
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
 
@@ -181,6 +189,17 @@ public class SchemaInitializer {
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName), e);
         }
+    }
+
+
+    public static void ensureKeyspace(Config config, String schemaName, Kubernetes kube) {
+
+        Config.CassandraConfig cassandraConfig = config.getCassandra();
+        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube);
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube);
     }
 
 
