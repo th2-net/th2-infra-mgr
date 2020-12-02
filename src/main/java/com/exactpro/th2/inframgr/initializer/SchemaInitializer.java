@@ -40,6 +40,7 @@ public class SchemaInitializer {
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
     private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
+    private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
@@ -108,11 +109,10 @@ public class SchemaInitializer {
     }
 
 
-    public static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube) {
+    public static void copyRabbitMQConfigMap(String configMapName, String vHostName, String username, Kubernetes kube) {
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        String configMapName = configMaps.get(RABBITMQ_CONFIGMAP_PARAM);
-        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+        if (configMapName == null || configMapName.isEmpty())
+            return;
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
@@ -121,7 +121,32 @@ public class SchemaInitializer {
             return;
         }
 
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
         Map<String, String> cmData = cm.getData();
+
+        // copy config map with updated vHost value to namespace
+        try {
+            logger.info("Creating \"{}\"", resourceLabel);
+
+            ObjectMapper mapper = new ObjectMapper();
+
+            var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
+            rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
+            rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
+            cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
+
+            kube.createOrReplaceConfigMap(cm);
+        } catch (Exception e) {
+            logger.error("Exception copying \"{}\"", resourceLabel, e);
+        }
+    }
+
+
+    public static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube) {
+
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
+
         String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
         String username = rabbitMQConfig.getUsernamePrefix() + schemaName;
 
@@ -129,19 +154,8 @@ public class SchemaInitializer {
         try {
             logger.info("Creating RabbitMQ Secret and ConfigMap for schema \"{}\"", schemaName);
             createRabbitMQSecret(config, kube, username);
-
-            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName));
-
-            ObjectMapper mapper = new ObjectMapper();
-
-            var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
-
-            rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
-            rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
-            cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
-
-            kube.createOrReplaceConfigMap(cm);
-
+            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, kube);
+            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_EXTERNAL_CONFIGMAP_PARAM), vHostName, username, kube);
         } catch (Exception e) {
             logger.error("Exception writing RabbitMQ configuration resources", e);
         }
