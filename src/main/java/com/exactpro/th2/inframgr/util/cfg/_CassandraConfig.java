@@ -17,44 +17,7 @@
 package com.exactpro.th2.inframgr.util.cfg;
 
 public class _CassandraConfig {
-    private String host;
-    private String port;
-    private String username;
-    private String password;
     private String keyspacePrefix;
-    private String hostForSchema;
-
-    public String getHost() {
-        return host;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public String getPort() {
-        return port;
-    }
-
-    public void setPort(String port) {
-        this.port = port;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
 
     public String getKeyspacePrefix() {
         return keyspacePrefix == null ? "" : keyspacePrefix;
@@ -62,13 +25,5 @@ public class _CassandraConfig {
 
     public void setKeyspacePrefix(String keyspacePrefix) {
         this.keyspacePrefix = keyspacePrefix;
-    }
-
-    public String getHostForSchema() {
-        return hostForSchema;
-    }
-
-    public void setHostForSchema(String hostForSchema) {
-        this.hostForSchema = hostForSchema;
     }
 }
