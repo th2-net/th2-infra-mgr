@@ -276,13 +276,13 @@ public class SchemaController {
                 for (RequestEntry entry : operations)
                     switch (entry.getOperation()) {
                         case add:
-                            Repository.add(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
+                            Repository.add(gitter, entry.getPayload().toRepositoryResource());
                             break;
                         case update:
-                            Repository.update(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
+                            Repository.update(gitter, entry.getPayload().toRepositoryResource());
                             break;
                         case remove:
-                            Repository.remove(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
+                            Repository.remove(gitter, entry.getPayload().toRepositoryResource());
                             break;
                     }
                 return gitter.commitAndPush("schema update");

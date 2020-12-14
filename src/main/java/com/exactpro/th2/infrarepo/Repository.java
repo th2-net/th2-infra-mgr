@@ -32,7 +32,7 @@ import java.util.Set;
 
 public class Repository {
 
-    private static RepositoryResource loadYAMLFile(File file) throws IOException {
+    private static RepositoryResource loadYAML(File file) throws IOException {
 
         String contents = Files.readString(file.toPath());
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -43,7 +43,19 @@ public class Repository {
     }
 
 
-    private static Set<RepositoryResource> loadBranchYAMLFiles(File repositoryRoot) throws IOException {
+    private static void saveYAML(File file, RepositoryResource resource) throws IOException {
+
+        file.getParentFile().mkdir();
+        ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
+                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
+        String contents = mapper.writeValueAsString(resource);
+        resource.setSourceHash(Repository.digest(contents));
+        Files.writeString(file.toPath(), contents);
+    }
+
+
+    private static Set<RepositoryResource> loadBranch(File repositoryRoot) throws IOException {
 
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
@@ -64,7 +76,7 @@ public class Repository {
                     if (files != null)
                         for (File f : files) {
                             if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
-                                RepositoryResource resource = Repository.loadYAMLFile(f);
+                                RepositoryResource resource = Repository.loadYAML(f);
                                 RepositoryResource.Metadata meta = resource.getMetadata();
 
                                 if (meta == null || !extractName(f.getName()).equals(meta.getName())) {
@@ -92,14 +104,39 @@ public class Repository {
     }
 
 
-    private static File fileFor(GitConfig config, String branch, RepositoryResource resource) {
+    private static File fileFor(Gitter gitter, RepositoryResource resource) {
 
         return new File (
-                config.getLocalRepositoryRoot()
-                        + "/" + branch
+                gitter.getConfig().getLocalRepositoryRoot()
+                        + "/" + gitter.getBranch()
                         + "/" + ResourceType.forKind(resource.getKind()).path()
                         + "/" + resource.getMetadata().getName()
                         + ".yml");
+    }
+
+
+    private static String extractName(String fileName) {
+
+        int index = fileName.lastIndexOf(".");
+        if (index < 0)
+            return fileName;
+        else
+            return fileName.substring(0, index);
+    }
+
+
+    private static String digest(String data) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(data.getBytes());
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest)
+                sb.append(String.format("%02x", b));
+
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
@@ -122,7 +159,7 @@ public class Repository {
 
         String path = gitter.getConfig().getLocalRepositoryRoot() + "/" + gitter.getBranch();
         String commitRef = gitter.checkout();
-        Set<RepositoryResource> resources = Repository.loadBranchYAMLFiles(new File(path));
+        Set<RepositoryResource> resources = Repository.loadBranch(new File(path));
 
         RepositorySnapshot snapshot = new RepositorySnapshot(commitRef);
         snapshot.setResources(resources);
@@ -130,65 +167,73 @@ public class Repository {
     }
 
 
-    private static void saveYAMLFile(File file, RepositoryResource resource) throws IOException {
+    /**
+     * Adds resource to the local repository, but does not commit or push changes.
+     * Throws an IllegalArgumentException if resource with same name and kind already exists
+     *
+     * @param  gitter
+     *         Gitter object for which repository will be updated.
+     *         Must be locked externally as this method does not lock repository by itself
+     *
+     * @return Latest snapshot of repository
+     *
+     * @throws IOException
+     *         If repository IO operation fails
+     * @throws IllegalArgumentException
+     *         If resource already exists in the repository
+     */
+    public static void add(Gitter gitter, RepositoryResource resource) throws IOException {
 
-        file.getParentFile().mkdir();
-        ObjectMapper mapper = new ObjectMapper((new YAMLFactory())
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES));
-        String contents = mapper.writeValueAsString(resource);
-        resource.setSourceHash(Repository.digest(contents));
-        Files.writeString(file.toPath(), contents);
-    }
-
-
-    public static void add(GitConfig config, String branch, RepositoryResource resource) throws IOException {
-
-        File file = fileFor(config, branch, resource);
+        File file = fileFor(gitter, resource);
         if (file.exists())
             throw new IllegalArgumentException("resource already exist");
-        Repository.saveYAMLFile(file, resource);
+        Repository.saveYAML(file, resource);
     }
 
-    public static void update(GitConfig config, String branch, RepositoryResource resource) throws IOException {
 
-        File file = fileFor(config, branch, resource);
+    /**
+     * Updates resource in the local repository, but does not commit or push changes.
+     * Throws an IllegalArgumentException if resource does not exists
+     *
+     * @param  gitter
+     *         Gitter object for which repository will be updated.
+     *         Must be locked externally as this method does not lock repository by itself
+     *
+     * @return Latest snapshot of repository
+     *
+     * @throws IOException
+     *         If repository IO operation fails
+     * @throws IllegalArgumentException
+     *         If resource already exists in the repository
+     */
+    public static void update(Gitter gitter, RepositoryResource resource) throws IOException {
+
+        File file = fileFor(gitter, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
-        Repository.saveYAMLFile(file, resource);
+        Repository.saveYAML(file, resource);
     }
 
-    public static void remove(GitConfig config, String branch, RepositoryResource resource){
 
-        File file = fileFor(config, branch, resource);
+    /**
+     * Removes resource from the local repository, but does not commit or push changes.
+     * Throws an IllegalArgumentException if resource does not exists
+     *
+     * @param  gitter
+     *         Gitter object for which repository will be updated.
+     *         Must be locked externally as this method does not lock repository by itself
+     *
+     * @return Latest snapshot of repository
+     *
+     * @throws IllegalArgumentException
+     *         If resource already exists in the repository
+     */
+    public static void remove(Gitter gitter, RepositoryResource resource) {
+
+        File file = fileFor(gitter, resource);
         if (!file.exists() || !file.isFile())
             throw new IllegalArgumentException("resource does not exist");
         file.delete();
-    }
-
-
-    private static String extractName(String fileName) {
-
-        int index = fileName.lastIndexOf(".");
-        if (index < 0)
-            return fileName;
-        else
-            return fileName.substring(0, index);
-    }
-
-
-    public static String digest(String data) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(data.getBytes());
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest)
-                sb.append(String.format("%02x", b));
-
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
     }
 
 }
