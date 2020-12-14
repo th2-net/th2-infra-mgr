@@ -44,7 +44,6 @@ public class SchemaInitializer {
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
-    private static final String PROMETHEUS_CONFIGMAP_PARAM = "prometheus";
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -74,7 +73,6 @@ public class SchemaInitializer {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
         copyConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube);
-        copyConfigMap(configMaps, PROMETHEUS_CONFIGMAP_PARAM, kube);
 
         copyIngress(config, kube);
 
