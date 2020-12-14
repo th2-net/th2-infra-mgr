@@ -175,8 +175,6 @@ public class Repository {
      *         Gitter object for which repository will be updated.
      *         Must be locked externally as this method does not lock repository by itself
      *
-     * @return Latest snapshot of repository
-     *
      * @throws IOException
      *         If repository IO operation fails
      * @throws IllegalArgumentException
@@ -199,8 +197,6 @@ public class Repository {
      *         Gitter object for which repository will be updated.
      *         Must be locked externally as this method does not lock repository by itself
      *
-     * @return Latest snapshot of repository
-     *
      * @throws IOException
      *         If repository IO operation fails
      * @throws IllegalArgumentException
@@ -222,8 +218,6 @@ public class Repository {
      * @param  gitter
      *         Gitter object for which repository will be updated.
      *         Must be locked externally as this method does not lock repository by itself
-     *
-     * @return Latest snapshot of repository
      *
      * @throws IllegalArgumentException
      *         If resource already exists in the repository
