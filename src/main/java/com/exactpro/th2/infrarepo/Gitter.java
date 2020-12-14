@@ -22,10 +22,12 @@ import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
+import org.eclipse.jgit.api.errors.WrongRepositoryStateException;
 import org.eclipse.jgit.errors.EntryExistsException;
 import org.eclipse.jgit.internal.storage.file.FileRepository;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.*;
 import org.eclipse.jgit.util.FS;
 import org.springframework.util.FileSystemUtils;
@@ -146,9 +148,10 @@ public class Gitter {
         try {
             git
                     .pull()
+                    .setStrategy(MergeStrategy.THEIRS)
                     .setTransportConfigCallback(callback)
                     .call();
-        } catch(NoHeadException e) {
+        } catch (NoHeadException e) {
             // probably there is no git repository in the directory
             // try to clone
             Git.cloneRepository()
@@ -157,6 +160,9 @@ public class Gitter {
                     .setDirectory(dir)
                     .setTransportConfigCallback(callback)
                     .call();
+        } catch (WrongRepositoryStateException e) {
+            // try to recreate local repository
+            recreateCache();
         }
 
         Ref ref = git.checkout()
