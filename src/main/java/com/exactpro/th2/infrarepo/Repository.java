@@ -73,9 +73,12 @@ public class Repository {
                     }
 
                     File[] files = dir.listFiles();
-                    if (files != null)
-                        for (File f : files) {
-                            if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml"))) {
+                    if (files == null)
+                        return resources;
+
+                    for (File f : files)
+                        if (f.isFile() && (f.getAbsolutePath().endsWith(".yml") || f.getAbsolutePath().endsWith(".yaml")))
+                            try {
                                 RepositoryResource resource = Repository.loadYAML(f);
                                 RepositoryResource.Metadata meta = resource.getMetadata();
 
@@ -96,8 +99,9 @@ public class Repository {
 
                                 resources.add(resource);
                                 keySet.add(key);
+                            } catch (Exception e) {
+                                logger.error("skipping \"{}\" | exception loading resource", f.getAbsolutePath());
                             }
-                        }
             }
         }
         return resources;
