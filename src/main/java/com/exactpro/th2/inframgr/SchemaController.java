@@ -271,30 +271,19 @@ public class SchemaController {
 
         String branchName = gitter.getBranch();
         try {
-
-            try {
-                for (RequestEntry entry : operations)
-                    switch (entry.getOperation()) {
-                        case add:
-                            Repository.add(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
-                            break;
-                        case update:
-                            Repository.update(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
-                            break;
-                        case remove:
-                            Repository.remove(gitter.getConfig(), branchName, entry.getPayload().toRepositoryResource());
-                            break;
-                    }
-                return gitter.commitAndPush("schema update");
-
-            } catch (InconsistentRepositoryStateException irsePassThrough) {
-                // pass this exception for processing on outer level
-                throw irsePassThrough;
-            } catch (Exception e) {
-                logger.error("Exception updating repository for branch \"{}\"", branchName, e);
-                gitter.reset();
-                throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
-            }
+            for (RequestEntry entry : operations)
+                switch (entry.getOperation()) {
+                    case add:
+                        Repository.add(gitter, entry.getPayload().toRepositoryResource());
+                        break;
+                    case update:
+                        Repository.update(gitter, entry.getPayload().toRepositoryResource());
+                        break;
+                    case remove:
+                        Repository.remove(gitter, entry.getPayload().toRepositoryResource());
+                        break;
+                }
+            return gitter.commitAndPush("schema update");
 
         } catch (InconsistentRepositoryStateException irse) {
             // this exception is thrown when inconsistent state of git repository is expected
@@ -311,6 +300,11 @@ public class SchemaController {
                 se.addSuppressed(re);
             }
             throw se;
+
+        } catch (Exception e) {
+            logger.error("Exception updating repository for branch \"{}\"", branchName, e);
+            gitter.reset();
+            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
     }
 
