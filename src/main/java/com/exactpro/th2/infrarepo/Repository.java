@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 public class Repository {
@@ -60,7 +62,7 @@ public class Repository {
         Logger logger = LoggerFactory.getLogger(Repository.class);
 
         Set<RepositoryResource> resources = new HashSet<>();
-        Set<String> keySet = new HashSet<>();
+        Map<String, RepositoryResource> firstOccurrences = new HashMap<>();
 
         for (ResourceType t : ResourceType.values())
             if (t.isRepositoryResource()) {
@@ -93,12 +95,23 @@ public class Repository {
                                     continue;
                                 }
 
-                                String key = resource.getKind() + "/" + meta.getName();
-                                if (keySet.contains(key))
+                                // some directories might contain multiple resource kinds
+                                // skip other kinds as they will be checked on their iteration
+                                if (!resource.getKind().equals(t.kind()))
                                     continue;
 
+                                String name = meta.getName();
+                                RepositoryResource sameNameResource = firstOccurrences.get(name);
+                                if (sameNameResource != null && !sameNameResource.getKind().equals(resource.getKind())) {
+                                    // we already encountered resource with same name
+                                    // ignore both of them
+                                    logger.warn("\"{}/{}\" has the same name as \"{}/{}\". skipping both of them", resource.getKind(), name, sameNameResource.getKind(), name);
+                                    resources.remove(firstOccurrences.get(name));
+                                    continue;
+                                }
+
                                 resources.add(resource);
-                                keySet.add(key);
+                                firstOccurrences.put(name, resource);
                             } catch (Exception e) {
                                 logger.error("skipping \"{}\" | exception loading resource", f.getAbsolutePath());
                             }
