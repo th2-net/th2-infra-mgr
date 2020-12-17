@@ -113,7 +113,7 @@ public class Repository {
                                 resources.add(resource);
                                 firstOccurrences.put(name, resource);
                             } catch (Exception e) {
-                                logger.error("skipping \"{}\" | exception loading resource", f.getAbsolutePath());
+                                logger.error("skipping \"{}\" | exception loading resource", f.getAbsolutePath(), e);
                             }
             }
         }
