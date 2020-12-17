@@ -85,6 +85,14 @@ public class Gitter {
 
     private static TransportConfigCallback transportConfigCallback(GitConfig config) {
 
+        if (config.isHttpAuth()){
+            return transport -> {
+                HttpTransport httpTransport = (HttpTransport) transport;
+                httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
+                        config.getHttpAuthUsername(),
+                        config.getHttpAuthPassword()));
+            };
+        }
         if (config.ignoreInsecureHosts())
             JSch.setConfig("StrictHostKeyChecking", "no");
         SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
