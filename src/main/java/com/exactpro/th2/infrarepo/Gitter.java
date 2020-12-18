@@ -30,6 +30,8 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.*;
 import org.eclipse.jgit.util.FS;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.FileSystemUtils;
 
 import java.io.File;
@@ -41,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 
 public class Gitter {
-
+    private static final Logger logger = LoggerFactory.getLogger(Gitter.class);
     public static final String REFS_HEADS = "refs/heads/";
 
     private static volatile Map<String, Gitter> instance = new ConcurrentHashMap<>();
@@ -87,12 +89,17 @@ public class Gitter {
 
         if (config.getIsHttpAuth()){
             return transport -> {
-                HttpTransport httpTransport = (HttpTransport) transport;
-                httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
-                        config.getHttpAuthUsername(),
-                        config.getHttpAuthPassword()));
+                if (transport instanceof HttpTransport) {
+                    HttpTransport httpTransport = (HttpTransport) transport;
+                    httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
+                            config.getHttpAuthUsername(),
+                            config.getHttpAuthPassword()));
+                } else {
+                    logger.error("Http auth is enabled but manager is creating ssh connection, something is wrong with config");
+                }
             };
         }
+
         if (config.ignoreInsecureHosts())
             JSch.setConfig("StrictHostKeyChecking", "no");
         SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
