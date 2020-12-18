@@ -80,11 +80,11 @@ public class _GitConfig implements GitConfig {
     }
 
     @Override
-    public boolean isHttpAuth() {
+    public boolean getIsHttpAuth() {
         return isHttpAuth;
     }
 
-    public void setHttpAuth(boolean httpAuth) {
+    public void setIsHttpAuth(boolean httpAuth) {
         isHttpAuth = httpAuth;
     }
 

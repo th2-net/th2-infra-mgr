@@ -85,7 +85,7 @@ public class Gitter {
 
     private static TransportConfigCallback transportConfigCallback(GitConfig config) {
 
-        if (config.isHttpAuth()){
+        if (config.getIsHttpAuth()){
             return transport -> {
                 HttpTransport httpTransport = (HttpTransport) transport;
                 httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(

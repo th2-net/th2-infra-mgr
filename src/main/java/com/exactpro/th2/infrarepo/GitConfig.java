@@ -19,7 +19,7 @@ package com.exactpro.th2.infrarepo;
 public interface GitConfig {
     String getRemoteRepository();
 
-    boolean isHttpAuth();
+    boolean getIsHttpAuth();
 
     String getHttpAuthUsername();
 
