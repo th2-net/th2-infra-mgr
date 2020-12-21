@@ -37,6 +37,18 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       ignoreInsecureHosts: true
       # set to true to connect to self signed or insecure servers
 
+      # For following configs to work
+      # Http link should be provided in `remoteRepository' config
+
+      httpAuthUsername: username
+      # authentication username
+      # when using token auth for GitLab it should be equal to "oauth2"
+      # when using token auth for GitHub it should be equal to token itself
+      httpAuthPassword: password
+      # authentication password
+      # when using token auth for GitLab it should be equal to token itself
+      # when using token auth for GitHub it should be equal to empty string
+
     rabbitmq:
       vhostPrefix: schema-
       # this prefix will be prepended to every vHost in RebbitMQ that will be automatically

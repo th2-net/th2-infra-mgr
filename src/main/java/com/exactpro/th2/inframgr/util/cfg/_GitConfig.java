@@ -19,6 +19,10 @@ import com.exactpro.th2.infrarepo.GitConfig;
 
 public class _GitConfig implements GitConfig {
     private String remoteRepository;
+
+    private String httpAuthUsername;
+    private String httpAuthPassword;
+
     private boolean ignoreInsecureHosts;
 
     private String localRepositoryRoot;
@@ -72,5 +76,23 @@ public class _GitConfig implements GitConfig {
     public void setPrivateKey(String privateKey) {
         this.privateKey = privateKey;
         this.privateKeyBytes = privateKey.getBytes();
+    }
+
+    @Override
+    public String getHttpAuthUsername() {
+        return httpAuthUsername;
+    }
+
+    public void setHttpAuthUsername(String httpAuthUsername) {
+        this.httpAuthUsername = httpAuthUsername;
+    }
+
+    @Override
+    public String getHttpAuthPassword() {
+        return httpAuthPassword;
+    }
+
+    public void setHttpAuthPassword(String httpAuthPassword) {
+        this.httpAuthPassword = httpAuthPassword;
     }
 }
