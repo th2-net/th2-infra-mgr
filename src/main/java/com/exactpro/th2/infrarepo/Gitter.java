@@ -61,22 +61,81 @@ public class Gitter {
         this.lock = new ReentrantLock();
     }
 
+    /**
+     * Return configuration that was used to construct this instance
+     *
+     * @return Configuration that was used to construct instance
+     */
     public GitConfig getConfig() {
         return config;
     }
 
+
+    /**
+     * Return branch name for which this instance was constructed
+     *
+     * @return Branch name
+     */
     public String getBranch() {
         return branch;
     }
 
+
+    /**
+     * Acquires lock for this branch to prevent other threads to work on same the branch.
+     * Operations should be enclosed with try/finally block and lock should be released
+     * as soon as operations are done on this branch
+     *
+     * <pre>
+     * {@code
+     * Gitter gitter;
+     * // retrieve instance
+     * gitter.lock()
+     * try {
+     *     // do operations on repository
+     * } finally {
+     *     gitter.unlock();
+     * }
+     * }
+     * </pre>
+     */
     public void lock() {
         lock.lock();
     }
 
+
+    /**
+     * Releases lock on this branch
+     */
     public void unlock() {
         lock.unlock();
     }
 
+
+    /**
+     * Returns instance of the object configured to work with specified branch.
+     * This class is not designed to work with different git repositories. In other words
+     * all of the repository operations should specify same config object.
+     * <p>
+     * None of the update operations are thread-safe and operations should be
+     * synchronized using Gitter's internal lock mechanism
+     *
+     * <pre>
+     * {@code
+     * Gitter gitter = Gitter.getBranch(config, branch);
+     * gitter.lock()
+     * try {
+     *     // do operations on repository
+     * } finally {
+     *     gitter.unlock();
+     * }
+     * }
+     * </pre>
+     * @param config Configuration used to construct instance
+     * @param branch Repository branch, for which consecutive operations will be performed
+     *               on this instance
+     * @return
+     */
     public static Gitter getBranch(GitConfig config, String branch) {
 
         return instance.computeIfAbsent(branch, k -> new Gitter(config, k));
@@ -124,6 +183,12 @@ public class Gitter {
     }
 
 
+    /**
+     * Retrieves latest commit refs for all branches from remote repository
+     * @param config Configuration for the repository
+     * @return Map, whose keys are branch names and values are commitRefs for these branches
+     * @throws Exception
+     */
     public static Map<String, String> getAllBranchesCommits(GitConfig config) throws Exception {
 
         // retrieve all remote branches
@@ -142,11 +207,19 @@ public class Gitter {
         return result;
     }
 
+
+    /**
+     * Retrieves all branch names that are available on the remote repository
+     * @param config Configuration for the repository
+     * @return Set containing names of the branches in the repository
+     * @throws Exception
+     */
     public static Set<String> getBranches(GitConfig config) throws Exception {
 
         Map<String, String> commits = getAllBranchesCommits(config);
         return commits.keySet();
     }
+
 
     private String checkout(GitConfig config, String branch, String targetDir) throws IOException, GitAPIException {
 
@@ -192,6 +265,13 @@ public class Gitter {
     }
 
 
+    /**
+     * Resets repository's local working tree using repository's local copy.
+     * This operation is equivalent of the command {@code git reset --hard}
+     * @return commit ref of current repository node
+     * @throws InconsistentRepositoryStateException if operation fails for any reason and
+     * repository's local copy's consistency can not be warranted
+     */
     public String reset() throws InconsistentRepositoryStateException {
 
         checkAndGetLocalCacheRoot();
