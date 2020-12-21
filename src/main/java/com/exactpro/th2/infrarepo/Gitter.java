@@ -30,8 +30,6 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.merge.MergeStrategy;
 import org.eclipse.jgit.transport.*;
 import org.eclipse.jgit.util.FS;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.util.FileSystemUtils;
 
 import java.io.File;
@@ -43,7 +41,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 
 public class Gitter {
-    private static final Logger logger = LoggerFactory.getLogger(Gitter.class);
     public static final String REFS_HEADS = "refs/heads/";
 
     private static volatile Map<String, Gitter> instance = new ConcurrentHashMap<>();
@@ -85,14 +82,18 @@ public class Gitter {
         return instance.computeIfAbsent(branch, k -> new Gitter(config, k));
     }
 
+
     private static TransportConfigCallback transportConfigCallback(GitConfig config) {
+
         return transport -> {
+
             if (transport instanceof HttpTransport) {
 
                 HttpTransport httpTransport = (HttpTransport) transport;
                 httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
                         config.getHttpAuthUsername(),
                         config.getHttpAuthPassword()));
+
 
             }  else if (transport instanceof SshTransport) {
 
@@ -104,7 +105,7 @@ public class Gitter {
                         JSch defaultJSch = super.createDefaultJSch(fs);
 
                         if (config.getPrivateKey() != null)
-                            defaultJSch.addIdentity("backend-key", config.getPrivateKey(), null, null);
+                            defaultJSch.addIdentity("gitter-key", config.getPrivateKey(), null, null);
                         else
                         if (config.getPrivateKeyFile() != null)
                             defaultJSch.addIdentity(config.getPrivateKeyFile());
@@ -117,7 +118,7 @@ public class Gitter {
                 sshTransport.setSshSessionFactory(sshSessionFactory);
 
             } else {
-                throw new RuntimeException("Gitter doesn't create neither Http nor ssh connection");
+                throw new RuntimeException(String.format("Unknown transport type (%s)", transport.getClass().getName()));
             }
         };
     }
