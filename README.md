@@ -37,8 +37,9 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       ignoreInsecureHosts: true
       # set to true to connect to self signed or insecure servers
 
-      isHttpAuth: false
-      # set true whenever we want to use http auth
+      # For following configs to work
+      # Http link should be provided in `remoteRepository' config
+
       httpAuthUsername: username
       # authentication username
       # when using token auth for GitLab it should be equal to "oauth2"

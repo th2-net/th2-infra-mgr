@@ -3,7 +3,6 @@ git:
   localRepositoryRoot: "${REPOSITORY_LOCAL_CACHE}"
   privateKeyFile: "${PRIVATE_KEY_FILE}"
   ignoreInsecureHosts: true
-  isHttpAuth: "${IS_HTTPS_AUTH}"
   httpAuthUsername: "${HTTPS_AUTH_USERNAME}"
   httpAuthPassword: "${HTTPS_AUTH_PASSWORD}"
 

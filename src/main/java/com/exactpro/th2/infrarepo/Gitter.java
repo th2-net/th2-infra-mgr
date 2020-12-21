@@ -86,41 +86,39 @@ public class Gitter {
     }
 
     private static TransportConfigCallback transportConfigCallback(GitConfig config) {
-
-        if (config.getIsHttpAuth()){
-            return transport -> {
-                if (transport instanceof HttpTransport) {
-                    HttpTransport httpTransport = (HttpTransport) transport;
-                    httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
-                            config.getHttpAuthUsername(),
-                            config.getHttpAuthPassword()));
-                } else {
-                    logger.error("Http auth is enabled but manager is creating ssh connection, something is wrong with config");
-                }
-            };
-        }
-
-        if (config.ignoreInsecureHosts())
-            JSch.setConfig("StrictHostKeyChecking", "no");
-        SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
-            @Override
-            protected JSch createDefaultJSch(FS fs) throws JSchException {
-                JSch defaultJSch = super.createDefaultJSch(fs);
-
-                if (config.getPrivateKey() != null)
-                    defaultJSch.addIdentity("backend-key", config.getPrivateKey(), null, null);
-                else
-                    if (config.getPrivateKeyFile() != null)
-                        defaultJSch.addIdentity(config.getPrivateKeyFile());
-                    else
-                        throw  new IllegalArgumentException("repository private key not set");
-                return defaultJSch;
-            }
-        };
-
         return transport -> {
-            SshTransport sshTransport = (SshTransport) transport;
-            sshTransport.setSshSessionFactory(sshSessionFactory);
+            if (transport instanceof HttpTransport) {
+
+                HttpTransport httpTransport = (HttpTransport) transport;
+                httpTransport.setCredentialsProvider(new UsernamePasswordCredentialsProvider(
+                        config.getHttpAuthUsername(),
+                        config.getHttpAuthPassword()));
+
+            }  else if (transport instanceof SshTransport) {
+
+                if (config.ignoreInsecureHosts())
+                    JSch.setConfig("StrictHostKeyChecking", "no");
+                SshSessionFactory sshSessionFactory = new JschConfigSessionFactory() {
+                    @Override
+                    protected JSch createDefaultJSch(FS fs) throws JSchException {
+                        JSch defaultJSch = super.createDefaultJSch(fs);
+
+                        if (config.getPrivateKey() != null)
+                            defaultJSch.addIdentity("backend-key", config.getPrivateKey(), null, null);
+                        else
+                        if (config.getPrivateKeyFile() != null)
+                            defaultJSch.addIdentity(config.getPrivateKeyFile());
+                        else
+                            throw  new IllegalArgumentException("repository private key not set");
+                        return defaultJSch;
+                    }
+                };
+                SshTransport sshTransport = (SshTransport) transport;
+                sshTransport.setSshSessionFactory(sshSessionFactory);
+
+            } else {
+                throw new RuntimeException("Gitter doesn't create neither Http nor ssh connection");
+            }
         };
     }
 
