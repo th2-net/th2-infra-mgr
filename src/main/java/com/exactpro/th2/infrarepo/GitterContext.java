@@ -19,7 +19,6 @@ package com.exactpro.th2.infrarepo;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GitterContext implements GitConfig {
@@ -31,7 +30,7 @@ public class GitterContext implements GitConfig {
     private String privateKeyFile;
     private byte[] privateKey;
 
-    private volatile Map<String, Gitter> instance;
+    private volatile Map<String, Gitter> gitters;
     private static volatile Map<GitterContext, GitterContext> contexts;
 
     /**
@@ -45,18 +44,15 @@ public class GitterContext implements GitConfig {
         if (contexts == null) {
             synchronized (GitterContext.class) {
                 if (contexts == null)
-                    contexts = new TreeMap<>();
+                    contexts = new ConcurrentHashMap<>();
             }
         }
 
         GitterContext key = new GitterContext(config);
-        GitterContext ctx;
-        synchronized (contexts) {
-            ctx = contexts.computeIfAbsent(key, k -> {
-                key.instance = new ConcurrentHashMap<>();
-                return key;
-            });
-        }
+        GitterContext ctx = contexts.computeIfAbsent(key, k -> {
+            key.gitters = new ConcurrentHashMap<>();
+            return key;
+        });
         return ctx;
     }
 
@@ -83,7 +79,7 @@ public class GitterContext implements GitConfig {
      * @return
      */
     public Gitter getGitter(String branch) {
-        return instance.computeIfAbsent(branch, k -> new Gitter(this, k));
+        return gitters.computeIfAbsent(branch, k -> new Gitter(this, k));
     }
 
 
@@ -156,5 +152,10 @@ public class GitterContext implements GitConfig {
                 Objects.equals(this.httpAuthPassword, c.httpAuthUsername) &&
                 Objects.equals(this.privateKeyFile, c.privateKeyFile) &&
                 Objects.equals(this.privateKey, c.privateKey);
+    }
+
+    @Override
+    public int hashCode() {
+        return (localRepositoryRoot.hashCode() + ":" +remoteRepository.hashCode()).hashCode();
     }
 }
