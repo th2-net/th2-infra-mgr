@@ -35,8 +35,8 @@ public class GitterContext implements GitConfig {
     private static volatile Map<GitterContext, GitterContext> contexts;
 
     /**
-     * Returns GitterContext object that can be used for further operations with repository
-     * specified in configuration object.
+     * Returns context instance that can be used for further operations with repository
+     * specified in configuration parameter.
      * @param config Configuration object describing remote repository and its credentials
      * @return Context to use for repository operations
      */
@@ -58,14 +58,16 @@ public class GitterContext implements GitConfig {
 
 
     /**
-     * Returns instance of the object configured to work with specified branch.
+     * Returns instance of the Gitter configured to work with specified branch for
+     * repository for which this context is created
      * <p>
      * None of the update operations are thread-safe and operations should be
      * synchronized using Gitter's internal lock objects
      *
      * <pre>
      * {@code
-     * Gitter gitter = Gitter.getBranch(config, branch);
+     * GitterContext ctx = GitterContext.getContext(config);
+     * Gitter gitter = ctx.getBranch(branch);
      * gitter.lock()
      * try {
      *     // do operations on repository
@@ -74,20 +76,30 @@ public class GitterContext implements GitConfig {
      * }
      * }
      * </pre>
-     * @param branch Repository branch, for which consecutive operations will be performed
+     * @param branch Name of the branch in repository, for which consecutive operations will be performed
      *               on this instance
-     * @return Gitter object configured to work with this branch
+     * @return Gitter object configured to work with the branch
      */
     public Gitter getGitter(String branch) {
         return gitters.computeIfAbsent(branch, k -> new Gitter(this, k));
     }
 
 
+    /**
+     * Returns list of branches known at remote repository for which this context object is created
+     * @return Set of strings, containing branch names in remote repository
+     * @throws Exception
+     */
     public Set<String> getBranches() throws Exception {
         return Gitter.getBranches(this);
     }
 
 
+    /**
+     * Retrieves latest commit refs for all branches from remote repository
+     * @return Map, whose keys are branch names and values are commitRefs for these branches
+     * @throws Exception
+     */
     public Map<String, String> getAllBranchesCommits() throws Exception {
         return Gitter.getAllBranchesCommits(this);
     }
