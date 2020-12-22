@@ -16,19 +16,20 @@
 
 package com.exactpro.th2.infrarepo;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class GitterContext implements GitConfig {
-    private String remoteRepository;
-    private String httpAuthUsername;
-    private String httpAuthPassword;
-    private String localRepositoryRoot;
-    private boolean ignoreInsecureHosts;
-    private String privateKeyFile;
-    private byte[] privateKey;
+    private final String remoteRepository;
+    private final String httpAuthUsername;
+    private final String httpAuthPassword;
+    private final String localRepositoryRoot;
+    private final boolean ignoreInsecureHosts;
+    private final String privateKeyFile;
+    private final byte[] privateKey;
 
     private volatile Map<String, Gitter> gitters;
     private static volatile Map<GitterContext, GitterContext> contexts;
@@ -49,11 +50,10 @@ public class GitterContext implements GitConfig {
         }
 
         GitterContext key = new GitterContext(config);
-        GitterContext ctx = contexts.computeIfAbsent(key, k -> {
+        return contexts.computeIfAbsent(key, k -> {
             key.gitters = new ConcurrentHashMap<>();
             return key;
         });
-        return ctx;
     }
 
 
@@ -76,7 +76,7 @@ public class GitterContext implements GitConfig {
      * </pre>
      * @param branch Repository branch, for which consecutive operations will be performed
      *               on this instance
-     * @return
+     * @return Gitter object configured to work with this branch
      */
     public Gitter getGitter(String branch) {
         return gitters.computeIfAbsent(branch, k -> new Gitter(this, k));
@@ -151,7 +151,7 @@ public class GitterContext implements GitConfig {
                 Objects.equals(this.httpAuthUsername, c.httpAuthUsername) &&
                 Objects.equals(this.httpAuthPassword, c.httpAuthUsername) &&
                 Objects.equals(this.privateKeyFile, c.privateKeyFile) &&
-                Objects.equals(this.privateKey, c.privateKey);
+                Arrays.equals(this.privateKey, c.privateKey);
     }
 
     @Override
