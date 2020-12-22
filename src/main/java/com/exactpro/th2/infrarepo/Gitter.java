@@ -151,11 +151,6 @@ public class Gitter {
     }
 
 
-    /**
-     * Retrieves latest commit refs for all branches from remote repository
-     * @return Map, whose keys are branch names and values are commitRefs for these branches
-     * @throws Exception
-     */
     static Map<String, String> getAllBranchesCommits(GitterContext ctx) throws Exception {
 
         // retrieve all remote branches
@@ -175,11 +170,6 @@ public class Gitter {
     }
 
 
-    /**
-     * Retrieves all branch names that are available on the remote repository
-     * @return Set containing names of the branches in the repository
-     * @throws Exception
-     */
     static Set<String> getBranches(GitterContext ctx) throws Exception {
 
         Map<String, String> commits = getAllBranchesCommits(ctx);
@@ -225,6 +215,14 @@ public class Gitter {
         return ref.getObjectId().getName();
     }
 
+
+    /**
+     * Downloads to local cache latest version of the branch from remote repository and returns commit ref for
+     * the latest commit
+     * @return commit ref for latest commit
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String checkout() throws IOException, GitAPIException {
 
         return checkout(branch, localCacheRoot);
@@ -255,6 +253,13 @@ public class Gitter {
     }
 
 
+    /**
+     * Recreates repository's local cache by deleting and re-downloading it from remote repository.
+     * Can be used to repair de-synchronized local and remote repositories due to push or merge conflicts.
+     * @return commit ref of latest commit in repository
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String recreateCache() throws IOException, GitAPIException {
 
         File rootDir = checkAndGetLocalCacheRoot();
@@ -265,6 +270,14 @@ public class Gitter {
     }
 
 
+    /**
+     * Commits repository working tree and pushes changes to remote repository
+     * @return null if working tree was clean and no commit happened or commit ref of latest commit in the remote repository
+     * @throws InconsistentRepositoryStateException If commit or push failed and repository's local cache's
+     * consistency can not be warranted
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String commitAndPush(String message) throws IOException, GitAPIException, InconsistentRepositoryStateException {
 
         checkAndGetLocalCacheRoot();
@@ -323,6 +336,13 @@ public class Gitter {
     }
 
 
+    /**
+     * Creates new branch in local and remote repositories. If local cache contained leftovers of some branch which
+     * does not exist anymore on remote repository then local cache will be deleted and new branch will overwrite it
+     * @param sourceBranch branch from which new branch will be created
+     * @return commit ref of the new branch
+     * @throws Exception
+     */
     public String createBranch(String sourceBranch) throws Exception {
 
         Set<String> branches = getBranches(ctx);
