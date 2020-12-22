@@ -133,7 +133,8 @@ public class K8sSynchronization {
             logger.info("Checking settings for schema \"{}\"", branch);
 
             // get repository items
-            Gitter gitter = Gitter.getBranch(config.getGit(), branch);
+            GitterContext ctx = GitterContext.getContext(config.getGit());
+            Gitter gitter = ctx.getGitter(branch);
             RepositorySnapshot snapshot;
             try {
                 gitter.lock();
@@ -183,7 +184,8 @@ public class K8sSynchronization {
 
         try {
             config = Config.getInstance();
-            Map<String, String> branches = Gitter.getAllBranchesCommits(config.getGit());
+            GitterContext ctx = GitterContext.getContext(config.getGit());
+            Map<String, String> branches = ctx.getAllBranchesCommits();
 
             ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
             for (String branch : branches.keySet())

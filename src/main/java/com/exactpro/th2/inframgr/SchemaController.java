@@ -49,18 +49,21 @@ public class SchemaController {
 
     private final Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
+
     @GetMapping("/schemas")
     @ResponseBody
     public Set<String> getAvailableSchemas() throws ServiceException  {
 
         try {
-            Set<String> schemas = Gitter.getBranches(Config.getInstance().getGit());
+            GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
+            Set<String> schemas = ctx.getBranches();
             schemas.remove(SOURCE_BRANCH);
             return schemas;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
     }
+
 
     @GetMapping("/schema/{name}")
     @ResponseBody
@@ -70,7 +73,8 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
         Config.GitConfig gitConfig = Config.getInstance().getGit();
-        final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
+        GitterContext ctx = GitterContext.getContext(gitConfig);
+        final Gitter gitter = ctx.getGitter(schemaName);
         try {
             gitter.lock();
             return new SchemaControllerResponse(Repository.getSnapshot(gitter));
@@ -84,6 +88,7 @@ public class SchemaController {
         }
     }
 
+
     @PutMapping("/schema/{name}")
     @ResponseBody
     public SchemaControllerResponse createSchema(@PathVariable(name="name") String schemaName) throws Exception {
@@ -96,11 +101,12 @@ public class SchemaController {
 
         Config config = Config.getInstance();
         Config.GitConfig gitConfig = config.getGit();
+        GitterContext ctx = GitterContext.getContext(gitConfig);
 
         // check if the schema already exists
         Set<String> branches;
         try {
-             branches = Gitter.getBranches(gitConfig);
+            branches = ctx.getBranches();
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -108,7 +114,7 @@ public class SchemaController {
             throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
 
         // create schema
-        final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
+        final Gitter gitter = ctx.getGitter(schemaName);
         try {
             RepositorySnapshot snapshot;
             try {
@@ -158,11 +164,12 @@ public class SchemaController {
 
         Config config = Config.getInstance();
         Config.GitConfig gitConfig = config.getGit();
+        GitterContext ctx = GitterContext.getContext(gitConfig);
 
         // check if the schema exists
         Set<String> branches;
         try {
-            branches = Gitter.getBranches(gitConfig);
+            branches = ctx.getBranches();
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
@@ -171,7 +178,7 @@ public class SchemaController {
 
         // apply updates
         try {
-            final Gitter gitter = Gitter.getBranch(gitConfig, schemaName);
+            final Gitter gitter = ctx.getGitter(schemaName);
             RepositorySnapshot snapshot;
             String commitRef;
             boolean wasPropagated = false;
