@@ -53,7 +53,7 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
-    private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAME}";
+    private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
     private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
