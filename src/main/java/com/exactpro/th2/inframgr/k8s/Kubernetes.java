@@ -538,9 +538,6 @@ public class Kubernetes implements Closeable {
         }
     }
 
-    public Ingress loadIngress (String ingressName) {
-        return client.network().v1().ingresses().withName(ingressName).get();
-    }
 
     public void createOrUpdateIngres(Ingress ingress) {
         client.network().v1().ingresses().inNamespace(namespace).create(ingress);
@@ -556,6 +553,10 @@ public class Kubernetes implements Closeable {
         }
         public K8sCustomResource loadCustomResource(ResourceType type, String name) {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
+        }
+
+        public Ingress loadIngress (String ingressName) {
+            return client.network().v1().ingresses().withName(ingressName).get();
         }
     }
 }

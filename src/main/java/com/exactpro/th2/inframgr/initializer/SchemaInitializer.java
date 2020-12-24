@@ -19,7 +19,6 @@ package com.exactpro.th2.inframgr.initializer;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -32,7 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SchemaInitializer {
 
@@ -228,48 +230,33 @@ public class SchemaInitializer {
         }
     }
 
-    private static IngressSpec getChangedIngressSpec (IngressSpec ingressSpec, String namespace) {
-
-        logger.info("Creating changed IngressSpec");
-
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            String string = mapper.writeValueAsString(ingressSpec);
-            string = string.replace(INGRESS_PATH_SUBSTRING, namespace);
-            IngressSpec newIngressSpec = mapper.readValue(string, IngressSpec.class);
-
-            return newIngressSpec;
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-        throw new RuntimeException("Could not deserialize the object");
-    }
 
     private static void copyIngress(Config config, Kubernetes kube) {
 
         String ingressName = config.getKubernetes().getIngress();
         String namespace = kube.getNamespaceName();
+        String annotation = ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName);
         try {
-            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
+            logger.info("Creating \"{}\"", annotation);
 
-            Ingress ingress = kube.loadIngress(ingressName);
+            Ingress ingress = kube.currentNamespace().loadIngress(ingressName);
 
-            IngressSpec newIngressSpec = getChangedIngressSpec(ingress.getSpec(), namespace);
-            ObjectMeta objectMeta = new ObjectMeta();
-            objectMeta.setName(ingressName);
-            objectMeta.setAnnotations(Collections
-                    .singletonMap(ANTECEDENT_ANNOTATION_KEY,
-                            ResourcePath.annotationFor(namespace, "Ingress", ingressName)));
+            ObjectMapper mapper = new ObjectMapper();
+            String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
+            IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
+
+            ObjectMeta meta = new ObjectMeta();
+            meta.setName(ingressName);
+            meta.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, annotation));
 
             Ingress newIngress = new IngressBuilder()
-                    .withSpec(newIngressSpec)
-                    .withMetadata(objectMeta)
+                    .withSpec(newSpec)
+                    .withMetadata(meta)
                     .build();
 
             kube.createOrUpdateIngres(newIngress);
         } catch (Exception e) {
-            logger.error("Exception creating ingress \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName), e);
+            logger.error("Exception creating ingress \"{}\"", annotation, e);
         }
     }
 
