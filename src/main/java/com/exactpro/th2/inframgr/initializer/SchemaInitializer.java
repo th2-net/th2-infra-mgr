@@ -17,20 +17,16 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.infrarepo.RepositoryResource;
-import com.exactpro.th2.infrarepo.RepositorySettings;
-import com.exactpro.th2.infrarepo.ResourceType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.extensions.Ingress;
-import io.fabric8.kubernetes.api.model.extensions.IngressBuilder;
-import io.fabric8.kubernetes.api.model.extensions.IngressSpec;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
+import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
+import io.fabric8.kubernetes.api.model.networking.v1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -320,7 +316,7 @@ public class SchemaInitializer {
 
             ObjectMeta objectMeta = new ObjectMeta();
             objectMeta.setName(ingress.getMetadata().getName());
-            objectMeta.setAnnotations(ingress.getMetadata().getAnnotations());
+//            objectMeta.setAnnotations(ingress.getMetadata().getAnnotations());
 
             Ingress newIngress = new IngressBuilder()
                     .withSpec(newIngressSpec)
