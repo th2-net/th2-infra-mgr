@@ -21,19 +21,22 @@ import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.RepositorySettings;
 import com.exactpro.th2.infrarepo.ResourceType;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.extensions.Ingress;
+import io.fabric8.kubernetes.api.model.extensions.IngressBuilder;
+import io.fabric8.kubernetes.api.model.extensions.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class SchemaInitializer {
 
@@ -53,6 +56,8 @@ public class SchemaInitializer {
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
+
+    private static final String INGRESS_PATH_PATTERN = "${SCHEMA_NAME}";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -226,6 +231,79 @@ public class SchemaInitializer {
         }
     }
 
+    private static Object changeIngresSpecValues (Object obj, String pattern, String replacement) {
+        if (obj instanceof String) {
+            return ((String) obj).replaceAll(pattern, replacement);
+        }
+
+        if (obj instanceof List) {
+            ArrayList<Object> ls = new ArrayList<>();
+
+            for (var el : (List) obj) {
+                if (el instanceof Map || el instanceof List) {
+                    ls.add(changeIngresSpecValues(el, pattern, replacement));
+                }
+
+                if (el instanceof String) {
+                    ls.add (((String) el).replaceAll(pattern, replacement));
+                }
+            }
+
+            return ls;
+        }
+
+        if (obj instanceof Map) {
+            HashMap<String, Object> hmap = new HashMap<>();
+
+            for (var el : ((Map<String, ?>) obj).entrySet()) {
+                var entryKey = el.getKey();
+                var entryVal = el.getValue();
+
+                if (entryVal instanceof Map || entryVal instanceof List) {
+                    hmap.put(entryKey, changeIngresSpecValues(entryVal, pattern, replacement));
+                    continue;
+                }
+
+                if (entryVal instanceof String) {
+                    if (((String) entryVal).contains(pattern)) {
+                        hmap.put(entryKey, (((String) entryVal).replace(pattern, replacement)));
+                        continue;
+                    }
+                }
+
+                hmap.put(entryKey, entryVal);
+            }
+
+            return hmap;
+        }
+
+        throw new RuntimeException("Exception in parsing");
+    }
+
+    private static IngressSpec copyIngressSpec (IngressSpec ingressSpec, String namespace) {
+
+        logger.info("Creating new IngressSpec");
+
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            HashMap <String, Object> hmap =
+                    mapper.readValue(mapper.writeValueAsString(ingressSpec), HashMap.class);
+
+            HashMap <String, Object> newHmap = new HashMap<>();
+
+            for (var entry : hmap.entrySet()) {
+                newHmap.put(entry.getKey(), changeIngresSpecValues(entry.getValue(), INGRESS_PATH_PATTERN, namespace));
+            }
+
+            IngressSpec newIngressSpec = mapper.readValue(mapper.writeValueAsString(newHmap), IngressSpec.class);
+
+            return newIngressSpec;
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        throw new RuntimeException("Could not deserialize the object");
+    }
 
     private static void copyIngress(Config config, Kubernetes kube) {
 
@@ -233,15 +311,23 @@ public class SchemaInitializer {
         String namespace = kube.getNamespaceName();
         try {
             logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
-            K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
 
-            RepositoryResource.Metadata meta = new RepositoryResource.Metadata(ingressName);
+            Ingress ingress = kube.loadIngress("ingress-rules");
 
-            RepositoryResource resource = new RepositoryResource(ResourceType.HelmRelease);
-            resource.setSpec(ingress.getSpec());
-            resource.setMetadata(meta);
+            IngressSpec newIngressSpec = copyIngressSpec(ingress.getSpec(), namespace);
+            logger.info(ingress.getSpec().toString());
+            logger.info(newIngressSpec.toString());
 
-            kube.createOrReplaceCustomResource(resource);
+            ObjectMeta objectMeta = new ObjectMeta();
+            objectMeta.setName(ingress.getMetadata().getName());
+            objectMeta.setAnnotations(ingress.getMetadata().getAnnotations());
+
+            Ingress newIngress = new IngressBuilder()
+                    .withSpec(newIngressSpec)
+                    .withMetadata(objectMeta)
+                    .build();
+
+            kube.saveIngress(newIngress, namespace);
         } catch (Exception e) {
             logger.error("Exception creating ingress \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName), e);
         }
