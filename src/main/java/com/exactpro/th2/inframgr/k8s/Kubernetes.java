@@ -542,7 +542,7 @@ public class Kubernetes implements Closeable {
         return client.network().v1().ingresses().withName(ingressName).get();
     }
 
-    public void saveIngress (Ingress ingress, String namespace) {
+    public void createOrUpdateIngres(Ingress ingress) {
         client.network().v1().ingresses().inNamespace(namespace).create(ingress);
     }
 

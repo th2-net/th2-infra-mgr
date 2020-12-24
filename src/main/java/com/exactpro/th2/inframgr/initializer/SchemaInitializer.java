@@ -54,7 +54,7 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAME}";
-    private static final String ANTECEDENT_ANNOTATION_KEY = "helm.fluxcd.io/antecedent";
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -267,7 +267,7 @@ public class SchemaInitializer {
                     .withMetadata(objectMeta)
                     .build();
 
-            kube.saveIngress(newIngress, namespace);
+            kube.createOrUpdateIngres(newIngress);
         } catch (Exception e) {
             logger.error("Exception creating ingress \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName), e);
         }
