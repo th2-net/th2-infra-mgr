@@ -8,7 +8,7 @@ RUN mkdir /home/service/repository
 RUN mkdir /home/service/keys
 RUN cp ./build/libs/*.jar /home/service/application.jar
 
-FROM openjdk:12-alpine
+FROM adoptopenjdk/openjdk11:alpine
 COPY --from=build /home/service /home/service
 WORKDIR /home/service/
 EXPOSE 8080
