@@ -172,7 +172,7 @@ public class K8sSynchronization {
             synchronizeNamespace(branch, repositoryMap);
 
         } catch (Exception e) {
-            logger.error("Exception synchronizing schema \"{}\": {}", branch, e);
+            logger.error("Exception synchronizing schema \"{}\"", branch, e);
         }
     }
 
