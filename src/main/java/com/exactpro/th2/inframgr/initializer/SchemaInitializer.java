@@ -17,21 +17,22 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.infrarepo.RepositoryResource;
-import com.exactpro.th2.infrarepo.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
+import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
+import io.fabric8.kubernetes.api.model.networking.v1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -53,6 +54,9 @@ public class SchemaInitializer {
 
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
+
+    private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureNameSpace(schemaName, kube);
@@ -231,19 +235,28 @@ public class SchemaInitializer {
 
         String ingressName = config.getKubernetes().getIngress();
         String namespace = kube.getNamespaceName();
+        String annotation = ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName);
         try {
-            logger.info("Creating \"{}\"", ResourcePath.annotationFor(namespace, "Ingress", ingressName));
-            K8sCustomResource ingress = kube.currentNamespace().loadCustomResource(ResourceType.HelmRelease, ingressName);
+            logger.info("Creating \"{}\"", annotation);
 
-            RepositoryResource.Metadata meta = new RepositoryResource.Metadata(ingressName);
+            Ingress ingress = kube.currentNamespace().loadIngress(ingressName);
 
-            RepositoryResource resource = new RepositoryResource(ResourceType.HelmRelease);
-            resource.setSpec(ingress.getSpec());
-            resource.setMetadata(meta);
+            ObjectMapper mapper = new ObjectMapper();
+            String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
+            IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
-            kube.createOrReplaceCustomResource(resource);
+            ObjectMeta meta = new ObjectMeta();
+            meta.setName(ingressName);
+            meta.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, annotation));
+
+            Ingress newIngress = new IngressBuilder()
+                    .withSpec(newSpec)
+                    .withMetadata(meta)
+                    .build();
+
+            kube.createOrUpdateIngres(newIngress);
         } catch (Exception e) {
-            logger.error("Exception creating ingress \"{}\"", ResourcePath.annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName), e);
+            logger.error("Exception creating ingress \"{}\"", annotation, e);
         }
     }
 

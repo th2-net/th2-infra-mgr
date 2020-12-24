@@ -20,6 +20,7 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -538,6 +539,10 @@ public class Kubernetes implements Closeable {
     }
 
 
+    public void createOrUpdateIngres(Ingress ingress) {
+        client.network().v1().ingresses().inNamespace(namespace).create(ingress);
+    }
+
     public final class CurrentNamespace {
         public ConfigMap getConfigMap(String name) {
             return client.configMaps().withName(name).get();
@@ -550,5 +555,8 @@ public class Kubernetes implements Closeable {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
         }
 
+        public Ingress loadIngress (String ingressName) {
+            return client.network().v1().ingresses().withName(ingressName).get();
+        }
     }
 }
