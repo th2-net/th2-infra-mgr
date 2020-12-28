@@ -542,7 +542,7 @@ public class Kubernetes implements Closeable {
         client.network().v1().ingresses().inNamespace(namespace).create(ingress);
     }
 
-    public boolean deletePodInNamespaceWithName(String podName, String namespace, boolean force) {
+    public boolean deletePodWithName(String podName, boolean force) {
         if (force) {
             return client.pods().inNamespace(namespace).withName(podName).withGracePeriod(0).delete();
         } else {
