@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
+import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.Condition;
 import com.exactpro.th2.inframgr.statuswatcher.ResourceCondition;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
@@ -26,11 +27,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.*;
 
+import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +44,22 @@ public class DeploymentController {
 
     @Autowired
     private StatusCache statusCache;
+    private Kubernetes kubernetes;
+
+    @PostConstruct
+    public void init () {
+        try {
+            this.kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), "");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void checkSchemaName (String schemaName) {
+        // check schema name against valid pattern
+        if (!K8sCustomResource.isNameValid(schemaName))
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+    }
 
     @GetMapping("/deployment/{schema}/{kind}/{resource}/status")
     @ResponseBody
@@ -51,9 +69,7 @@ public class DeploymentController {
             @PathVariable(name="resource") String resourceName) {
 
         try {
-            // check schema name against valid pattern
-            if (!K8sCustomResource.isNameValid(schemaName))
-                throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+            checkSchemaName(schemaName);
 
             List<ResponseEntry> response = new ArrayList<>();
             for (ResourceCondition resource: statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName))
@@ -69,6 +85,35 @@ public class DeploymentController {
         }
     }
 
+    @DeleteMapping("/pod/{schema}/{kind}/{resource}")
+    public ResponseEntity<?> deleteResourcePods(
+            @PathVariable(name="schema") String schemaName,
+            @PathVariable(name="kind") String kind,
+            @PathVariable(name="resource") String resourceName,
+            @RequestParam(name = "force", defaultValue = "false") boolean force) {
+
+        try {
+            checkSchemaName(schemaName);
+
+            for (ResourceCondition resource: statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
+                if (resource.getKind().equals("Pod")) {
+                    if (!kubernetes.deletePodInNamespaceWithName(resource.getNamespace(),
+                            resource.getName(),
+                            force)) {
+                        logger.info("Could not delete pod {}", resource.getName());
+                    }
+
+                }
+            }
+
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.error("Exception retrieving schema {} from repository", schemaName, e);
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+        }
+    }
 
     public static class ResponseEntry {
         @JsonProperty("kind")
