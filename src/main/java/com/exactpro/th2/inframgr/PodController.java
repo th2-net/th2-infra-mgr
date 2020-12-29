@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourceCondition;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,17 +36,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class PodController {
     private static final Logger logger = LoggerFactory.getLogger(PodController.class);
-    public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
-    public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+    private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+    private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     @Autowired
     private StatusCache statusCache;
 
     @DeleteMapping("/pod/{schema}/{kind}/{resource}")
     public ResponseEntity<?> deleteResourcePods(
-            @PathVariable(name="schema") String schemaName,
-            @PathVariable(name="kind") String kind,
-            @PathVariable(name="resource") String resourceName,
+            @PathVariable(name = "schema") String schemaName,
+            @PathVariable(name = "kind") String kind,
+            @PathVariable(name = "resource") String resourceName,
             @RequestParam(name = "force", defaultValue = "false") boolean force) {
 
         try {
@@ -56,9 +57,10 @@ public class PodController {
             Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
             for (ResourceCondition resource: statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
 
-                if (resource.getKind().equals("Pod")) {
+                if (resource.getKind().equals(Kubernetes.KIND_POD)) {
                     if (!kubernetes.deletePodWithName(resource.getName(), force)) {
-                        logger.info("Could not delete pod {}", resource.getName());
+                        logger.error("Could not delete pod \"{}\"",
+                                ResourcePath.annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
                     }
                 }
             }
@@ -67,7 +69,7 @@ public class PodController {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            logger.error("Exception retrieving schema {} from repository", schemaName, e);
+            logger.error("Exception deleting pods for \"{}/{}\" in schema \"{}\"", kind, resourceName, schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }

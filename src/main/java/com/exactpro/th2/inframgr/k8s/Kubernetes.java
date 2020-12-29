@@ -36,6 +36,7 @@ public class Kubernetes implements Closeable {
     public static final String KIND_SECRET = "Secret";
     public static final String KIND_CONFIGMAP = "ConfigMap";
     public static final String KIND_INGRESS = "Ingress";
+    public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
     public static final String SECRET_TYPE_OPAQUE = "Opaque";
