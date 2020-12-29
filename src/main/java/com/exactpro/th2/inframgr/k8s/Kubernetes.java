@@ -290,6 +290,9 @@ public class Kubernetes implements Closeable {
         client.namespaces().create(ns);
     }
 
+    public ConfigMap getConfigMap (String configMapName) {
+        return client.configMaps().inNamespace(namespace).withName(configMapName).get();
+    }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
         configMap.getMetadata().setResourceVersion(null);
@@ -539,8 +542,12 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public void createOrUpdateIngres(Ingress ingress) {
-        client.network().v1().ingresses().inNamespace(namespace).create(ingress);
+    public void createOrRepaceIngress(Ingress ingress) {
+        client.network().v1().ingresses().inNamespace(namespace).createOrReplace(ingress);
+    }
+
+    public Ingress getIngress(String ingressName) {
+        return client.network().v1().ingresses().inNamespace(namespace).withName(ingressName).get();
     }
 
     public final class CurrentNamespace {
@@ -555,7 +562,7 @@ public class Kubernetes implements Closeable {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
         }
 
-        public Ingress loadIngress (String ingressName) {
+        public Ingress getIngress(String ingressName) {
             return client.network().v1().ingresses().withName(ingressName).get();
         }
     }
