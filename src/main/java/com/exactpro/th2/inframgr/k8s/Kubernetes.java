@@ -36,6 +36,7 @@ public class Kubernetes implements Closeable {
     public static final String KIND_SECRET = "Secret";
     public static final String KIND_CONFIGMAP = "ConfigMap";
     public static final String KIND_INGRESS = "Ingress";
+    public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
     public static final String SECRET_TYPE_OPAQUE = "Opaque";
@@ -389,7 +390,6 @@ public class Kubernetes implements Closeable {
         return map;
     }
 
-
     private KubernetesClient client;
     private String namespace;
     public Kubernetes(Config.K8sConfig config, String schemaName) {
@@ -541,6 +541,14 @@ public class Kubernetes implements Closeable {
 
     public void createOrUpdateIngres(Ingress ingress) {
         client.network().v1().ingresses().inNamespace(namespace).create(ingress);
+    }
+
+    public boolean deletePodWithName(String podName, boolean force) {
+        if (force) {
+            return client.pods().inNamespace(namespace).withName(podName).withGracePeriod(0).delete();
+        } else {
+            return client.pods().inNamespace(namespace).withName(podName).delete();
+        }
     }
 
     public final class CurrentNamespace {
