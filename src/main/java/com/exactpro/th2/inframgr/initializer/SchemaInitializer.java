@@ -32,7 +32,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -122,7 +121,7 @@ public class SchemaInitializer {
         data.put(RABBITMQ_SECRET_PASSWORD_KEY, base64Encode(password));
         data.put(RABBITMQ_SECRET_USERNAME_KEY, base64Encode(username));
 
-                Secret secret = new Secret();
+        Secret secret = new Secret();
         secret.setApiVersion(Kubernetes.API_VERSION_V1);
         secret.setKind(Kubernetes.KIND_SECRET);
         secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
