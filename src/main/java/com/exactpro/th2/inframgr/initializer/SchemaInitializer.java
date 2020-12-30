@@ -161,7 +161,7 @@ public class SchemaInitializer {
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
             cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(resourceLabel, configMapName));
+            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
 
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
