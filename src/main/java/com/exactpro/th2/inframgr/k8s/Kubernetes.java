@@ -41,11 +41,21 @@ public class Kubernetes implements Closeable {
     public static final String PHASE_ACTIVE = "Active";
     public static final String SECRET_TYPE_OPAQUE = "Opaque";
     public static final String API_VERSION_V1 = "v1";
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
+
 
     private final String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
         return namespacePrefix + schemaName;
+    }
+
+    public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        metadata.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue));
+
+        return metadata;
     }
 
     public String extractSchemaName(String namespaceName) {
@@ -293,6 +303,10 @@ public class Kubernetes implements Closeable {
 
     public ConfigMap getConfigMap (String configMapName) {
         return client.configMaps().inNamespace(namespace).withName(configMapName).get();
+    }
+
+    public Secret getSecret (String secretName) {
+        return client.secrets().inNamespace(namespace).withName(secretName).get();
     }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
