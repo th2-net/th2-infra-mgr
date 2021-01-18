@@ -165,9 +165,8 @@ public class K8sSynchronization {
 
             for (RepositoryResource resource : repositoryResources)
                 if (ResourceType.forKind(resource.getKind()).isK8sResource()) {
-                    if (ResourceType.forKind(resource.getKind()).equals(ResourceType.Th2Dictionary)) {
-                        Th2DictionaryProcessor.processTh2Dictionary(resource);
-                    }
+                    if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary)
+                        Th2DictionaryProcessor.compressData(resource);
 
                     Map<String, RepositoryResource> typeMap = repositoryMap.get(resource.getKind());
                     typeMap.put(resource.getMetadata().getName(), resource);

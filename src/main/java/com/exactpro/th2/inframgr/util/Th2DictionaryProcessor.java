@@ -20,7 +20,8 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Base64;
 import java.util.Map;
 import java.util.zip.GZIPOutputStream;
@@ -32,50 +33,43 @@ import java.util.zip.GZIPOutputStream;
 
 public final class Th2DictionaryProcessor {
     private static final Logger logger = LoggerFactory.getLogger(Th2DictionaryProcessor.class);
-    private static final GZIPBase64Encoder ENCODER = new GZIPBase64Encoder();
 
     private static final String COMPRESSED_KEY = "compressed";
     private static final String DATA_KEY = "data";
 
-    private static class GZIPBase64Encoder {
+    private static String encodeString(String value) throws IOException {
 
-        private GZIPBase64Encoder() {
-        }
+        var baos = new ByteArrayOutputStream();
+        var gziposs = new GZIPOutputStream(baos);
 
-        public byte[] encodeString(String value) throws IOException {
-
-            var baos = new ByteArrayOutputStream();
-            var gziposs = new GZIPOutputStream(baos);
-
-            try (baos; gziposs) {
-                gziposs.write(value.getBytes());
-                gziposs.finish();
-                return Base64.getEncoder().encode(baos.toByteArray());
-            }
+        try (baos; gziposs) {
+            gziposs.write(value.getBytes());
+            gziposs.finish();
+            return new String(Base64.getEncoder().encode(baos.toByteArray()));
         }
     }
 
-    public static void processTh2Dictionary (RepositoryResource repositoryResource) {
+    public static void compressData(RepositoryResource repositoryResource) {
         if (repositoryResource.getSpec() instanceof Map) {
             try {
                 Map<String, Object> specMap = (Map<String, Object>) repositoryResource.getSpec();
                 if (!specMap.containsKey(COMPRESSED_KEY) || specMap.get(COMPRESSED_KEY).toString().equals("false")) {
                     String stringedData = specMap.get(DATA_KEY).toString();
-                    specMap.put(DATA_KEY, new String(ENCODER.encodeString(stringedData)));
+                    specMap.put(DATA_KEY, encodeString(stringedData));
                     specMap.put(COMPRESSED_KEY, "true");
 
                     repositoryResource.setSpec(specMap);
                 }
             } catch (Exception e) {
-                logger.error("Could not gzip and base64 encode dictionary {}: {}",
+                logger.error("Could not compress dictionary \"{}\"}",
                         repositoryResource.getMetadata().getName(),
-                        e.getMessage());
+                        e);
             }
 
             return;
         }
 
-        logger.info("Dictionary {} doesn't have full specs, skipping processing part",
+        logger.warn("Dictionary \"{}\" doesn't have full specs, skipping compression part",
                 repositoryResource.getMetadata().getName());
     }
 }

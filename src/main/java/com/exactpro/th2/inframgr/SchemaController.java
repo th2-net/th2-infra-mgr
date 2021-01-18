@@ -235,9 +235,8 @@ public class SchemaController {
             for (RequestEntry entry : operations)
                 if (entry.getPayload().getKind().isK8sResource()) {
                     try {
-                        if (entry.getPayload().getKind().equals(ResourceType.Th2Dictionary)) {
-                            Th2DictionaryProcessor.processTh2Dictionary(entry.getPayload().toRepositoryResource());
-                        }
+                        if (entry.getPayload().getKind() == ResourceType.Th2Dictionary)
+                            Th2DictionaryProcessor.compressData(entry.getPayload().toRepositoryResource());
 
                         Stringifier.stringify(entry.getPayload().getSpec());
                         RepositoryResource resource = entry.getPayload().toRepositoryResource();

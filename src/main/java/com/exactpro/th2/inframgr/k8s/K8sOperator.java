@@ -150,15 +150,12 @@ public class K8sOperator {
 
                     // refresh cache for this namespace
                     for (RepositoryResource r :snapshot.getResources()) {
-                        if (resource != null) {
-                            if (ResourceType.forKind(resource.getKind()).equals(ResourceType.Th2Dictionary)) {
-                                Th2DictionaryProcessor.processTh2Dictionary(resource);
-                            }
-                        }
-
                         cache.add(namespace, r);
-                        if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name))
+                        if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name)) {
                             resource = r;
+                            if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary)
+                                Th2DictionaryProcessor.compressData(resource);
+                        }
                     }
 
                 } finally {
