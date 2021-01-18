@@ -20,6 +20,7 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -35,15 +36,26 @@ public class Kubernetes implements Closeable {
     public static final String KIND_SECRET = "Secret";
     public static final String KIND_CONFIGMAP = "ConfigMap";
     public static final String KIND_INGRESS = "Ingress";
+    public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
     public static final String SECRET_TYPE_OPAQUE = "Opaque";
     public static final String API_VERSION_V1 = "v1";
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
+
 
     private final String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
         return namespacePrefix + schemaName;
+    }
+
+    public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        metadata.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue));
+
+        return metadata;
     }
 
     public String extractSchemaName(String namespaceName) {
@@ -289,6 +301,13 @@ public class Kubernetes implements Closeable {
         client.namespaces().create(ns);
     }
 
+    public ConfigMap getConfigMap (String configMapName) {
+        return client.configMaps().inNamespace(namespace).withName(configMapName).get();
+    }
+
+    public Secret getSecret (String secretName) {
+        return client.secrets().inNamespace(namespace).withName(secretName).get();
+    }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
         configMap.getMetadata().setResourceVersion(null);
@@ -387,7 +406,6 @@ public class Kubernetes implements Closeable {
             secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
         return map;
     }
-
 
     private KubernetesClient client;
     private String namespace;
@@ -538,6 +556,22 @@ public class Kubernetes implements Closeable {
     }
 
 
+    public void createOrRepaceIngress(Ingress ingress) {
+        client.network().v1().ingresses().inNamespace(namespace).createOrReplace(ingress);
+    }
+
+    public Ingress getIngress(String ingressName) {
+        return client.network().v1().ingresses().inNamespace(namespace).withName(ingressName).get();
+    }
+
+    public boolean deletePodWithName(String podName, boolean force) {
+        if (force) {
+            return client.pods().inNamespace(namespace).withName(podName).withGracePeriod(0).delete();
+        } else {
+            return client.pods().inNamespace(namespace).withName(podName).delete();
+        }
+    }
+
     public final class CurrentNamespace {
         public ConfigMap getConfigMap(String name) {
             return client.configMaps().withName(name).get();
@@ -550,5 +584,8 @@ public class Kubernetes implements Closeable {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
         }
 
+        public Ingress getIngress(String ingressName) {
+            return client.network().v1().ingresses().withName(ingressName).get();
+        }
     }
 }
