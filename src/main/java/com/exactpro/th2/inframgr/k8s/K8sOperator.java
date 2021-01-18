@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Stringifier;
+import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -149,6 +150,12 @@ public class K8sOperator {
 
                     // refresh cache for this namespace
                     for (RepositoryResource r :snapshot.getResources()) {
+                        if (resource != null) {
+                            if (ResourceType.forKind(resource.getKind()).equals(ResourceType.Th2Dictionary)) {
+                                Th2DictionaryProcessor.processTh2Dictionary(resource);
+                            }
+                        }
+
                         cache.add(namespace, r);
                         if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name))
                             resource = r;
