@@ -41,11 +41,21 @@ public class Kubernetes implements Closeable {
     public static final String PHASE_ACTIVE = "Active";
     public static final String SECRET_TYPE_OPAQUE = "Opaque";
     public static final String API_VERSION_V1 = "v1";
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
+
 
     private final String namespacePrefix;
 
     public String formatNamespaceName(String schemaName) {
         return namespacePrefix + schemaName;
+    }
+
+    public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        metadata.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue));
+
+        return metadata;
     }
 
     public String extractSchemaName(String namespaceName) {
@@ -291,6 +301,13 @@ public class Kubernetes implements Closeable {
         client.namespaces().create(ns);
     }
 
+    public ConfigMap getConfigMap (String configMapName) {
+        return client.configMaps().inNamespace(namespace).withName(configMapName).get();
+    }
+
+    public Secret getSecret (String secretName) {
+        return client.secrets().inNamespace(namespace).withName(secretName).get();
+    }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
         configMap.getMetadata().setResourceVersion(null);
@@ -539,8 +556,12 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public void createOrUpdateIngres(Ingress ingress) {
-        client.network().v1().ingresses().inNamespace(namespace).create(ingress);
+    public void createOrRepaceIngress(Ingress ingress) {
+        client.network().v1().ingresses().inNamespace(namespace).createOrReplace(ingress);
+    }
+
+    public Ingress getIngress(String ingressName) {
+        return client.network().v1().ingresses().inNamespace(namespace).withName(ingressName).get();
     }
 
     public boolean deletePodWithName(String podName, boolean force) {
@@ -563,7 +584,7 @@ public class Kubernetes implements Closeable {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
         }
 
-        public Ingress loadIngress (String ingressName) {
+        public Ingress getIngress(String ingressName) {
             return client.network().v1().ingresses().withName(ingressName).get();
         }
     }
