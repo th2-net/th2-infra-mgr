@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
+import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.inframgr.util.Stringifier;
 import com.exactpro.th2.infrarepo.*;
 import org.slf4j.Logger;
@@ -165,6 +166,9 @@ public class K8sSynchronization {
 
             for (RepositoryResource resource : repositoryResources)
                 if (ResourceType.forKind(resource.getKind()).isK8sResource()) {
+                    if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary)
+                        Th2DictionaryProcessor.compressData(resource);
+
                     Map<String, RepositoryResource> typeMap = repositoryMap.get(resource.getKind());
                     typeMap.put(resource.getMetadata().getName(), resource);
                 }
