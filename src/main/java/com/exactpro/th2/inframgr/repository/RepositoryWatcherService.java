@@ -17,7 +17,7 @@ package com.exactpro.th2.inframgr.repository;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
-import com.exactpro.th2.infrarepo.Gitter;
+import com.exactpro.th2.infrarepo.GitterContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -45,7 +45,8 @@ public class RepositoryWatcherService {
     public void scheduledJob(){
 
         try {
-            Map<String, String> commits = Gitter.getAllBranchesCommits(config);
+            GitterContext ctx = GitterContext.getContext(config);
+            Map<String, String> commits = ctx.getAllBranchesCommits();
             commits.forEach((branch, commitRef) -> {
 
                 if (!(branch.equals("master") || commitHistory.isEmpty() || commitHistory.getOrDefault(branch, "").equals(commitRef))) {

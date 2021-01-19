@@ -135,7 +135,8 @@ public class K8sOperator {
 
 
                 // action is needed as optimistic check did not draw enough conclusions
-                Gitter gitter = Gitter.getBranch(config.getGit(), kube.extractSchemaName(namespace));
+                GitterContext ctx = GitterContext.getContext(config.getGit());
+                Gitter gitter = ctx.getGitter(kube.extractSchemaName(namespace));
                 logger.info("Checking out branch \"{}\" from repository", gitter.getBranch()) ;
 
                 RepositoryResource resource = null;

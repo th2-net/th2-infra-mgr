@@ -17,6 +17,7 @@
 package com.exactpro.th2.infrarepo;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class RepositoryResource {
 
@@ -25,11 +26,7 @@ public class RepositoryResource {
         public String getName() {
             return name;
         }
-        public void setName(String name) {
-            this.name = name;
-        }
-        public Metadata() {}
-        public Metadata(String name) {this.name = name;}
+        public Metadata(@JsonProperty("name") String name) {this.name = name;}
     }
 
     private String apiVersion;

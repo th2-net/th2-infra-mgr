@@ -35,7 +35,6 @@ import org.springframework.util.FileSystemUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,8 +42,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class Gitter {
     public static final String REFS_HEADS = "refs/heads/";
 
-    private static volatile Map<String, Gitter> instance = new ConcurrentHashMap<>();
-    private GitConfig config;
+    private GitterContext ctx;
     private String branch;
     private Lock lock;
     private TransportConfigCallback callback;
@@ -52,34 +50,63 @@ public class Gitter {
     private final String repositoryDir;
 
 
-    private Gitter(GitConfig config, String branch) {
-        this.config = config;
+    Gitter(GitterContext ctx, String branch) {
+        this.ctx = ctx;
         this.branch = branch;
-        this.localCacheRoot = config.getLocalRepositoryRoot() + "/" + branch;
+        this.localCacheRoot = ctx.getLocalRepositoryRoot() + "/" + branch;
         this.repositoryDir = localCacheRoot + "/.git";
-        this.callback = Gitter.transportConfigCallback(config);
+        this.callback = Gitter.transportConfigCallback(ctx);
         this.lock = new ReentrantLock();
     }
 
+    /**
+     * Return configuration that was used to construct this instance
+     *
+     * @return Configuration that was used to construct instance
+     */
     public GitConfig getConfig() {
-        return config;
+        return ctx;
     }
 
+
+    /**
+     * Return branch name for which this instance was constructed
+     *
+     * @return Branch name
+     */
     public String getBranch() {
         return branch;
     }
 
+
+    /**
+     * Acquires lock for this branch to prevent other threads to work on same the branch.
+     * Operations should be enclosed with try/finally block and lock should be released
+     * as soon as operations are done on this branch
+     *
+     * <pre>
+     * {@code
+     * Gitter gitter;
+     * // retrieve instance
+     * gitter.lock()
+     * try {
+     *     // do operations on repository
+     * } finally {
+     *     gitter.unlock();
+     * }
+     * }
+     * </pre>
+     */
     public void lock() {
         lock.lock();
     }
 
+
+    /**
+     * Releases lock on this branch
+     */
     public void unlock() {
         lock.unlock();
-    }
-
-    public static Gitter getBranch(GitConfig config, String branch) {
-
-        return instance.computeIfAbsent(branch, k -> new Gitter(config, k));
     }
 
 
@@ -124,13 +151,13 @@ public class Gitter {
     }
 
 
-    public static Map<String, String> getAllBranchesCommits(GitConfig config) throws Exception {
+    static Map<String, String> getAllBranchesCommits(GitterContext ctx) throws Exception {
 
         // retrieve all remote branches
         Collection<Ref> allBranches = Git.lsRemoteRepository()
                 .setHeads(true)
-                .setRemote(config.getRemoteRepository())
-                .setTransportConfigCallback(Gitter.transportConfigCallback(config))
+                .setRemote(ctx.getRemoteRepository())
+                .setTransportConfigCallback(Gitter.transportConfigCallback(ctx))
                 .call();
 
         // filter, convert and normalize branch names
@@ -142,13 +169,15 @@ public class Gitter {
         return result;
     }
 
-    public static Set<String> getBranches(GitConfig config) throws Exception {
 
-        Map<String, String> commits = getAllBranchesCommits(config);
+    static Set<String> getBranches(GitterContext ctx) throws Exception {
+
+        Map<String, String> commits = getAllBranchesCommits(ctx);
         return commits.keySet();
     }
 
-    private String checkout(GitConfig config, String branch, String targetDir) throws IOException, GitAPIException {
+
+    private String checkout(String branch, String targetDir) throws IOException, GitAPIException {
 
         // create branch directory if it does not exist
         File dir = new File(targetDir);
@@ -170,7 +199,7 @@ public class Gitter {
             // try to clone
             Git.cloneRepository()
                     .setBranch(branch)
-                    .setURI(config.getRemoteRepository())
+                    .setURI(ctx.getRemoteRepository())
                     .setDirectory(dir)
                     .setTransportConfigCallback(callback)
                     .call();
@@ -186,12 +215,27 @@ public class Gitter {
         return ref.getObjectId().getName();
     }
 
+
+    /**
+     * Downloads to local cache latest version of the branch from remote repository and returns commit ref for
+     * the latest commit
+     * @return commit ref for latest commit
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String checkout() throws IOException, GitAPIException {
 
-        return checkout(config, branch, localCacheRoot);
+        return checkout(branch, localCacheRoot);
     }
 
 
+    /**
+     * Resets repository's local working tree using repository's local copy.
+     * This operation is equivalent of the command {@code git reset --hard}
+     * @return commit ref of current repository node
+     * @throws InconsistentRepositoryStateException if operation fails for any reason and
+     * repository's local copy's consistency can not be warranted
+     */
     public String reset() throws InconsistentRepositoryStateException {
 
         checkAndGetLocalCacheRoot();
@@ -209,6 +253,13 @@ public class Gitter {
     }
 
 
+    /**
+     * Recreates repository's local cache by deleting and re-downloading it from remote repository.
+     * Can be used to repair de-synchronized local and remote repositories due to push or merge conflicts.
+     * @return commit ref of latest commit in repository
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String recreateCache() throws IOException, GitAPIException {
 
         File rootDir = checkAndGetLocalCacheRoot();
@@ -219,6 +270,14 @@ public class Gitter {
     }
 
 
+    /**
+     * Commits repository working tree and pushes changes to remote repository
+     * @return null if working tree was clean and no commit happened or commit ref of latest commit in the remote repository
+     * @throws InconsistentRepositoryStateException If commit or push failed and repository's local cache's
+     * consistency can not be warranted
+     * @throws IOException
+     * @throws GitAPIException
+     */
     public String commitAndPush(String message) throws IOException, GitAPIException, InconsistentRepositoryStateException {
 
         checkAndGetLocalCacheRoot();
@@ -247,7 +306,7 @@ public class Gitter {
                     .push()
                     .add(ref)
                     .setForce(false)
-                    .setTransportConfigCallback(transportConfigCallback(config))
+                    .setTransportConfigCallback(transportConfigCallback(ctx))
                     .call()
                     .iterator();
 
@@ -277,16 +336,23 @@ public class Gitter {
     }
 
 
+    /**
+     * Creates new branch in local and remote repositories. If local cache contained leftovers of some branch which
+     * does not exist anymore on remote repository then local cache will be deleted and new branch will overwrite it
+     * @param sourceBranch branch from which new branch will be created
+     * @return commit ref of the new branch
+     * @throws Exception
+     */
     public String createBranch(String sourceBranch) throws Exception {
 
-        Set<String> branches = Gitter.getBranches(config);
+        Set<String> branches = getBranches(ctx);
         if (!branches.contains(sourceBranch))
             throw new IllegalArgumentException("Source branch does not exists");
         if (branches.contains(branch))
             throw new EntryExistsException("Branch with such name already exists");
 
         try {
-            checkout(config, sourceBranch, localCacheRoot);
+            checkout(sourceBranch, localCacheRoot);
 
             Repository repo = new FileRepository(repositoryDir);
             Git git = new Git(repo);
