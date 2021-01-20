@@ -301,11 +301,11 @@ public class SchemaInitializer {
 
             Map <String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
             Map <String, String> newAnnotations = meta.getAnnotations();
-            List<String> keptKeys = oldAnnotations.keySet().stream()
-                    .filter(key -> Arrays.stream(INGRESS_KEEP_ANNOTATION_KEY_PREFIXES)
-                            .anyMatch(prefix -> key.startsWith(prefix)))
-                    .collect(Collectors.toList());
-            keptKeys.forEach(key -> newAnnotations.put(key, oldAnnotations.get(key)));
+            for (var entry : oldAnnotations.entrySet()) {
+                if (Arrays.stream(INGRESS_KEEP_ANNOTATION_KEY_PREFIXES)
+                        .anyMatch(prefix -> entry.getKey().startsWith(prefix)))
+                    newAnnotations.put(entry.getKey(), entry.getValue());
+            }
 
             Ingress newIngress = new IngressBuilder()
                     .withSpec(newSpec)
