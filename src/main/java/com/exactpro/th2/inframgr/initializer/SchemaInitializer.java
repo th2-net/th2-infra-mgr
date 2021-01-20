@@ -302,6 +302,9 @@ public class SchemaInitializer {
             Map <String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
             Map <String, String> newAnnotations = meta.getAnnotations();
             for (var entry : oldAnnotations.entrySet()) {
+                if (entry.getKey() == null)
+                    continue;
+
                 if (Arrays.stream(INGRESS_KEEP_ANNOTATION_KEY_PREFIXES)
                         .anyMatch(prefix -> entry.getKey().startsWith(prefix)))
                     newAnnotations.put(entry.getKey(), entry.getValue());
