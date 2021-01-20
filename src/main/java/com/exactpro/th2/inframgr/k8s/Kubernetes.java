@@ -53,7 +53,9 @@ public class Kubernetes implements Closeable {
     public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(name);
-        metadata.setAnnotations(Collections.singletonMap(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue));
+        Map <String, String> annotations = new HashMap<>();
+        annotations.put(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue);
+        metadata.setAnnotations(annotations);
 
         return metadata;
     }

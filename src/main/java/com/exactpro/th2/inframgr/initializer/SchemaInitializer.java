@@ -31,9 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class SchemaInitializer {
 
@@ -55,6 +54,15 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
+
+    /*
+        Ingress annotation values with following key prefixes should be
+        passed to new ingress without any changes
+     */
+    private static final String[] INGRESS_KEEP_ANNOTATION_KEY_PREFIXES = {
+            "kubernetes.io/",
+            "nginx.ingress.kubernetes.io/"
+    };
 
     public enum SchemaSyncMode {
         CHECK_NAMESPACE,
@@ -290,6 +298,15 @@ public class SchemaInitializer {
             IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
             ObjectMeta meta = Kubernetes.createMetadataWithAnnotation(ingressName, resourceLabel);
+
+            Map <String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
+            Map <String, String> newAnnotations = meta.getAnnotations();
+            List<String> keptKeys = oldAnnotations.keySet().stream()
+                    .filter(key -> Arrays.stream(INGRESS_KEEP_ANNOTATION_KEY_PREFIXES)
+                            .anyMatch(prefix -> key.startsWith(prefix)))
+                    .collect(Collectors.toList());
+            keptKeys.forEach(key -> newAnnotations.put(key, oldAnnotations.get(key)));
+
             Ingress newIngress = new IngressBuilder()
                     .withSpec(newSpec)
                     .withMetadata(meta)
