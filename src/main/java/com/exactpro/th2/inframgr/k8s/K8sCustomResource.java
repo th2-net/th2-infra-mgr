@@ -18,11 +18,15 @@ package com.exactpro.th2.inframgr.k8s;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.fabric8.kubernetes.client.CustomResource;
+import io.fabric8.kubernetes.model.annotation.Group;
+import io.fabric8.kubernetes.model.annotation.Version;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+@Group("")
+@Version("")
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class K8sCustomResource extends CustomResource {
 
@@ -31,6 +35,29 @@ public class K8sCustomResource extends CustomResource {
     public static final int RESOURCE_NAME_MAX_LENGTH = 48;
     private Object spec;
     public Object status;
+
+    private String apiVersion;
+    private String kind;
+
+    @Override
+    public void setKind (String kind) {
+       this.kind = kind;
+    }
+
+    @Override
+    public String getKind () {
+        return this.kind;
+    }
+
+    @Override
+    public String getApiVersion () {
+        return apiVersion;
+    }
+
+    @Override
+    public void setApiVersion (String apiVersion) {
+        this.apiVersion = apiVersion;
+    }
 
     public void setSpec(Object spec) {
         this.spec = spec;

@@ -83,7 +83,7 @@ public class Kubernetes implements Closeable {
 
             CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
             K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
             List<K8sCustomResource> customResources = customResourceList.getItems();
             boolean resourceUpdated = false;
@@ -136,7 +136,7 @@ public class Kubernetes implements Closeable {
             lock.lock();
 
             CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
 
             K8sCustomResource k8sResource = new K8sCustomResource();
             ObjectMeta metaData = new ObjectMetaBuilder()
@@ -171,7 +171,7 @@ public class Kubernetes implements Closeable {
             lock.lock();
             CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
             K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
             List<K8sCustomResource> customResources = customResourceList.getItems();
 
@@ -203,7 +203,7 @@ public class Kubernetes implements Closeable {
                 .withPlural(type.k8sName())
                 .build();
 
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
@@ -222,7 +222,7 @@ public class Kubernetes implements Closeable {
                 .withPlural(type.k8sName())
                 .build();
 
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
+        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
         K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
         List<K8sCustomResource> customResources = customResourceList.getItems();
 
@@ -248,8 +248,8 @@ public class Kubernetes implements Closeable {
 
             CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
 
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class);
-            Resource<K8sCustomResource, K8sCustomResourceDoneable> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
+            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
+            Resource<K8sCustomResource> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
             boolean result = r.delete();
 
             cache.remove(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -335,7 +335,7 @@ public class Kubernetes implements Closeable {
                         , watcher
                         , crdContext
                         , (_client, _watcher, _crdContext) ->
-                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class)
+                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class)
                                 .inAnyNamespace()
                                 .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
                 );
@@ -392,7 +392,7 @@ public class Kubernetes implements Closeable {
                         , watcher
                         , crdContext
                         , (_client, _watcher, _crdContext) ->
-                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class, K8sCustomResourceDoneable.class)
+                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class)
                                 .inAnyNamespace()
                                 .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
                 );
@@ -490,7 +490,7 @@ public class Kubernetes implements Closeable {
                 }
 
                 @Override
-                public void onClose(KubernetesClientException cause) {
+                public void onClose(WatcherException cause) {
                     watcher.onClose(cause);
                 }
                 @Override
@@ -529,7 +529,7 @@ public class Kubernetes implements Closeable {
                 }
 
                 @Override
-                public void onClose(KubernetesClientException cause) {
+                public void onClose(WatcherException cause) {
                     watcher.onClose(cause);
                     if (cause != null)
                         watch();
