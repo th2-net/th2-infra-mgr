@@ -24,8 +24,12 @@ import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.WatcherException;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -48,6 +52,26 @@ public class K8sOperator {
     private K8sResourceCache cache;
     private RetryableTaskQueue taskQueue;
 
+    private void startInformers() {
+        // wait for startup synchronization to complete
+        logger.info("Operator is waiting for kubernetes startup  synchronization to complete");
+        while (!(Thread.currentThread().isInterrupted() || K8sSynchronization.isStartupSynchronizationComplete())) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                logger.info("Interrupt signal received. Exiting operator thread");
+                return;
+            }
+        }
+
+        logger.info("Creating informers");
+        Kubernetes kube = new Kubernetes(config.getKubernetes(), null);
+
+        kube.registerSharedInformersAll();
+//        kube.informers().startAllRegisteredInformers();
+
+        logger.info("Informers has been started");
+    }
 
     private void startWatchers() {
 
@@ -229,7 +253,8 @@ public class K8sOperator {
 
         // start repository event listener thread
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(this::startWatchers);
+//        executor.execute(this::startWatchers);
+        executor.execute(this::startInformers);
     }
 
     @PreDestroy

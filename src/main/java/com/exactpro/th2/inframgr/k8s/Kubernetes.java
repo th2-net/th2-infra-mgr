@@ -25,7 +25,13 @@ import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.SharedInformer;
+import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.internal.KubernetesDeserializer;
+import io.fabric8.kubernetes.model.annotation.Group;
+import io.fabric8.kubernetes.model.annotation.Version;
 
 import java.io.Closeable;
 import java.util.*;
@@ -345,6 +351,80 @@ public class Kubernetes implements Closeable {
         return watches;
     }
 
+    private class FilteringResourceEventHandler<T extends HasMetadata> {
+
+        private boolean namespacePrefixMatches(T obj) {
+            return obj.getMetadata().getNamespace().startsWith(namespacePrefix);
+        }
+
+        public ResourceEventHandler<T> wrap(ResourceEventHandler resourceEventHandler) {
+            return new ResourceEventHandler<T>() {
+                @Override
+                public void onAdd(T obj) {
+                    if (namespacePrefixMatches(obj)) {
+                        resourceEventHandler.onAdd(obj);
+                    }
+                }
+
+                @Override
+                public void onUpdate(T oldObj, T newObj) {
+                    if (namespacePrefixMatches(oldObj) || namespacePrefixMatches(newObj)) {
+                        resourceEventHandler.onUpdate(newObj, oldObj);
+                    }
+                }
+
+                @Override
+                public void onDelete(T obj, boolean deletedFinalStateUnknown) {
+                    if (namespacePrefixMatches(obj)) {
+                        resourceEventHandler.onDelete(obj, deletedFinalStateUnknown);
+                    }
+                }
+            };
+        }
+    }
+
+    public void registerSharedInformersAll () {
+        SharedInformerFactory informerFactory = informers();
+
+        for (ResourceType t : ResourceType.values())
+            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
+                RepositoryResource resource = new RepositoryResource(t);
+                resource.setKind(t.kind());
+                System.out.println(resource.getKind());
+
+
+                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
+                CustomResourceDefinitionContext crdContext = getCrdContext(resource);
+
+                SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
+                        crdContext,
+                        K8sCustomResource.class,
+                        K8sCustomResourceList.class,
+                        0);
+
+                customResourceInformer.addEventHandler(new FilteringResourceEventHandler<K8sCustomResource>().wrap(
+                        new ResourceEventHandler<K8sCustomResource>() {
+                            @Override
+                            public void onAdd(K8sCustomResource obj) {
+                                System.out.println("Created " + obj.getKind());
+                            }
+
+                            @Override
+                            public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
+                                System.out.println("Updated " + newObj.getKind());
+                            }
+
+                            @Override
+                            public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
+                                System.out.println("Deleted " + obj.getKind());
+                            }
+                        }
+                ));
+            }
+
+        informerFactory.startAllRegisteredInformers();
+    }
+
 
     public List<Watch> registerWatchersAll(ExtendedWatcher watcher) {
 
@@ -407,6 +487,16 @@ public class Kubernetes implements Closeable {
         if (secrets != null)
             secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
         return map;
+    }
+
+    private SharedInformerFactory informerFactory;
+
+    public synchronized SharedInformerFactory informers () {
+        if (informerFactory == null) {
+            informerFactory = client.informers();
+        }
+
+        return informerFactory;
     }
 
     private KubernetesClient client;
