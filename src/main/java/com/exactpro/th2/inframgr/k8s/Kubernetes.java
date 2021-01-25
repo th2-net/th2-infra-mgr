@@ -393,20 +393,20 @@ public class Kubernetes implements Closeable {
                 System.out.println(resource.getKind());
 
 
-                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
+                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), Th2Box.Type.class);
                 CustomResourceDefinitionContext crdContext = getCrdContext(resource);
 
-                SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
+                SharedIndexInformer<Th2Box.Type> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
                         crdContext,
-                        K8sCustomResource.class,
-                        K8sCustomResourceList.class,
+                        Th2Box.Type.class,
+                        Th2Box.List.class,
                         0);
 
-                customResourceInformer.addEventHandler(new FilteringResourceEventHandler<K8sCustomResource>().wrap(
+                customResourceInformer.addEventHandler(new FilteringResourceEventHandler<Th2Box.Type>().wrap(
                         new ResourceEventHandler<K8sCustomResource>() {
                             @Override
                             public void onAdd(K8sCustomResource obj) {
-                                System.out.println("Created " + obj.getKind());
+                                System.out.println("Created " + obj.getKind() + ":" + obj.getSourceHash());
                             }
 
                             @Override
