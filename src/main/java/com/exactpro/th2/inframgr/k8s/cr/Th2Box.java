@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.k8s;
+package com.exactpro.th2.inframgr.k8s.cr;
 
+import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import io.fabric8.kubernetes.client.CustomResourceList;
 import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Kind;
