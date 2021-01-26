@@ -20,7 +20,7 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
+import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.dsl.Resource;
@@ -559,11 +559,11 @@ public class Kubernetes implements Closeable {
 
 
     public void createOrRepaceIngress(Ingress ingress) {
-        client.network().v1().ingresses().inNamespace(namespace).createOrReplace(ingress);
+        client.network().ingresses().inNamespace(namespace).createOrReplace(ingress);
     }
 
     public Ingress getIngress(String ingressName) {
-        return client.network().v1().ingresses().inNamespace(namespace).withName(ingressName).get();
+        return client.network().ingresses().inNamespace(namespace).withName(ingressName).get();
     }
 
     public boolean deletePodWithName(String podName, boolean force) {
@@ -587,7 +587,7 @@ public class Kubernetes implements Closeable {
         }
 
         public Ingress getIngress(String ingressName) {
-            return client.network().v1().ingresses().withName(ingressName).get();
+            return client.network().ingresses().withName(ingressName).get();
         }
     }
 }
