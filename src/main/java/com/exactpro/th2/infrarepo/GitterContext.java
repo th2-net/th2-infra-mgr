@@ -161,7 +161,7 @@ public class GitterContext implements GitConfig {
                 Objects.equals(this.localRepositoryRoot, c.localRepositoryRoot) &&
                 Objects.equals(this.remoteRepository, c.remoteRepository) &&
                 Objects.equals(this.httpAuthUsername, c.httpAuthUsername) &&
-                Objects.equals(this.httpAuthPassword, c.httpAuthUsername) &&
+                Objects.equals(this.httpAuthPassword, c.httpAuthPassword) &&
                 Objects.equals(this.privateKeyFile, c.privateKeyFile) &&
                 Arrays.equals(this.privateKey, c.privateKey);
     }
