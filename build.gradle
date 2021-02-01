@@ -18,9 +18,14 @@ configurations.all {
 	exclude group: 'org.springframework.boot', module: 'logback-classic'
 }
 
+repositories {
+	maven {
+		url "https://dl.bintray.com/exactpro/th2"
+	}
+}
+
 dependencies {
-	implementation 'org.eclipse.jgit:org.eclipse.jgit:5.10.0.202012080955-r'
-	implementation 'org.eclipse.jgit:org.eclipse.jgit.ssh.jsch:5.10.0.202012080955-r'
+	implementation 'com.exactpro.th2:infra-repo:1.0.0'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
 
 	implementation 'org.apache.commons:commons-text:1.9'
@@ -43,7 +48,6 @@ dependencies {
 
 bootJar {
 	exclude('log4j.properties')
-	exclude('config.yml')
 }
 
 test {

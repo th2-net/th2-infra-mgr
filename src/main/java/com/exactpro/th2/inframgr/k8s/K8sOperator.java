@@ -217,7 +217,6 @@ public class K8sOperator {
 
         // start repository event listener thread
         ExecutorService executor = Executors.newSingleThreadExecutor();
-//        executor.execute(this::startWatchers);
         executor.execute(this::startInformers);
     }
 
