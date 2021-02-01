@@ -25,7 +25,7 @@ import com.exactpro.th2.infrarepo.*;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.Watcher;
-import io.fabric8.kubernetes.client.WatcherException;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -48,9 +48,7 @@ public class K8sOperator {
     private K8sResourceCache cache;
     private RetryableTaskQueue taskQueue;
 
-
-    private void startWatchers() {
-
+    private void startInformers() {
         // wait for startup synchronization to complete
         logger.info("Operator is waiting for kubernetes startup  synchronization to complete");
         while (!(Thread.currentThread().isInterrupted() || K8sSynchronization.isStartupSynchronizationComplete())) {
@@ -62,42 +60,32 @@ public class K8sOperator {
             }
         }
 
-        logger.info("Starting Kubernetes watchers");
+        logger.info("Creating informers");
+        Kubernetes kube = new Kubernetes(config.getKubernetes(), null);
         cache = K8sResourceCache.INSTANCE;
 
-        try {
-            Kubernetes kube = new Kubernetes(config.getKubernetes(), null);
-            kube.registerWatchers(new Kubernetes.ExtendedWatcher<K8sCustomResource>() {
-                @Override
-                public void eventReceived(Action action, K8sCustomResource res) {
-                    processEvent(action, res, kube);
-                }
+        kube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
 
-                @Override
-                public void onClose(WatcherException cause) {
-                    logger.error("Exception watching resources", cause);
-                }
-                @Override
-                public void onRecover() {
-                    logger.info("Watcher recovered");
-                }
-            });
-        } catch (Exception e) {
-            logger.error("Exception registering watchers. Exiting", e);
-            return;
-        }
-
-        // enter the loop
-        while (!Thread.currentThread().isInterrupted()) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                logger.info("Interrupt signal received. Exiting operator thread");
-                break;
+            @Override
+            public void onAdd(K8sCustomResource obj) {
+                processEvent(Watcher.Action.ADDED, obj, kube);
             }
-        }
-    }
 
+            @Override
+            public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
+                processEvent(Watcher.Action.MODIFIED, newObj, kube);
+            }
+
+            @Override
+            public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
+                processEvent(Watcher.Action.DELETED, obj, kube);
+            }
+        });
+
+        kube.startInformers();
+
+        logger.info("Informers has been started");
+    }
 
     private void processEvent(Watcher.Action action, K8sCustomResource res, Kubernetes kube) {
 
@@ -229,7 +217,8 @@ public class K8sOperator {
 
         // start repository event listener thread
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(this::startWatchers);
+//        executor.execute(this::startWatchers);
+        executor.execute(this::startInformers);
     }
 
     @PreDestroy

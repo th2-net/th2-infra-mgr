@@ -21,7 +21,7 @@ import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.client.WatcherException;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -196,32 +196,34 @@ public class StatusCache {
         Config config = Config.getInstance();
         kube = new Kubernetes(config.getKubernetes(), null);
 
-        kube.registerWatchersAll(new Kubernetes.ExtendedWatcher<HasMetadata>() {
-            @Override
-            public void eventReceived(Action action, HasMetadata source) {
+        kube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
 
-                try {
-                    ResourceCondition resource = ResourceCondition.extractFrom(source);
-                    String schema = kube.extractSchemaName(resource.getNamespace());
-                    if (action.equals(Action.DELETED))
-                        update(resource, schema, StatusCache.Action.REMOVE);
-                    else
-                        update(resource, schema, StatusCache.Action.ADD);
-                } catch (Exception e) {
-                    logger.error("exception processing event", e);
-                }
+            @Override
+            public void onAdd(HasMetadata obj) {
+                ResourceCondition resource = ResourceCondition.extractFrom(obj);
+                String schema = kube.extractSchemaName(resource.getNamespace());
+
+                update(resource, schema, StatusCache.Action.ADD);
             }
 
             @Override
-            public void onClose(WatcherException cause) {
-                logger.error("Exception watching resources", cause);
+            public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
+                ResourceCondition resource = ResourceCondition.extractFrom(newObj);
+                String schema = kube.extractSchemaName(resource.getNamespace());
+
+                update(resource, schema, StatusCache.Action.ADD);
             }
 
             @Override
-            public void onRecover() {
-                logger.info("Watcher recovered");
+            public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
+                ResourceCondition resource = ResourceCondition.extractFrom(obj);
+                String schema = kube.extractSchemaName(resource.getNamespace());
+
+                update(resource, schema, StatusCache.Action.REMOVE);
             }
         });
+
+        kube.startInformers();
     }
 
     private enum Action {

@@ -16,19 +16,29 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.k8s.cr.*;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.*;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 
 import java.io.Closeable;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
@@ -317,96 +327,112 @@ public class Kubernetes implements Closeable {
         client.configMaps().inNamespace(namespace).createOrReplace(configMap);
     }
 
+    private class FilteringResourceEventHandler<T extends HasMetadata> {
 
-    public List<Watch> registerWatchers(ExtendedWatcher watcher) {
+        private boolean namespacePrefixMatches(T obj) {
+            return obj.getMetadata().getNamespace().startsWith(namespacePrefix);
+        }
 
-        List<Watch> watches = new LinkedList<>();
+        public ResourceEventHandler<T> wrap(ResourceEventHandler resourceEventHandler) {
+            return new ResourceEventHandler<T>() {
+                @Override
+                public void onAdd(T obj) {
+                    if (namespacePrefixMatches(obj)) {
+                        resourceEventHandler.onAdd(obj);
+                    }
+                }
 
-        for (ResourceType t : ResourceType.values())
-            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
-                RepositoryResource resource = new RepositoryResource(t);
-                resource.setKind(t.kind());
+                @Override
+                public void onUpdate(T oldObj, T newObj) {
+                    if (namespacePrefixMatches(oldObj) || namespacePrefixMatches(newObj)) {
+                        resourceEventHandler.onUpdate(newObj, oldObj);
+                    }
+                }
 
-                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
-                CustomResourceDefinitionContext crdContext = getCrdContext(resource);
-
-                watches.add(new RecoveringWatch(
-                        client
-                        , watcher
-                        , crdContext
-                        , (_client, _watcher, _crdContext) ->
-                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class)
-                                .inAnyNamespace()
-                                .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
-                );
-
-            }
-
-        return watches;
+                @Override
+                public void onDelete(T obj, boolean deletedFinalStateUnknown) {
+                    if (namespacePrefixMatches(obj)) {
+                        resourceEventHandler.onDelete(obj, deletedFinalStateUnknown);
+                    }
+                }
+            };
+        }
     }
 
+    private SharedIndexInformer<K8sCustomResource> registerSharedInformerForCustomResource(ResourceEventHandler<K8sCustomResource> eventHandler,
+                                                                                           SharedInformerFactory factory,
+                                                                                           Class type,
+                                                                                           Class list) {
+        CustomResourceDefinitionContext crdContext = CustomResourceDefinitionContext.fromCustomResourceType(type);
 
-    public List<Watch> registerWatchersAll(ExtendedWatcher watcher) {
+        SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
+                crdContext,
+                type,
+                list,
+                0);
 
-        List<Watch> watches = new LinkedList<>();
+        customResourceInformer.addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
 
-        // Deployment watcher
-        watches.add(new RecoveringWatch(
-                client
-                , watcher
-                , (_client, _watcher) -> _client.apps().deployments().inAnyNamespace().watch(new FilteringWatcher<Deployment>().wrap(_watcher))).watch()
-        );
-
-        // Pod watcher
-        watches.add(new RecoveringWatch(
-                client
-                , watcher
-                , (_client, _watcher) -> _client.pods().inAnyNamespace().watch(new FilteringWatcher<Pod>().wrap(_watcher))).watch()
-        );
-
-        // Service watcher
-        watches.add(new RecoveringWatch(
-                client
-                , watcher
-                , (_client, _watcher) -> _client.services().inAnyNamespace().watch(new FilteringWatcher<Service>().wrap(_watcher))).watch()
-        );
-
-        // Configmap watcher
-        watches.add(new RecoveringWatch(
-                client
-                , watcher
-                , (_client, _watcher) -> _client.configMaps().inAnyNamespace().watch(new FilteringWatcher<ConfigMap>().wrap(_watcher))).watch()
-        );
-
-
-        for (ResourceType t : ResourceType.values())
-            if (t.isK8sResource()) {
-                final RepositoryResource resource = new RepositoryResource(t);
-                resource.setKind(t.kind());
-
-                KubernetesDeserializer.registerCustomKind(resource.getApiVersion(), resource.getKind(), K8sCustomResource.class);
-                CustomResourceDefinitionContext crdContext = getCrdContext(resource);
-
-                watches.add(new RecoveringWatch(
-                        client
-                        , watcher
-                        , crdContext
-                        , (_client, _watcher, _crdContext) ->
-                        _client.customResources(_crdContext, K8sCustomResource.class, K8sCustomResourceList.class)
-                                .inAnyNamespace()
-                                .watch(new FilteringWatcher<K8sCustomResource>().wrap(_watcher))).watch()
-                );
-            }
-
-        return watches;
+        return customResourceInformer;
     }
 
+    public void registerCustomResourceSharedInformers(ResourceEventHandler eventHandler) {
+        SharedInformerFactory informerFactory = getInformerFactory();
+
+
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Box.k8sApiVersion(), ResourceType.Th2Box.kind(), Th2Box.Type.class);
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2CoreBox.k8sApiVersion(), ResourceType.Th2CoreBox.kind(), Th2CoreBox.Type.class);
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Dictionary.k8sApiVersion(), ResourceType.Th2Dictionary.kind(), Th2Dictionary.Type.class);
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Estore.k8sApiVersion(), ResourceType.Th2Estore.kind(), Th2Estore.Type.class);
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Mstore.k8sApiVersion(), ResourceType.Th2Mstore.kind(), Th2Mstore.Type.class);
+        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
+
+        //Register informers for custom resources
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Box.Type.class, Th2Box.List.class);
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2CoreBox.Type.class, Th2CoreBox.List.class);
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Dictionary.Type.class, Th2Dictionary.List.class);
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Estore.Type.class, Th2Estore.List.class);
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Mstore.Type.class, Th2Mstore.List.class);
+        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Link.Type.class, Th2Link.List.class);
+    }
+
+    public void registerSharedInformersAll (ResourceEventHandler eventHandler) {
+        registerCustomResourceSharedInformers(eventHandler);
+        SharedInformerFactory factory = getInformerFactory();
+
+        var filteringEventHanled = new FilteringResourceEventHandler().wrap(eventHandler);
+        factory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, 0)
+                .addEventHandler(filteringEventHanled);
+
+        factory.sharedIndexInformerFor(Pod.class, PodList.class, 0)
+                .addEventHandler(filteringEventHanled);
+
+        factory.sharedIndexInformerFor(Service.class, ServiceList.class, 0)
+                .addEventHandler(filteringEventHanled);
+
+        factory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, 0)
+                .addEventHandler(filteringEventHanled);
+    }
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
         Map<String, Secret> map = new HashMap<>();
         if (secrets != null)
             secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
         return map;
+    }
+
+    private SharedInformerFactory informerFactory;
+
+    private synchronized SharedInformerFactory getInformerFactory() {
+        if (informerFactory == null) {
+            informerFactory = client.informers();
+        }
+
+        return informerFactory;
+    }
+
+    public void startInformers () {
+        informerFactory.startAllRegisteredInformers();
     }
 
     private KubernetesClient client;
@@ -475,88 +501,6 @@ public class Kubernetes implements Closeable {
     public  CurrentNamespace currentNamespace() {
         return _currentNamespace;
     }
-
-    public interface ExtendedWatcher<T> extends Watcher<T> {
-        default void onRecover() {};
-    }
-
-    private class FilteringWatcher<T extends HasMetadata> {
-        public ExtendedWatcher<T> wrap(ExtendedWatcher watcher) {
-            return new ExtendedWatcher<>() {
-                @Override
-                public void eventReceived(Action action, T resource) {
-                    if (resource.getMetadata().getNamespace().startsWith(namespacePrefix))
-                        watcher.eventReceived(action, resource);
-                }
-
-                @Override
-                public void onClose(WatcherException cause) {
-                    watcher.onClose(cause);
-                }
-                @Override
-                public void onRecover() {watcher.onRecover();}
-            };
-        }
-    }
-
-
-    private static class RecoveringWatch implements Watch {
-        private KubernetesClient client;
-        private final ExtendedWatcher watcher;
-        private CustomResourceDefinitionContext crdContext;
-        private Initializer initializer;
-        private CrdInitializer crdInitializer;
-
-        RecoveringWatch(KubernetesClient client, ExtendedWatcher watcher, Initializer initializer) {
-            this.client = client;
-            this.watcher = watcher;
-            this.initializer = initializer;
-        }
-
-        RecoveringWatch(KubernetesClient client, ExtendedWatcher watcher, CustomResourceDefinitionContext crdContext, CrdInitializer crdInitializer) {
-            this.client = client;
-            this.watcher = watcher;
-            this.crdContext = crdContext;
-            this.crdInitializer = crdInitializer;
-        }
-
-        private Watch watch;
-        public Watch watch() {
-            ExtendedWatcher localWatcher = new ExtendedWatcher() {
-                @Override
-                public void eventReceived(Action action, Object resource) {
-                    watcher.eventReceived(action, resource);
-                }
-
-                @Override
-                public void onClose(WatcherException cause) {
-                    watcher.onClose(cause);
-                    if (cause != null)
-                        watch();
-                    watcher.onRecover();
-                }
-            };
-            if (initializer != null)
-                this.watch = initializer.watch(client, localWatcher);
-            else
-                this.watch = crdInitializer.watch(client, localWatcher, crdContext);
-            return watch;
-        }
-
-        @Override
-        public void close() {
-            watch.close();
-        }
-
-        interface Initializer {
-            Watch watch(KubernetesClient client, ExtendedWatcher watcher);
-        }
-
-        interface CrdInitializer {
-            Watch watch(KubernetesClient client, ExtendedWatcher watcher, CustomResourceDefinitionContext crdContext);
-        }
-    }
-
 
     public void createOrRepaceIngress(Ingress ingress) {
         client.network().ingresses().inNamespace(namespace).createOrReplace(ingress);
