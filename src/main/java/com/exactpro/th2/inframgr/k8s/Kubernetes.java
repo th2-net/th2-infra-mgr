@@ -400,18 +400,18 @@ public class Kubernetes implements Closeable {
         registerCustomResourceSharedInformers(eventHandler);
         SharedInformerFactory factory = getInformerFactory();
 
-
+        var filteringEventHanled = new FilteringResourceEventHandler().wrap(eventHandler);
         factory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, 0)
-                .addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
+                .addEventHandler(filteringEventHanled);
 
         factory.sharedIndexInformerFor(Pod.class, PodList.class, 0)
-                .addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
+                .addEventHandler(filteringEventHanled);
 
         factory.sharedIndexInformerFor(Service.class, ServiceList.class, 0)
-                .addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
+                .addEventHandler(filteringEventHanled);
 
         factory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, 0)
-                .addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
+                .addEventHandler(filteringEventHanled);
     }
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
