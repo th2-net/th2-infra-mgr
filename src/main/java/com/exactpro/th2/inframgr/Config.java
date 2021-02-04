@@ -73,7 +73,7 @@ public class Config {
                     , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         } catch (JsonParseException e) {
-            logger.error("Bad configuration: property duplication in configuration file \"{}\""
+            logger.error("Bad configuration: exception while parsing configuration file \"{}\""
                     , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         }
