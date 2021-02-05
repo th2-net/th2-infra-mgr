@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2020 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.util.cfg._CassandraConfig;
@@ -20,6 +21,8 @@ import com.exactpro.th2.inframgr.util.cfg._GitConfig;
 import com.exactpro.th2.inframgr.util.cfg._K8sConfig;
 import com.exactpro.th2.inframgr.util.cfg._RabbitMQConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -58,7 +61,8 @@ public class Config {
         try {
             File file = new File(configDir + CONFIG_FILE);
 
-            parseFile(file, new ObjectMapper(new YAMLFactory()), this);
+            parseFile(file, new ObjectMapper(new YAMLFactory()).enable(
+                    JsonParser.Feature.STRICT_DUPLICATE_DETECTION), this);
 
             if (rabbitmq == null)
                 rabbitmq = new RabbitMQConfig();
@@ -66,6 +70,10 @@ public class Config {
         } catch(UnrecognizedPropertyException e) {
             logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
                     , e.getPropertyName()
+                    , CONFIG_FILE);
+            throw new RuntimeException("Configuration exception", e);
+        } catch (JsonParseException e) {
+            logger.error("Bad configuration: exception while parsing configuration file \"{}\""
                     , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         }
