@@ -19,7 +19,7 @@ package com.exactpro.th2.inframgr.util;
 import java.util.List;
 import java.util.Map;
 
-public class Stringifier {
+public class Strings {
 
     public static boolean stringify(Object o) {
         if (o instanceof Map) {
@@ -48,5 +48,8 @@ public class Stringifier {
             if (!stringify(value) && value != null)
                 e.setValue(value.toString());
         }
+    }
+    public static String formatHash(String hash) {
+        return "[" + (hash == null ? "no-hash" : hash.substring(0, 8)) + "]";
     }
 }

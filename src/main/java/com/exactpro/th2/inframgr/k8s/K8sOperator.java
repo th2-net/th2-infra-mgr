@@ -19,7 +19,7 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
-import com.exactpro.th2.inframgr.util.Stringifier;
+import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -98,7 +98,7 @@ public class K8sOperator {
             String hash = res.getSourceHash();
 
             String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, kind, name) + "\"";
-            String hashTag = "[" + (res.getSourceHash() == null ? "no-hash" : res.getSourceHash()) + "]";
+            String hashTag = Strings.formatHash(res.getSourceHash());
             logger.debug("Received {} event on resource {} {}", action.name(), resourceLabel, hashTag);
 
             Lock lock = cache.lockFor(namespace, kind, name);
@@ -179,11 +179,11 @@ public class K8sOperator {
                 hash = null;
                 if (resource != null)
                     hash = resource.getSourceHash();
-                hashTag = "[" + (hash == null ? "no-hash" : hash) + "]";
+                hashTag = Strings.formatHash(hash);
 
-                Stringifier.stringify(resource.getSpec());
+                Strings.stringify(resource.getSpec());
                 if (actionReplace) {
-                    logger.info("Detected external manipulation on {} {}, recreating resource", resourceLabel, hashTag) ;
+                    logger.info("Detected external manipulation on {}, recreating resource {}", resourceLabel, hashTag) ;
 
                     // check current status of namespace
                     Namespace n = kube.getNamespace(namespace);
@@ -195,7 +195,7 @@ public class K8sOperator {
                         kube.createOrReplaceCustomResource(resource, namespace);
                 } else
                 if (actionDelete) {
-                    logger.info("Detected external manipulation on {} {}, deleting resource", resourceLabel, hashTag) ;
+                    logger.info("Detected external manipulation on {}, deleting resource {}", resourceLabel, hashTag) ;
                     kube.deleteCustomResource(resource, namespace);
                 }
 

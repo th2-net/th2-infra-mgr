@@ -25,7 +25,7 @@ import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
-import com.exactpro.th2.inframgr.util.Stringifier;
+import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -246,7 +246,7 @@ public class SchemaController {
                         if (entry.getPayload().getKind() == ResourceType.Th2Dictionary)
                             Th2DictionaryProcessor.compressData(entry.getPayload().toRepositoryResource());
 
-                        Stringifier.stringify(entry.getPayload().getSpec());
+                        Strings.stringify(entry.getPayload().getSpec());
                         RepositoryResource resource = entry.getPayload().toRepositoryResource();
                         switch (entry.getOperation()) {
                             case add:
