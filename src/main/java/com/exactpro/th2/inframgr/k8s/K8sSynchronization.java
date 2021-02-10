@@ -222,6 +222,7 @@ public class K8sSynchronization {
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
+                .onBackpressureBuffer()
                 .observeOn(Schedulers.computation())
                 .filter(event -> (
                                 (event instanceof SynchronizationRequestEvent
