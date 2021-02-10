@@ -16,9 +16,9 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.statuswatcher.StatusUpdateEvent;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
+import com.exactpro.th2.inframgr.statuswatcher.StatusUpdateEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +66,7 @@ public class SubscriptionController {
 
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 ref.subscription = router.getObservable()
+                        .onBackpressureBuffer()
                         .filter(event -> (
                                 event.getSchema().equals(schemaName)
                                         && ((event instanceof RepositoryUpdateEvent || event instanceof StatusUpdateEvent))
