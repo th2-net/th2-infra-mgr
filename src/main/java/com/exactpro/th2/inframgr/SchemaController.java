@@ -28,6 +28,7 @@ import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
@@ -38,6 +39,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -51,10 +53,9 @@ public class SchemaController {
 
     private final Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
-
     @GetMapping("/schemas")
     @ResponseBody
-    public Set<String> getAvailableSchemas() throws ServiceException  {
+    public Set<String> getAvailableSchemas() throws ServiceException {
 
         try {
             GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
@@ -66,10 +67,9 @@ public class SchemaController {
         }
     }
 
-
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse getSchemaFiles(@PathVariable(name="name") String schemaName) throws Exception {
+    public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -90,10 +90,9 @@ public class SchemaController {
         }
     }
 
-
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse createSchema(@PathVariable(name="name") String schemaName) throws Exception {
+    public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -127,7 +126,6 @@ public class SchemaController {
                 gitter.unlock();
             }
 
-
             SchemaEventRouter router = SchemaEventRouter.getInstance();
             RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
             RepositorySettings rs = snapshot.getRepositorySettings();
@@ -144,10 +142,9 @@ public class SchemaController {
         }
     }
 
-
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse updateSchema(@PathVariable(name="name") String schemaName, @RequestBody String requestBody)
+    public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName, @RequestBody String requestBody)
             throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
@@ -156,7 +153,7 @@ public class SchemaController {
         // deserialize request body
         List<RequestEntry> operations;
         try {
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
             operations = mapper.readValue(requestBody, new TypeReference<>() {});
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
@@ -231,7 +228,6 @@ public class SchemaController {
         }
     }
 
-
     private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName)
             throws ServiceException {
 
@@ -278,7 +274,6 @@ public class SchemaController {
         }
     }
 
-
     private String updateRepository(Gitter gitter, List<RequestEntry> operations) throws ServiceException {
 
         String branchName = gitter.getBranch();
@@ -320,15 +315,22 @@ public class SchemaController {
         }
     }
 
-
     private void validateResourceNames(List<RequestEntry> operations) {
 
-        for (RequestEntry entry : operations)
+        Set<String> set = new HashSet<>();
+
+        for (RequestEntry entry : operations) {
             if (!K8sCustomResource.isNameValid(entry.getPayload().getName()))
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
                         "Invalid resource name : \"%s\" (%s)"
                         , entry.getPayload().getName()
                         , entry.getPayload().getKind().kind()
                 ));
+
+            if (!set.add(entry.getPayload().getName())) {
+                logger.error("Multiple entries for the same resource");
+                throw new NotAcceptableException(REPOSITORY_ERROR, "Multiple operation on a resource");
+            }
+        }
     }
 }
