@@ -315,21 +315,26 @@ public class SchemaController {
         }
     }
 
+
     private void validateResourceNames(List<RequestEntry> operations) {
 
-        Set<String> set = new HashSet<>();
+        Set<String> names = new HashSet<>();
 
         for (RequestEntry entry : operations) {
-            if (!K8sCustomResource.isNameValid(entry.getPayload().getName()))
+            String resourceName = entry.getPayload().getName();
+
+            if (!K8sCustomResource.isNameValid(resourceName)) {
+                logger.error("Invalid resource name: \"{}\"", resourceName);
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
                         "Invalid resource name : \"%s\" (%s)"
                         , entry.getPayload().getName()
                         , entry.getPayload().getKind().kind()
                 ));
+            }
 
-            if (!set.add(entry.getPayload().getName())) {
-                logger.error("Multiple entries for the same resource");
-                throw new NotAcceptableException(REPOSITORY_ERROR, "Multiple operation on a resource");
+            if (!names.add(resourceName)) {
+                logger.error("Multiple operations on the same resource: \"{}\"", resourceName);
+                throw new NotAcceptableException(REPOSITORY_ERROR, "Multiple operation on the resource");
             }
         }
     }
