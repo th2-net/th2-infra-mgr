@@ -26,102 +26,172 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import rx.Subscription;
 import rx.schedulers.Schedulers;
 
+import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 
 @Controller
 public class SubscriptionController {
 
+    private static final long SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
     private final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
-    private ExecutorService executor = Executors.newCachedThreadPool();
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Autowired
     private StatusCache statusCache;
+    private static final Map<String, EventSubscription> subscriptions = new ConcurrentHashMap<>();
+    private static final ForkJoinPool pool = new ForkJoinPool(8);
+
+    private static class EventSubscription {
+        String schema;
+        SseEmitter emitter;
+    }
+
+
+    private void sendEvent(SchemaEvent event, SseEmitter emitter, String subscriptionId) {
+        try {
+            emitter.send(SseEmitter.event()
+                    .name(event.getEventType())
+                    .data(event.getEventBody())
+                    .id(event.getEventKey())
+            );
+            logger.info("Subscription \"{}\": sent update event {} on thread \"{}\""
+                    , subscriptionId
+                    , event.getEventBody()
+                    , Thread.currentThread().getName()
+            );
+        } catch (Exception e) {
+            logger.error("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
+                    , subscriptionId
+                    , Thread.currentThread().getName()
+                    , e.getMessage()
+            );
+        }
+    }
+
+
+    private void processEvent(SchemaEvent event) {
+
+        // filter out and send event to all subscriptions to this event schema
+        try {
+            pool.submit(() -> {
+                subscriptions.entrySet().stream()
+                        .filter(entry -> event.getSchema().equals(entry.getValue().schema))
+                        .parallel()
+                        .forEach(entry -> sendEvent(event, entry.getValue().emitter, entry.getKey()));
+            }).get();
+        } catch (Exception e) {
+            logger.error("Exception processing events", e);
+        }
+    }
+
+
+    @PostConstruct
+    public void startEventProcessor() {
+
+        executor.execute(() -> {
+
+            SchemaEventRouter.getInstance().getObservable()
+                    .onBackpressureBuffer()
+                    .filter(event -> event instanceof RepositoryUpdateEvent || event instanceof StatusUpdateEvent)
+                    .observeOn(Schedulers.computation())
+                    .subscribe(event -> this.processEvent(event));
+        });
+    }
+
+
+    private SseEmitter setupEmitter(String subscriptionId) {
+        SseEmitter eventEmitter = new SseEmitter(SESSION_TIMEOUT);
+
+        eventEmitter.onCompletion(() -> {
+            int activeSubscriptions;
+            EventSubscription sub;
+            synchronized (subscriptions) {
+                sub = subscriptions.remove(subscriptionId);
+                activeSubscriptions = subscriptions.size();
+            }
+            if (sub != null)
+                logger.info("Subscription \"{}\": Unsubscribed on thread \"{}\", {} active subscriptions left"
+                        , subscriptionId
+                        , Thread.currentThread().getName()
+                        , activeSubscriptions
+                );
+        });
+        eventEmitter.onError(t -> {
+            int activeSubscriptions;
+            EventSubscription sub;
+            synchronized (subscriptions) {
+                sub = subscriptions.remove(subscriptionId);
+                activeSubscriptions = subscriptions.size();
+            }
+            if (sub != null)
+                logger.error("Subscription \"{}\": Unsubscribed on thread \"{}\", {} active subscriptions left ({})"
+                        , subscriptionId
+                        , Thread.currentThread().getName()
+                        , activeSubscriptions
+                        , t.getMessage()
+                );
+        });
+
+        return eventEmitter;
+    }
+
 
     @GetMapping("/subscriptions/schema/{name}")
     public SseEmitter subscribe(@PathVariable(name="name") String schemaName) {
 
-        String sessionId = String.format("%016x", (new Random()).nextLong());
-
-        var ref = new Object() {
-            Subscription subscription = null;
-        };
-        SseEmitter eventEmitter = new SseEmitter(-1L);
-        eventEmitter.onError(throwable -> {
-            logger.info("Subscription \"{}\": Unsubscribing on thread \"{}\""
-                    , sessionId
-                    , Thread.currentThread().getName()
-            );
-            if (!(ref.subscription == null || ref.subscription.isUnsubscribed()))
-                ref.subscription.unsubscribe();
-        });
-
-        executor.execute(() -> {
-
-                SchemaEventRouter router = SchemaEventRouter.getInstance();
-                ref.subscription = router.getObservable()
-                        .onBackpressureBuffer()
-                        .filter(event -> (
-                                event.getSchema().equals(schemaName)
-                                        && ((event instanceof RepositoryUpdateEvent || event instanceof StatusUpdateEvent))
-                        ))
-                        .observeOn(Schedulers.io())
-                        .subscribe(event -> {
-
-                            try {
-                                eventEmitter.send(SseEmitter.event()
-                                        .name(event.getEventType())
-                                        .data(event.getEventBody())
-                                        .id(event.getEventKey())
-                                        );
-                                logger.info("Subscription \"{}\": sent update event {} on thread \"{}\""
-                                        , sessionId
-                                        , event.getEventBody()
-                                        , Thread.currentThread().getName()
-                                );
-                            } catch (Exception e) {
-                                logger.error("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
-                                        , sessionId
-                                        , Thread.currentThread().getName()
-                                        , e.getMessage()
-                                );
-                            }
-                        });
-
-                logger.info("Subscription \"{}\": started for schema \"{}\" on thread \"{}\""
-                        , sessionId
-                        , schemaName
-                        , Thread.currentThread().getName()
+        // insert dummy subscription to generate unique subscription ID
+        EventSubscription dummy = new EventSubscription();
+        String subscriptionId;
+        do {
+            subscriptionId = String.format("%016x", (new Random()).nextLong());
+        } while (subscriptions.putIfAbsent(subscriptionId, dummy) != null);
 
 
-                );
+        SseEmitter eventEmitter = setupEmitter(subscriptionId);
 
-                // send current known deployment statuses
-                try {
-                    List<StatusUpdateEvent> statusUpdateEvents = statusCache.getStatuses(schemaName);
-                    if (statusUpdateEvents != null)
-                        for (StatusUpdateEvent event : statusUpdateEvents)
-                            eventEmitter.send(SseEmitter.event()
-                                    .name(event.getEventType())
-                                    .data(event.getEventBody())
-                                    .id(event.getEventKey())
-                            );
-                } catch (IOException e) {
-                    logger.error("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
-                            , sessionId
-                            , Thread.currentThread().getName()
-                            , e.getMessage()
+        // send current known deployment statuses
+        try {
+            List<StatusUpdateEvent> statusUpdateEvents = statusCache.getStatuses(schemaName);
+            if (statusUpdateEvents != null)
+                for (StatusUpdateEvent event : statusUpdateEvents)
+                    eventEmitter.send(SseEmitter.event()
+                            .name(event.getEventType())
+                            .data(event.getEventBody())
+                            .id(event.getEventKey())
                     );
-                }
+        } catch (IOException e) {
+            logger.error("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
+                    , subscriptionId
+                    , Thread.currentThread().getName()
+                    , e.getMessage()
+            );
+        }
 
+        // subscriber to events
+        EventSubscription subscription = new EventSubscription();
+        subscription.schema = schemaName;
+        subscription.emitter = eventEmitter;
 
-        });
+        int activeSubscriptions;
+        synchronized (subscriptions) {
+            subscriptions.put(subscriptionId, subscription);
+            activeSubscriptions = subscriptions.size();
+        }
+
+        logger.info("Subscription \"{}\": started for schema \"{}\" on thread \"{}\". there are {} active subscriptions"
+                , subscriptionId
+                , schemaName
+                , Thread.currentThread().getName()
+                , activeSubscriptions);
 
         return eventEmitter;
     }
