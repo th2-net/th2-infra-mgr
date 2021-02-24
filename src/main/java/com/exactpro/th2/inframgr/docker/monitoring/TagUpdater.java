@@ -30,9 +30,11 @@ public class TagUpdater {
     public void updateTagAndCommit(){
         String latestTag = TagValidator.getLatestTag(getAllHigherTags());
         if(latestTag == null || latestTag.equals(resource.getTag())){
+            //TODO remove log after testing
             logger.info("Couldn't find new version for resource: \"{}\"", resource.getAnnotation());
             return;
         }
+        //TODO remove log after testing
         logger.info("Found new version for resource: \"{}\", updating repository", resource.getAnnotation());
         SpecUtils.changeImageVersion(resource.getRepositoryResource().getSpec(), latestTag);
         try {

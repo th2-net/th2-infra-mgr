@@ -19,14 +19,6 @@ public enum DynamicResourcesCache {
         return cache.keySet();
     }
 
-//    public Collection<DynamicResource> getAllDynamicResources(){
-//        Collection<DynamicResource> allResources = Collections.EMPTY_LIST;
-//        for(String schema: cache.keySet()){
-//            allResources.addAll(getDynamicResources(schema));
-//        }
-//        return allResources;
-//    }
-
     public DynamicResource add(String schema, DynamicResource resource){
         cache.computeIfAbsent(schema, k -> new HashMap<>());
         return cache.get(schema).put(resource.getResourceName(), resource);

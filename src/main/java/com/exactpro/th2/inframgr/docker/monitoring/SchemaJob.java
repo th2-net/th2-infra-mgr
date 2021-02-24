@@ -26,6 +26,7 @@ public class SchemaJob extends Thread {
 
     @Override
     public void start() {
+        logger.info("Checking for new versions for resources in schema: \"{}\"", gitter.getBranch());
         for (DynamicResource resource : tagUpdateJobs.values()) {
             submitTagJob(resource);
         }
@@ -57,9 +58,11 @@ public class SchemaJob extends Thread {
                 Thread.currentThread().setName(resource.getAnnotation());
                 new TagUpdater(resource, gitter).updateTagAndCommit();
             } catch (Exception e) {
-                logger.error("Exception processing job {}", resource.getAnnotation(), e);
+                logger.error("Exception updating tag for: \"{}\"", resource.getAnnotation(), e);
             } finally {
                 tagUpdateJobs.remove(resource.getResourceName());
+                //TODO remove log after testing
+                logger.info("Removing job: \"{}\"", resource.getResourceName());
                 Thread.currentThread().setName(threadName);
             }
         });

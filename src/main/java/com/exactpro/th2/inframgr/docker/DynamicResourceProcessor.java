@@ -27,16 +27,14 @@ public class DynamicResourceProcessor {
         throw new AssertionError("This method should not be called");
     }
 
-    public static void checkResource(RepositoryResource resource, String schema){
+    public static void checkResource(RepositoryResource resource, String schema) {
         checkResource(resource, schema, false);
     }
 
-    public static void checkResource(RepositoryResource resource, String schema, boolean deleted ) {
+    public static void checkResource(RepositoryResource resource, String schema, boolean deleted) {
         String kind = resource.getKind();
         String name = resource.getMetadata().getName();
         if (!monitoredKinds.contains(kind)) {
-            logger.debug("Resource: \"{}.{}\" is of kind: \"{}\". no need to check for tag pattern",
-                    schema, name, kind);
             return;
         }
 
@@ -47,13 +45,11 @@ public class DynamicResourceProcessor {
 
         var spec = resource.getSpec();
         if (spec == null) {
-            logger.debug("Resource: \"{}.{}\" doesn't have spec section", schema, name);
             return;
         }
 
         String versionRange = SpecUtils.getImageVersionRange(spec);
         if (versionRange == null) {
-            logger.debug("Resource: \"{}.{}\" doesn't have pattern section", schema, name);
             removeFromTrackedResources(schema, name);
             return;
         }
@@ -72,16 +68,12 @@ public class DynamicResourceProcessor {
         String image = SpecUtils.getImageName(spec);
         String tag = SpecUtils.getImageVersion(spec);
 
-        if (image != null && tag != null) {
-            if (TagValidator.validate(tag, pattern)) {
-                logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-                DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(image, tag, pattern, schema, resource));
-            } else {
-                logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match mask: \"{}\". Will not be monitored",
-                        tag, schema, name, pattern);
-            }
+        if (TagValidator.validate(tag, pattern)) {
+            logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(image, tag, pattern, schema, resource));
         } else {
-            logger.error("Resource: \"{}.{}\" doesn't have image-name or image-version section", schema, name);
+            logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match mask: \"{}\". Will not be monitored",
+                    tag, schema, name, pattern);
         }
     }
 }

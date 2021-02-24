@@ -20,25 +20,21 @@ public class SpecUtils {
 
     private static final ObjectMapper mapper = new ObjectMapper(new JsonFactory());
 
-    public static String getImageName(Object sourceObj){
+    public static String getImageName(Object sourceObj) {
         return getFieldAsString(sourceObj, IMAGE_NAME_ALIAS);
     }
 
-    public static String getImageVersion(Object sourceObj){
+    public static String getImageVersion(Object sourceObj) {
         return getFieldAsString(sourceObj, IMAGE_VERSION_ALIAS);
     }
 
-    public static String getImageVersionRange(Object sourceObj){
+    public static String getImageVersionRange(Object sourceObj) {
         return getFieldAsString(sourceObj, VERSION_RANGE_ALIAS);
     }
 
-    public static void changeImageVersion(Object spec, String imageVersion){
-        try {
-            Map<String, Object> specMap = (Map<String, Object>) spec;
-            specMap.put(IMAGE_VERSION_ALIAS, imageVersion);
-        }catch (ClassCastException e){
-            logger.error("Couldn't cast provided spec to map", e);
-        }
+    public static void changeImageVersion(Object spec, String imageVersion) {
+        Map<String, Object> specMap = (Map<String, Object>) spec;
+        specMap.put(IMAGE_VERSION_ALIAS, imageVersion);
     }
 
     private static String getFieldAsString(Object sourceObj, String path) {
