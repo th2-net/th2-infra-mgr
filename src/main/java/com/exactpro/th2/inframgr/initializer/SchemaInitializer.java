@@ -17,6 +17,8 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.errors.NotAcceptableException;
+import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.Gitter;
@@ -32,14 +34,19 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
+import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+
+import static com.exactpro.th2.inframgr.SchemaController.REPOSITORY_ERROR;
 
 public class SchemaInitializer {
 
@@ -305,7 +312,20 @@ public class SchemaInitializer {
 
         GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
         Gitter gitter = ctx.getGitter(schemaName);
-        RepositorySettings settings = Repository.getSnapshot(gitter).getRepositorySettings();
+        RepositorySettings settings;
+
+        try {
+            gitter.lock();
+            settings = Repository.getSnapshot(gitter).getRepositorySettings();
+        } catch (RefNotAdvertisedException | RefNotFoundException e) {
+            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exist");
+        } catch (Exception e) {
+            logger.error("Exception retrieving schema {} from repository", schemaName, e);
+            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+        } finally {
+            gitter.unlock();
+        }
+
         String logLevel = settings.getLogLevel();
 
         // copy config map with updated log level value to namespace
