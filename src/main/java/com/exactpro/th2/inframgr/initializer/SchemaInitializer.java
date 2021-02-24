@@ -19,6 +19,10 @@ package com.exactpro.th2.inframgr.initializer;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
+import com.exactpro.th2.infrarepo.Gitter;
+import com.exactpro.th2.infrarepo.GitterContext;
+import com.exactpro.th2.infrarepo.Repository;
+import com.exactpro.th2.infrarepo.RepositorySettings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -27,12 +31,15 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SchemaInitializer {
 
@@ -42,6 +49,7 @@ public class SchemaInitializer {
     private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
+    private static final String JAVA_LOGGING_CONFIGMAP_PARAM = "java-logging";
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
@@ -53,7 +61,15 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
+    private static final String LOGGING_CXX_KEY = "cxx.conf";
+    private static final String LOGGING_JAVA_KEY = "log4j.properties";
+    private static final String LOGGING_PYTHON_KEY = "python.properties";
+
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
+
+    private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
+    private static final String LOGGING_JAVA_PATH_SUBSTRING = "${LOGLEVEL_JAVA}";
+    private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
 
     /*
         Ingress annotation values with following key prefixes should be
@@ -74,7 +90,7 @@ public class SchemaInitializer {
         ensureSchema(schemaName, kube, SchemaSyncMode.CHECK_NAMESPACE);
     }
 
-    public static void ensureSchema (String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
+    public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
         switch (syncMode) {
             case CHECK_NAMESPACE:
                 if (kube.existsNamespace())
@@ -93,7 +109,6 @@ public class SchemaInitializer {
 
         Config config = Config.getInstance();
 
-
         if (!kube.existsNamespace()) {
             // namespace not found, create it
             logger.info("Creating namespace \"{}\"", kube.getNamespaceName());
@@ -108,9 +123,8 @@ public class SchemaInitializer {
         copyIngress(config, kube, forceUpdate);
 
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
-        ensureKeyspace(config, schemaName,  kube, forceUpdate);
+        ensureKeyspace(config, schemaName, kube, forceUpdate);
     }
-
 
     static void createRabbitMQSecret(Config config, Kubernetes kube, String username, boolean forceUpdate) {
 
@@ -139,7 +153,6 @@ public class SchemaInitializer {
         kube.createOrReplaceSecret(secret);
     }
 
-
     static void copyRabbitMQConfigMap(String configMapName, String vHostName, String username, Kubernetes kube, boolean forceUpdate) {
 
         if (configMapName == null || configMapName.isEmpty())
@@ -147,7 +160,7 @@ public class SchemaInitializer {
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null)   {
+        if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -196,14 +209,13 @@ public class SchemaInitializer {
         }
     }
 
-
     private static void copyCassandraConfigMap(String configMapName, String keyspaceName, Kubernetes kube, boolean forceUpdate) {
 
         if (configMapName == null || configMapName.isEmpty())
             return;
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
+        if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -219,7 +231,7 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            logger.info("Creating \"{}\"",resourceLabel );
+            logger.info("Creating \"{}\"", resourceLabel);
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
@@ -233,7 +245,6 @@ public class SchemaInitializer {
         }
     }
 
-
     static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         Config.CassandraConfig cassandraConfig = config.getCassandra();
@@ -244,9 +255,7 @@ public class SchemaInitializer {
         copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
     }
 
-
     static void copyConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube, boolean force) {
-
 
         String configMapName = configMaps.get(configMapKey);
         if (configMapName == null || configMapName.isEmpty()) {
@@ -256,7 +265,7 @@ public class SchemaInitializer {
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null)   {
+        if (cm == null || cm.getData() == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -292,15 +301,14 @@ public class SchemaInitializer {
 
             logger.info("Creating \"{}\"", resourceLabel);
 
-
             ObjectMapper mapper = new ObjectMapper();
             String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
             IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
             ObjectMeta meta = Kubernetes.createMetadataWithAnnotation(ingressName, resourceLabel);
 
-            Map <String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
-            Map <String, String> newAnnotations = meta.getAnnotations();
+            Map<String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
+            Map<String, String> newAnnotations = meta.getAnnotations();
             for (var entry : oldAnnotations.entrySet()) {
                 if (entry.getKey() == null)
                     continue;
@@ -321,7 +329,6 @@ public class SchemaInitializer {
         }
     }
 
-
     private static Secret makeCopy(Secret secret) {
         Secret secretCopy = new Secret();
         secretCopy.setKind(secret.getKind());
@@ -332,7 +339,6 @@ public class SchemaInitializer {
         secretCopy.setData(secret.getData());
         return secretCopy;
     }
-
 
     private static void copySecrets(Config config, Kubernetes kube, boolean forceUpdate) {
 
@@ -356,7 +362,6 @@ public class SchemaInitializer {
                     continue;
                 }
 
-
                 if (targetNamespaceSecrets.containsKey(secretName) && !forceUpdate)
                     logger.info("Secret \"{}\" already exists, skipping", resourceLabel);
                 else
@@ -371,14 +376,12 @@ public class SchemaInitializer {
             }
     }
 
-
     private static String generateRandomPassword(Config.RabbitMQConfig config) {
         RandomStringGenerator pwdGenerator = new RandomStringGenerator.Builder()
                 .selectFrom(config.getPasswordChars().toCharArray())
                 .build();
         return pwdGenerator.generate(config.getPasswordLength());
     }
-
 
     private static String base64Encode(String s) {
         return new String(Base64.getEncoder().encode(s.getBytes()));
