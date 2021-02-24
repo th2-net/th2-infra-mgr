@@ -8,24 +8,28 @@ public enum DynamicResourcesCache {
 
     private final Map<String, Map<String, DynamicResource>> cache = new HashMap<>();
 
-    public Collection<DynamicResource> getDynamicResources(String schema){
+    public Map<String, DynamicResource> getDynamicResources(String schema){
         if(cache.get(schema) != null) {
-            return cache.get(schema).values();
+            return cache.get(schema);
         }
-        return Collections.EMPTY_LIST;
+        return Collections.EMPTY_MAP;
     }
 
-    public Collection<DynamicResource> getAllDynamicResources(){
-        Collection<DynamicResource> allResources = Collections.EMPTY_LIST;
-        for(String schema: cache.keySet()){
-            allResources.addAll(getDynamicResources(schema));
-        }
-        return allResources;
+    public Set<String> getSchemas(){
+        return cache.keySet();
     }
 
-    public DynamicResource add(String schema, String name, DynamicResource resource){
+//    public Collection<DynamicResource> getAllDynamicResources(){
+//        Collection<DynamicResource> allResources = Collections.EMPTY_LIST;
+//        for(String schema: cache.keySet()){
+//            allResources.addAll(getDynamicResources(schema));
+//        }
+//        return allResources;
+//    }
+
+    public DynamicResource add(String schema, DynamicResource resource){
         cache.computeIfAbsent(schema, k -> new HashMap<>());
-        return cache.get(schema).put(name, resource);
+        return cache.get(schema).put(resource.getResourceName(), resource);
     }
 
     public DynamicResource remove(String schema, String name){

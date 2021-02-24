@@ -6,44 +6,25 @@ import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.docker.util.TagValidator;
 import com.exactpro.th2.infrarepo.Gitter;
 import com.exactpro.th2.infrarepo.Repository;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 
-public class TagUpdateJob {
+public class TagUpdater {
 
-    private static final Logger logger = LoggerFactory.getLogger(TagUpdateJob.class);
+    private static final Logger logger = LoggerFactory.getLogger(TagUpdater.class);
     private static final int PAGE_SIZE = 10;
 
-    private DynamicResource resource;
-    private ExecutorService executor;
     private RegistryConnection connection;
+    private DynamicResource resource;
     private Gitter gitter;
 
-    public TagUpdateJob(DynamicResource resource, ExecutorService executor, Gitter gitter) {
-        this.resource = resource;
-        this.executor = executor;
+    public TagUpdater(DynamicResource resource, Gitter gitter) {
         this.connection = new RegistryConnection();
+        this.resource = resource;
         this.gitter = gitter;
-    }
-
-    public void submit() {
-        executor.submit(() -> {
-            String threadName = Thread.currentThread().getName();
-            try {
-                Thread.currentThread().setName(resource.getAnnotation());
-                updateTagAndCommit();
-            } catch (Exception e) {
-                logger.error("Exception processing job {}", resource.getAnnotation(), e);
-            } finally {
-                Thread.currentThread().setName(threadName);
-            }
-        });
     }
 
     public void updateTagAndCommit(){
@@ -56,10 +37,8 @@ public class TagUpdateJob {
         SpecUtils.changeImageVersion(resource.getRepositoryResource().getSpec(), latestTag);
         try {
             Repository.update(gitter, resource.getRepositoryResource());
-            String commitRef = gitter.commitAndPush(String.format("Updated version of \"%s\" to \"%s\"", resource.getResourceName(), latestTag));
-            logger.info("Successfully updated branch: \"{}\" commitRef: \"{}\"", resource.getSchema(), commitRef);
         }catch (Exception e){
-            logger.error("Exception while working with repository", e);
+            logger.error("Exception while updating repository", e);
         }
     }
 
