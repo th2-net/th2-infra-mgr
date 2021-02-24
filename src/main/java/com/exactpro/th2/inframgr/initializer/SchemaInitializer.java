@@ -114,7 +114,7 @@ public class SchemaInitializer {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
         copyConfigMap(configMaps, JAVA_LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
-        copyLoggingConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
+        copyLoggingConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, schemaName, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
 
@@ -282,8 +282,8 @@ public class SchemaInitializer {
         }
     }
 
-    static void copyLoggingConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube,
-                                     boolean forceUpdate) throws IOException, GitAPIException {
+    static void copyLoggingConfigMap(Map<String, String> configMaps, String configMapKey, String schemaName,
+                                     Kubernetes kube, boolean forceUpdate) throws IOException, GitAPIException {
 
         String configMapName = configMaps.get(configMapKey);
         if (configMapName == null || configMapName.isEmpty())
@@ -304,7 +304,7 @@ public class SchemaInitializer {
         }
 
         GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
-        Gitter gitter = ctx.getGitter("test-validation");
+        Gitter gitter = ctx.getGitter(schemaName);
         RepositorySettings settings = Repository.getSnapshot(gitter).getRepositorySettings();
         String logLevel = settings.getLogLevel();
 
