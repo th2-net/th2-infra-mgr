@@ -61,10 +61,6 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
-    private static final String LOGGING_CXX_KEY = "cxx.conf";
-    private static final String LOGGING_JAVA_KEY = "log4j.properties";
-    private static final String LOGGING_PYTHON_KEY = "python.properties";
-
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
 
     private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
@@ -295,7 +291,7 @@ public class SchemaInitializer {
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null || cm.getData().get(LOGGING_CXX_KEY) == null) {
+        if (cm == null || cm.getData() == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -316,14 +312,19 @@ public class SchemaInitializer {
         try {
             logger.info("Creating \"{}\"", resourceLabel);
 
-            String cxxData = cmData.get(LOGGING_CXX_KEY).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel);
-            cmData.put(LOGGING_CXX_KEY, cxxData);
+            for (String key : cmData.keySet()) {
+                if (cmData.get(key).contains(LOGGING_CXX_PATH_SUBSTRING)) {
+                    cmData.put(key, cmData.get(key).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel));
+                }
 
-            String pythonData = cmData.get(LOGGING_PYTHON_KEY).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel);
-            cmData.put(LOGGING_PYTHON_KEY, pythonData);
+                if (cmData.get(key).contains(LOGGING_PYTHON_PATH_SUBSTRING)) {
+                    cmData.put(key, cmData.get(key).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel));
+                }
 
-            String javaData = cmData.get(LOGGING_JAVA_KEY).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel);
-            cmData.put(LOGGING_JAVA_KEY, javaData);
+                if (cmData.get(key).contains(LOGGING_JAVA_PATH_SUBSTRING)) {
+                    cmData.put(key, cmData.get(key).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel));
+                }
+            }
 
             cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
             kube.createOrReplaceConfigMap(cm);
