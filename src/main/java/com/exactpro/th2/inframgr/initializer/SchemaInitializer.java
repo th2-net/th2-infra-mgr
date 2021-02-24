@@ -104,8 +104,7 @@ public class SchemaInitializer {
         }
     }
 
-
-    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
+    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException, GitAPIException {
 
         Config config = Config.getInstance();
 
@@ -118,7 +117,8 @@ public class SchemaInitializer {
         copySecrets(config, kube, forceUpdate);
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        copyConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
+        copyConfigMap(configMaps, JAVA_LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
+        copyLoggingConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
 
@@ -286,6 +286,51 @@ public class SchemaInitializer {
         }
     }
 
+    static void copyLoggingConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube,
+                                     boolean forceUpdate) throws IOException, GitAPIException {
+
+        String configMapName = configMaps.get(configMapKey);
+        if (configMapName == null || configMapName.isEmpty())
+            return;
+
+        String namespace = kube.getNamespaceName();
+        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
+        if (cm == null || cm.getData() == null || cm.getData().get(LOGGING_CXX_KEY) == null) {
+            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
+            return;
+        }
+
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
+        Map<String, String> cmData = cm.getData();
+
+        if (kube.getConfigMap(cm.getMetadata().getName()) != null && !forceUpdate) {
+            return;
+        }
+
+        GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
+        Gitter gitter = ctx.getGitter("test-validation");
+        RepositorySettings settings = Repository.getSnapshot(gitter).getRepositorySettings();
+        String logLevel = settings.getLogLevel();
+
+        // copy config map with updated log level value to namespace
+        try {
+            logger.info("Creating \"{}\"", resourceLabel);
+
+            String cxxData = cmData.get(LOGGING_CXX_KEY).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel);
+            cmData.put(LOGGING_CXX_KEY, cxxData);
+
+            String pythonData = cmData.get(LOGGING_PYTHON_KEY).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel);
+            cmData.put(LOGGING_PYTHON_KEY, pythonData);
+
+            String javaData = cmData.get(LOGGING_JAVA_KEY).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel);
+            cmData.put(LOGGING_JAVA_KEY, javaData);
+
+            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+            kube.createOrReplaceConfigMap(cm);
+        } catch (Exception e) {
+            logger.error("Exception copying \"{}\"", resourceLabel, e);
+        }
+    }
 
     private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
 
