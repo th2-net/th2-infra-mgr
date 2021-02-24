@@ -3,9 +3,6 @@ package com.exactpro.th2.inframgr.docker;
 import com.exactpro.th2.inframgr.docker.util.TagValidator;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.infrarepo.ResourceType;
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.client.Watcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,16 +11,14 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.exactpro.th2.inframgr.docker.util.SpecExtractor.getFieldAsString;
+
 public class DynamicResourceProcessor {
     private static final Logger logger = LoggerFactory.getLogger(DynamicResourceProcessor.class);
 
-    private static final String IMAGE_ALIAS = "image-name";
-    private static final String TAG_ALIAS = "image-version";
-    private static final String EXTENDED_SETTINGS_ALIAS = "extended-settings";
-    private static final String PATTERN_ALIAS = "envVariables";
-    private static final String SPLIT_CHARACTER = "\\.";
-    private static final String SEPARATOR = ".";
-
+    private static final String IMAGE_NAME_ALIAS = "image-name";
+    private static final String IMAGE_VERSION_ALIAS = "image-version";
+    private static final String VERSION_RANGE_ALIAS = "version-range";
 
     private static final List<String> monitoredKinds = Arrays.asList(
             ResourceType.Th2Box.kind(),
@@ -31,8 +26,6 @@ public class DynamicResourceProcessor {
             ResourceType.Th2Estore.kind(),
             ResourceType.Th2Mstore.kind()
     );
-
-    private static final ObjectMapper mapper = new ObjectMapper(new JsonFactory());
 
     private static final DynamicResourcesCache trackedResources = DynamicResourcesCache.INSTANCE;
 
@@ -60,8 +53,7 @@ public class DynamicResourceProcessor {
             return;
         }
 
-        String path = EXTENDED_SETTINGS_ALIAS + SEPARATOR + PATTERN_ALIAS;
-        String patternNode = getFieldAsString(spec, path);
+        String patternNode = getFieldAsString(spec, VERSION_RANGE_ALIAS);
         if (patternNode == null) {
             logger.debug("Resource: {} in schema: {} doesn't have pattern section", name, schema);
             removeFromTrackedResources(schema, name);
@@ -77,8 +69,8 @@ public class DynamicResourceProcessor {
 
     //TODO should it be synchronized ?
     public static void addToTrackedResources(String schema, String name, String pattern, Object spec) {
-        String image = getFieldAsString(spec, IMAGE_ALIAS);
-        String tag = getFieldAsString(spec, TAG_ALIAS);
+        String image = getFieldAsString(spec, IMAGE_NAME_ALIAS);
+        String tag = getFieldAsString(spec, IMAGE_VERSION_ALIAS);
 
         if (image != null && tag != null) {
             if (TagValidator.validate(tag, pattern)) {
@@ -90,17 +82,5 @@ public class DynamicResourceProcessor {
         } else {
             logger.error("Resource: {} in schema: {} doesn't have image-name or image-version section", name, schema);
         }
-    }
-
-    private static String getFieldAsString(Object sourceObj, String path) {
-        String[] fields = path.split(SPLIT_CHARACTER);
-        JsonNode currentField = mapper.convertValue(sourceObj, JsonNode.class);
-        for (String field : fields) {
-            currentField = currentField.get(field);
-            if (currentField == null) {
-                return null;
-            }
-        }
-        return currentField.toString();
     }
 }
