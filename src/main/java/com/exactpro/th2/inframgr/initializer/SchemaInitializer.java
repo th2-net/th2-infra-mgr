@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
@@ -107,7 +106,7 @@ public class SchemaInitializer {
         }
     }
 
-    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException, GitAPIException {
+    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
 
         Config config = Config.getInstance();
 
@@ -290,7 +289,7 @@ public class SchemaInitializer {
     }
 
     static void copyLoggingConfigMap(Map<String, String> configMaps, String configMapKey, String schemaName,
-                                     Kubernetes kube, boolean forceUpdate) throws IOException, GitAPIException {
+                                     Kubernetes kube, boolean forceUpdate) throws IOException {
 
         String configMapName = configMaps.get(configMapKey);
         if (configMapName == null || configMapName.isEmpty())
