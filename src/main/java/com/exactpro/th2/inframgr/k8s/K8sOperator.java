@@ -106,9 +106,6 @@ public class K8sOperator {
             try {
                 lock.lock();
 
-                //TODO find a right place to call this method.
-                DynamicResourceProcessor.checkResource(res, namespace, action);
-
                 // do preliminary check against the cache to avoid repository downloading
                 K8sResourceCache.CacheEntry cacheEntry = cache.get(namespace, kind, name);
                 String cachedHash = cacheEntry == null ? null : cacheEntry.getHash();

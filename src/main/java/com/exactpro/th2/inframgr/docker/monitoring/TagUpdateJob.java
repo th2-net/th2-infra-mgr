@@ -2,14 +2,18 @@ package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
+import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.docker.util.TagValidator;
+import com.exactpro.th2.infrarepo.Gitter;
+import com.exactpro.th2.infrarepo.Repository;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
 
 public class TagUpdateJob {
 
@@ -19,31 +23,44 @@ public class TagUpdateJob {
     private DynamicResource resource;
     private ExecutorService executor;
     private RegistryConnection connection;
+    private Gitter gitter;
 
-
-    public TagUpdateJob(DynamicResource resource, ExecutorService executor) {
+    public TagUpdateJob(DynamicResource resource, ExecutorService executor, Gitter gitter) {
         this.resource = resource;
         this.executor = executor;
         this.connection = new RegistryConnection();
+        this.gitter = gitter;
     }
 
     public void submit() {
         executor.submit(() -> {
             String threadName = Thread.currentThread().getName();
             try {
-                Thread.currentThread().setName(getJobId());
-                applyLatestTag();
+                Thread.currentThread().setName(resource.getAnnotation());
+                updateTagAndCommit();
             } catch (Exception e) {
-                logger.error("Exception processing job {}", getJobId(), e);
+                logger.error("Exception processing job {}", resource.getAnnotation(), e);
             } finally {
                 Thread.currentThread().setName(threadName);
             }
         });
     }
 
-    public void applyLatestTag() {
-        String latestTag = getLatestTag();
-        //TODO logic to apply latest tag to repository
+    public void updateTagAndCommit(){
+        String latestTag = TagValidator.getLatestTag(getAllHigherTags());
+        if(latestTag == null || latestTag.equals(resource.getTag())){
+            logger.info("Couldn't find new version for resource: \"{}\"", resource.getAnnotation());
+            return;
+        }
+        logger.info("Found new version for resource: \"{}\", updating repository", resource.getAnnotation());
+        SpecUtils.changeImageVersion(resource.getRepositoryResource().getSpec(), latestTag);
+        try {
+            Repository.update(gitter, resource.getRepositoryResource());
+            String commitRef = gitter.commitAndPush(String.format("Updated version of \"%s\" to \"%s\"", resource.getResourceName(), latestTag));
+            logger.info("Successfully updated branch: \"{}\" commitRef: \"{}\"", resource.getSchema(), commitRef);
+        }catch (Exception e){
+            logger.error("Exception while working with repository", e);
+        }
     }
 
     private List<String> getAllHigherTags() {
@@ -55,26 +72,10 @@ public class TagUpdateJob {
         do {
             var response = connection.getTags(PAGE_SIZE, latest);
             responseTags = response.getTags();
-            allHigherTags.addAll(filteredTags(responseTags));
+            allHigherTags.addAll(TagValidator.filteredTags(responseTags, resource.getMask()));
             latest = responseTags.get(responseTags.size() - 1);
         } while (!(responseTags.size() < PAGE_SIZE));
 
         return allHigherTags;
-    }
-
-    private List<String> filteredTags(List<String> tags) {
-        return tags.stream()
-                .filter(tag -> TagValidator.validate(tag, resource.getPattern()))
-                .collect(Collectors.toList());
-    }
-
-    private String getLatestTag() {
-        //TODO check if list is in correct order, if not add logic to find latest tag
-        List<String> allHigherTags = getAllHigherTags();
-        return allHigherTags.get(allHigherTags.size() - 1);
-    }
-
-    public String getJobId() {
-        return "";
     }
 }

@@ -1,8 +1,11 @@
 package com.exactpro.th2.inframgr.docker.monitoring;
 
+import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.DynamicResourcesCache;
+import com.exactpro.th2.infrarepo.GitterContext;
 
+import java.io.IOException;
 import java.util.concurrent.*;
 
 public class RegistryMonitor implements Runnable {
@@ -14,6 +17,7 @@ public class RegistryMonitor implements Runnable {
     private ScheduledExecutorService taskScheduler;
     private final ExecutorService executor;
 
+    private GitterContext ctx;
 
     public RegistryMonitor(long initialDelay, long repeatPeriod) {
         this.taskScheduler = new ScheduledThreadPoolExecutor(THREAD_POOL_SIZE);
@@ -27,7 +31,11 @@ public class RegistryMonitor implements Runnable {
     }
 
 
-    public synchronized void start() {
+    public synchronized void start() throws IOException {
+        Config config = Config.getInstance();
+        Config.GitConfig gitConfig = config.getGit();
+        ctx = GitterContext.getContext(gitConfig);
+
         taskScheduler.scheduleAtFixedRate(
                 this,
                 initialDelay,
@@ -44,7 +52,7 @@ public class RegistryMonitor implements Runnable {
     @Override
     public void run() {
         for(DynamicResource resource: DynamicResourcesCache.INSTANCE.getAllDynamicResources()){
-            new TagUpdateJob(resource, this.executor).submit();
+            new TagUpdateJob(resource, this.executor, ctx.getGitter(resource.getSchema())).submit();
         }
     }
 }

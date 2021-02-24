@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr;
 
+import com.exactpro.th2.inframgr.docker.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.errors.BadRequestException;
 import com.exactpro.th2.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
@@ -246,12 +247,15 @@ public class SchemaController {
                         RepositoryResource resource = entry.getPayload().toRepositoryResource();
                         switch (entry.getOperation()) {
                             case add:
+                                DynamicResourceProcessor.checkResource(resource, schemaName);
                                 kube.createCustomResource(resource);
                                 break;
                             case update:
+                                DynamicResourceProcessor.checkResource(resource, schemaName);
                                 kube.replaceCustomResource(resource);
                                 break;
                             case remove:
+                                DynamicResourceProcessor.checkResource(resource, schemaName, true);
                                 kube.deleteCustomResource(resource);
                                 break;
                         }
