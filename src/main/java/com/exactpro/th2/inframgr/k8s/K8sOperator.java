@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.docker.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Strings;
@@ -104,6 +105,9 @@ public class K8sOperator {
             Lock lock = cache.lockFor(namespace, kind, name);
             try {
                 lock.lock();
+
+                //TODO find a right place to call this method.
+                DynamicResourceProcessor.checkResource(res, namespace, action);
 
                 // do preliminary check against the cache to avoid repository downloading
                 K8sResourceCache.CacheEntry cacheEntry = cache.get(namespace, kind, name);
