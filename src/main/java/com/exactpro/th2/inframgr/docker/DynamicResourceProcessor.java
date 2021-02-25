@@ -67,17 +67,17 @@ public class DynamicResourceProcessor {
         DYNAMIC_RESOURCES_CACHE.remove(schema, name);
     }
 
-    private static void addToTrackedResources(String schema, String name, String pattern, RepositoryResource resource) {
+    private static void addToTrackedResources(String schema, String name, String mask, RepositoryResource resource) {
         var spec = resource.getSpec();
         String image = SpecMapper.getImageName(spec);
         String tag = SpecMapper.getImageVersion(spec);
 
-        if (TagValidator.validate(tag, pattern)) {
+        if (TagValidator.validate(tag, mask)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(image, tag, pattern, schema, resource));
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, tag, mask, schema));
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match mask: \"{}\". Will not be monitored",
-                    tag, schema, name, pattern);
+                    tag, schema, name, mask);
         }
     }
 
@@ -93,7 +93,5 @@ public class DynamicResourceProcessor {
                 registryConnection
         );
         registryWatcher.startWatchingRegistry();
-        var tags1 = registryConnection.getTags("nexus.exactpro.com:9000/th2-act-template");
-        System.out.println();
     }
 }

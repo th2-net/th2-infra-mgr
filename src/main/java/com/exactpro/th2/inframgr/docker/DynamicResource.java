@@ -1,21 +1,19 @@
 package com.exactpro.th2.inframgr.docker;
 
-import com.exactpro.th2.infrarepo.RepositoryResource;
-
 public class DynamicResource {
-    private RepositoryResource repositoryResource;
+    private String resourceName;
     private String image;
     private String tag;
     private String mask;
     private String schema;
 
 
-    public DynamicResource(String image, String tag, String mask, String schema, RepositoryResource repositoryResource) {
+    public DynamicResource(String resourceName, String image, String tag, String mask, String schema) {
+        this.resourceName = resourceName;
         this.image = image;
         this.tag = tag;
         this.mask = mask;
         this.schema = schema;
-        this.repositoryResource = repositoryResource;
     }
 
     public String getImage() {
@@ -34,15 +32,11 @@ public class DynamicResource {
         return schema;
     }
 
-    public RepositoryResource getRepositoryResource() {
-        return repositoryResource;
-    }
-
-    public String getAnnotation(){
+    public String getAnnotation() {
         return String.format("%s.%s", schema, getResourceName());
     }
 
-    public String getResourceName(){
-        return repositoryResource.getMetadata().getName();
+    public String getResourceName() {
+        return resourceName;
     }
 }

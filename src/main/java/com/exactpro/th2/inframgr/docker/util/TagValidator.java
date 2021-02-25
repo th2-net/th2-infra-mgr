@@ -8,19 +8,19 @@ public class TagValidator {
     private TagValidator(){
     }
 
-    public static boolean validate(String tags, String pattern){
+    public static boolean validate(String tags, String mask){
         //TODO validation logic
         return true;
     }
 
-    public static List<String> filteredTags(List<String> tags, String mask) {
+    public static List<String> filterTags(List<String> tags, String mask) {
         return tags.stream()
                 .filter(tag -> TagValidator.validate(tag, mask))
                 .collect(Collectors.toList());
     }
 
     public static String getLatestTag(List<String> tags) {
-        //TODO check if list is in correct order, if not add logic to find latest tag
-        return tags.get(tags.size() - 1);
+        //TODO logic to find latest tag
+        return "";
     }
 }

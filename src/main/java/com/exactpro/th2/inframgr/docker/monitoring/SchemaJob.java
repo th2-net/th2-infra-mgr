@@ -6,31 +6,28 @@ import com.exactpro.th2.infrarepo.Gitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 public class SchemaJob extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
 
-    private List<TagUpdater> tagUpdateJobs = new ArrayList<>();
+    private Collection<DynamicResource> dynamicResources;
     private Gitter gitter;
     private RegistryConnection connection;
 
     public SchemaJob(Collection<DynamicResource> dynamicResources, Gitter gitter, RegistryConnection connection) {
+        this.dynamicResources = dynamicResources;
         this.gitter = gitter;
         this.connection = connection;
-        createJobs(dynamicResources);
     }
 
     @Override
     public void start() {
         logger.info("Checking for new versions for resources in schema: \"{}\"", gitter.getBranch());
-        for (TagUpdater tagUpdater : tagUpdateJobs) {
+        for (DynamicResource resource : dynamicResources) {
             try {
-                tagUpdater.updateTagAndCommit();
-            } catch (IOException e) {
+                TagUpdater.updateTag(resource, gitter, connection);
+            } catch (Exception e) {
                 logger.error("Exception while updating repository", e);
             }
         }
@@ -44,12 +41,6 @@ public class SchemaJob extends Thread {
             }
         } finally {
             gitter.unlock();
-        }
-    }
-
-    private void createJobs(Collection<DynamicResource> dynamicResources) {
-        for (DynamicResource resource : dynamicResources) {
-            tagUpdateJobs.add(new TagUpdater(resource, gitter, connection));
         }
     }
 }
