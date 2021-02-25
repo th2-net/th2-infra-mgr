@@ -2,6 +2,7 @@ package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.docker.DynamicResourcesCache;
+import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.infrarepo.GitterContext;
 
 import java.io.IOException;
@@ -15,17 +16,14 @@ public class RegistryWatcher implements Runnable {
     private long repeatPeriod;
 
     private ScheduledExecutorService taskScheduler;
-
     private GitterContext ctx;
+    private RegistryConnection connection;
 
-    public RegistryWatcher(long repeatPeriod) {
-        this(0, repeatPeriod);
-    }
-
-    public RegistryWatcher(long initialDelay, long repeatPeriod) {
+    public RegistryWatcher(long initialDelay, long repeatPeriod, RegistryConnection connection) {
         this.taskScheduler = new ScheduledThreadPoolExecutor(THREAD_POOL_SIZE_SCHEDULER);
         this.initialDelay = initialDelay;
         this.repeatPeriod = repeatPeriod;
+        this.connection = connection;
     }
 
     public void startWatchingRegistry() throws IOException {
@@ -43,8 +41,12 @@ public class RegistryWatcher implements Runnable {
 
     @Override
     public void run() {
-        for(String schema: DYNAMIC_RESOURCES_CACHE.getSchemas()){
-            new SchemaJob(DYNAMIC_RESOURCES_CACHE.getDynamicResources(schema), ctx.getGitter(schema)).start();
+        for (String schema : DYNAMIC_RESOURCES_CACHE.getSchemas()) {
+            new SchemaJob(
+                    DYNAMIC_RESOURCES_CACHE.getDynamicResourcesCopy(schema),
+                    ctx.getGitter(schema),
+                    connection
+            ).start();
         }
     }
 

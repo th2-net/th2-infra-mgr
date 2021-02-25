@@ -1,74 +1,55 @@
 package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.docker.DynamicResource;
+import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.infrarepo.Gitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class SchemaJob extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
-    private static final int THREAD_POOL_SIZE_EXECUTOR = 10;
-    private final int WAIT_TIME_MS = 500;
 
-    private ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE_EXECUTOR);
-    private Map<String, DynamicResource> tagUpdateJobs;
+    private List<TagUpdater> tagUpdateJobs = new ArrayList<>();
     private Gitter gitter;
+    private RegistryConnection connection;
 
-    public SchemaJob(Map<String, DynamicResource> tagUpdateJobs, Gitter gitter) {
-        this.tagUpdateJobs = tagUpdateJobs;
+    public SchemaJob(Collection<DynamicResource> dynamicResources, Gitter gitter, RegistryConnection connection) {
         this.gitter = gitter;
+        this.connection = connection;
+        createJobs(dynamicResources);
     }
-
 
     @Override
     public void start() {
         logger.info("Checking for new versions for resources in schema: \"{}\"", gitter.getBranch());
-        for (DynamicResource resource : tagUpdateJobs.values()) {
-            submitTagJob(resource);
-        }
-        while (!isInterrupted()) {
+        for (TagUpdater tagUpdater : tagUpdateJobs) {
             try {
-                Thread.sleep(WAIT_TIME_MS);
-            } catch (InterruptedException e) {
-                break;
-            }
-            if (tagUpdateJobs.isEmpty()) {
-                try {
-                    String commitRef = gitter.commitAndPush("Updated image versions");
-                    logger.info("Successfully updated branch: \"{}\" commitRef: \"{}\"", gitter.getBranch(), commitRef);
-                } catch (Exception e) {
-                    logger.info("Exception while pushing to branch: \"{}\".", gitter.getBranch());
-                }finally {
-                    shutDown();
-                }
+                tagUpdater.updateTagAndCommit();
+            } catch (IOException e) {
+                logger.error("Exception while updating repository", e);
             }
         }
-        logger.info("SchemaJob worker thread interrupted, stopping executor.");
-        shutDown();
-    }
-
-    private void submitTagJob(DynamicResource resource) {
-        executor.submit(() -> {
-            String threadName = Thread.currentThread().getName();
+        try {
+            gitter.lock();
             try {
-                Thread.currentThread().setName(resource.getAnnotation());
-                new TagUpdater(resource, gitter).updateTagAndCommit();
+                String commitRef = gitter.commitAndPush("Updated image versions");
+                logger.info("Successfully updated branch: \"{}\" commitRef: \"{}\"", gitter.getBranch(), commitRef);
             } catch (Exception e) {
-                logger.error("Exception updating tag for: \"{}\"", resource.getAnnotation(), e);
-            } finally {
-                tagUpdateJobs.remove(resource.getResourceName());
-                //TODO remove log after testing
-                logger.info("Removing job: \"{}\"", resource.getResourceName());
-                Thread.currentThread().setName(threadName);
+                logger.info("Exception while pushing to branch: \"{}\".", gitter.getBranch());
             }
-        });
+        } finally {
+            gitter.unlock();
+        }
     }
 
-    private void shutDown(){
-        executor.shutdown();
+    private void createJobs(Collection<DynamicResource> dynamicResources) {
+        for (DynamicResource resource : dynamicResources) {
+            tagUpdateJobs.add(new TagUpdater(resource, gitter, connection));
+        }
     }
 }

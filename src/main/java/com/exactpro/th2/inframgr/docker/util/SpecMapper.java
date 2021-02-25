@@ -3,22 +3,19 @@ package com.exactpro.th2.inframgr.docker.util;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-public class SpecUtils {
-    private static final Logger logger = LoggerFactory.getLogger(SpecUtils.class);
+public class SpecMapper {
 
     private static final String SPLIT_CHARACTER = "\\.";
-    private static final String SEPARATOR = ".";
-
     private static final String IMAGE_NAME_ALIAS = "image-name";
     private static final String IMAGE_VERSION_ALIAS = "image-version";
     private static final String VERSION_RANGE_ALIAS = "version-range";
 
     private static final ObjectMapper mapper = new ObjectMapper(new JsonFactory());
+
+    private SpecMapper(){}
 
     public static String getImageName(Object sourceObj) {
         return getFieldAsString(sourceObj, IMAGE_NAME_ALIAS);

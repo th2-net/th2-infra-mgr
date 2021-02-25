@@ -4,37 +4,65 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class RegistryConnection {
+    private static final String URL_PREFIX = "https://";
+    private static final String API_SUFFIX = "/v2";
+    private static final char SLASH_CHAR = '/';
 
-    //TODO get from config
-    private final String registry = "https://nexus.exactpro.com:16000";
-    private final String user = "th2-schema-docker";
-    private final String password = "feiL5tie";
+    private Map<String, SecretMapper.AuthenticationDetails> secrets;
 
-    private NexusAuth nexusAuth = new NexusAuth(registry, user, password);
-
-    RestTemplateBuilder builder = new RestTemplateBuilder();
-    RestTemplate restTemplate = builder.basicAuthentication(nexusAuth.user, nexusAuth.password).build();
-
-    public TagResponseBody getTags() {
-        String url = "/v2/th2-infra-operator/tags/list";
-        return getTags(url);
+    public RegistryConnection(Map<String, SecretMapper.AuthenticationDetails> secrets) {
+        this.secrets = secrets;
     }
 
-    public TagResponseBody getTags(int n) {
-        String url = String.format("/v2/th2-infra-operator/tags/list?n=%s", n);
-        return getTags(url);
+    public List<String> getTags(String imageName) {
+        String tagsUrl = "/tags/list";
+        return requestTags(
+                toApiUrl(imageName, tagsUrl),
+                getAuthenticationDetails(imageName)
+        );
     }
 
-    public TagResponseBody getTags(int n, String last) {
-        String url = String.format("/v2/th2-infra-operator/tags/list?n=%s&last=%s", n, last);
-        return getTags(url);
+    public List<String> getTags(String imageName, int n) {
+        String tagsUrl = String.format("/tags/list?n=%s", n);
+        return requestTags(
+                toApiUrl(imageName, tagsUrl),
+                getAuthenticationDetails(imageName)
+        );
     }
 
-    private TagResponseBody getTags(String url) {
-        return restTemplate.getForObject(nexusAuth.registry + url, TagResponseBody.class);
+    public List<String> getTags(String imageName, int n, String last) {
+        String tagsUrl = String.format("/tags/list?n=%s&last=%s", n, last);
+        return requestTags(toApiUrl(imageName, tagsUrl),
+                getAuthenticationDetails(imageName)
+        );
+    }
+
+    private List<String> requestTags(String url, SecretMapper.AuthenticationDetails authenticationDetails) {
+        RestTemplate restTemplate = new RestTemplateBuilder().basicAuthentication(
+                authenticationDetails.getUser(),
+                authenticationDetails.getPassword()
+        ).build();
+        TagResponseBody tagResponseBody = restTemplate.getForObject(url, TagResponseBody.class);
+        return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.tags;
+    }
+
+    private SecretMapper.AuthenticationDetails getAuthenticationDetails(String imageName) {
+        String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
+        return secrets.get(registry);
+    }
+
+    private String toApiUrl(String imageName, String request) {
+        int position = URL_PREFIX.length() + imageName.indexOf(SLASH_CHAR);
+        return new StringBuilder(URL_PREFIX)
+                .append(imageName)
+                .insert(position, API_SUFFIX)
+                .append(request)
+                .toString();
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -56,18 +84,6 @@ public class RegistryConnection {
 
         public void setTags(List<String> tags) {
             this.tags = tags;
-        }
-    }
-
-    private static final class NexusAuth {
-        private String registry;
-        private String user;
-        private String password;
-
-        public NexusAuth(String registry, String user, String password) {
-            this.registry = registry;
-            this.user = user;
-            this.password = password;
         }
     }
 }

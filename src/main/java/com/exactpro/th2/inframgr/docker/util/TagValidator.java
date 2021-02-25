@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 public class TagValidator {
 
     private TagValidator(){
-        throw new AssertionError("This method should not be called");
     }
 
     public static boolean validate(String tags, String pattern){
