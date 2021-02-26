@@ -1,6 +1,8 @@
 package com.exactpro.th2.inframgr.docker;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.web.client.RestTemplate;
 
@@ -9,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 public class RegistryConnection {
+    private static final Logger logger = LoggerFactory.getLogger(RegistryConnection.class);
+
     private static final String URL_PREFIX = "https://";
     private static final String API_SUFFIX = "/v2";
     private static final char SLASH_CHAR = '/';
@@ -43,12 +47,26 @@ public class RegistryConnection {
     }
 
     private List<String> requestTags(String url, SecretMapper.AuthenticationDetails authenticationDetails) {
-        RestTemplate restTemplate = new RestTemplateBuilder().basicAuthentication(
-                authenticationDetails.getUser(),
-                authenticationDetails.getPassword()
-        ).build();
-        TagResponseBody tagResponseBody = restTemplate.getForObject(url, TagResponseBody.class);
+        TagResponseBody tagResponseBody = null;
+        RestTemplate restTemplate = buildRest(authenticationDetails);
+        try {
+            tagResponseBody = restTemplate.getForObject(url, TagResponseBody.class);
+        } catch (Exception e) {
+            logger.info("Exception executing request: {}", url, e);
+        }
         return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.tags;
+    }
+
+    private RestTemplate buildRest(SecretMapper.AuthenticationDetails authenticationDetails) {
+        RestTemplateBuilder builder = new RestTemplateBuilder();
+        if (authenticationDetails == null) {
+           return builder.basicAuthentication("USER", "PASSWORD").build();
+        } else {
+           return builder.basicAuthentication(
+                    authenticationDetails.getUser(),
+                    authenticationDetails.getPassword()
+            ).build();
+        }
     }
 
     private SecretMapper.AuthenticationDetails getAuthenticationDetails(String imageName) {

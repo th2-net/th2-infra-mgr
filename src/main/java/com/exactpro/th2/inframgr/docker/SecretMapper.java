@@ -27,6 +27,7 @@ public class SecretMapper {
     }
 
     public Map<String, AuthenticationDetails> mapSecrets() {
+        //TODO improve logic
         List<Secret> secrets = kube.getRegistrySecrets();
         Map<String, AuthenticationDetails> secretsMap = new HashMap<>();
         for (Secret secret : secrets) {

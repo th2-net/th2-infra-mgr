@@ -2,8 +2,8 @@ package com.exactpro.th2.inframgr.docker;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.docker.monitoring.RegistryWatcher;
-import com.exactpro.th2.inframgr.docker.util.SpecMapper;
-import com.exactpro.th2.inframgr.docker.util.TagValidator;
+import com.exactpro.th2.inframgr.docker.util.SpecUtils;
+import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
@@ -22,7 +22,7 @@ import java.util.List;
 public class DynamicResourceProcessor {
     private static final Logger logger = LoggerFactory.getLogger(DynamicResourceProcessor.class);
     private static final long REGISTRY_CHECK_PERIOD_SECONDS = 300;
-    private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 10;
+    private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 30;
     private static final List<String> monitoredKinds = Arrays.asList(
             ResourceType.Th2Box.kind(),
             ResourceType.Th2CoreBox.kind(),
@@ -54,7 +54,7 @@ public class DynamicResourceProcessor {
             return;
         }
 
-        String versionRange = SpecMapper.getImageVersionRange(spec);
+        String versionRange = SpecUtils.getImageVersionRange(spec);
         if (versionRange == null) {
             removeFromTrackedResources(schema, name);
             return;
@@ -67,22 +67,24 @@ public class DynamicResourceProcessor {
         DYNAMIC_RESOURCES_CACHE.remove(schema, name);
     }
 
-    private static void addToTrackedResources(String schema, String name, String mask, RepositoryResource resource) {
+    private static void addToTrackedResources(String schema, String name, String versionRange, RepositoryResource resource) {
         var spec = resource.getSpec();
-        String image = SpecMapper.getImageName(spec);
-        String tag = SpecMapper.getImageVersion(spec);
+        String image = SpecUtils.getImageName(spec);
+        String tag = SpecUtils.getImageVersion(spec);
+        String versionRangeTrimmed = VersionNumberUtils.trimVersionRange(versionRange);
 
-        if (TagValidator.validate(tag, mask)) {
+        if (VersionNumberUtils.validate(tag, versionRangeTrimmed)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, tag, mask, schema));
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, versionRangeTrimmed, schema));
         } else {
-            logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match mask: \"{}\". Will not be monitored",
-                    tag, schema, name, mask);
+            logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
+                    tag, schema, name, versionRange);
         }
     }
 
     @PostConstruct
     public void start() throws IOException {
+        logger.info("DynamicResourceProcessor has been started");
         Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
         ObjectMapper mapper = new ObjectMapper();
         SecretMapper secretMapper = new SecretMapper(kube, mapper);

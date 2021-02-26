@@ -1,21 +1,15 @@
 package com.exactpro.th2.inframgr.docker.util;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.util.Map;
 
-public class SpecMapper {
+public class SpecUtils {
 
-    private static final String SPLIT_CHARACTER = "\\.";
     private static final String IMAGE_NAME_ALIAS = "image-name";
     private static final String IMAGE_VERSION_ALIAS = "image-version";
     private static final String VERSION_RANGE_ALIAS = "version-range";
 
-    private static final ObjectMapper mapper = new ObjectMapper(new JsonFactory());
-
-    private SpecMapper(){}
+    private SpecUtils() {
+    }
 
     public static String getImageName(Object sourceObj) {
         return getFieldAsString(sourceObj, IMAGE_NAME_ALIAS);
@@ -34,15 +28,12 @@ public class SpecMapper {
         specMap.put(IMAGE_VERSION_ALIAS, imageVersion);
     }
 
-    private static String getFieldAsString(Object sourceObj, String path) {
-        String[] fields = path.split(SPLIT_CHARACTER);
-        JsonNode currentField = mapper.convertValue(sourceObj, JsonNode.class);
-        for (String field : fields) {
-            currentField = currentField.get(field);
-            if (currentField == null) {
-                return null;
-            }
+    private static String getFieldAsString(Object spec, String path) {
+        Map<String, Object> specMap = (Map<String, Object>) spec;
+        var field = specMap.get(path);
+        if (field != null) {
+            return field.toString();
         }
-        return currentField.toString();
+        return null;
     }
 }

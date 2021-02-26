@@ -22,7 +22,7 @@ public enum DynamicResourcesCache {
 
     public synchronized DynamicResource add(String schema, DynamicResource resource) {
         cache.computeIfAbsent(schema, k -> new ConcurrentHashMap<>());
-        return cache.get(schema).put(resource.getResourceName(), resource);
+        return cache.get(schema).put(resource.getName(), resource);
     }
 
     public synchronized DynamicResource remove(String schema, String name) {

@@ -35,7 +35,11 @@ public class SchemaJob extends Thread {
             gitter.lock();
             try {
                 String commitRef = gitter.commitAndPush("Updated image versions");
-                logger.info("Successfully updated branch: \"{}\" commitRef: \"{}\"", gitter.getBranch(), commitRef);
+                if (commitRef != null) {
+                    logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", gitter.getBranch(), commitRef);
+                }else {
+                    logger.info("All files up to date for branch: \"{}\"", gitter.getBranch());
+                }
             } catch (Exception e) {
                 logger.info("Exception while pushing to branch: \"{}\".", gitter.getBranch());
             }

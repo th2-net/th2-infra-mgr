@@ -3,29 +3,23 @@ package com.exactpro.th2.inframgr.docker;
 public class DynamicResource {
     private String resourceName;
     private String image;
-    private String tag;
-    private String mask;
+    private String versionRange;
     private String schema;
 
 
-    public DynamicResource(String resourceName, String image, String tag, String mask, String schema) {
+    public DynamicResource(String resourceName, String image, String versionRange, String schema) {
         this.resourceName = resourceName;
-        this.image = image;
-        this.tag = tag;
-        this.mask = mask;
+        this.versionRange = versionRange;
         this.schema = schema;
+        this.image = image;
     }
 
     public String getImage() {
         return image;
     }
 
-    public String getTag() {
-        return tag;
-    }
-
-    public String getMask() {
-        return mask;
+    public String getVersionRange() {
+        return versionRange;
     }
 
     public String getSchema() {
@@ -33,10 +27,10 @@ public class DynamicResource {
     }
 
     public String getAnnotation() {
-        return String.format("%s.%s", schema, getResourceName());
+        return String.format("%s.%s", schema, getName());
     }
 
-    public String getResourceName() {
+    public String getName() {
         return resourceName;
     }
 }

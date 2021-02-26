@@ -2,8 +2,8 @@ package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
-import com.exactpro.th2.inframgr.docker.util.SpecMapper;
-import com.exactpro.th2.inframgr.docker.util.TagValidator;
+import com.exactpro.th2.inframgr.docker.util.SpecUtils;
+import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 import com.exactpro.th2.infrarepo.Gitter;
 import com.exactpro.th2.infrarepo.Repository;
 import com.exactpro.th2.infrarepo.RepositoryResource;
@@ -20,26 +20,29 @@ public class TagUpdater {
     private static final Logger logger = LoggerFactory.getLogger(TagUpdater.class);
     private static final int PAGE_SIZE = 10;
 
-    private TagUpdater(){}
+    private TagUpdater() {
+    }
 
     public static void updateTag(DynamicResource resource, Gitter gitter, RegistryConnection connection)
             throws IOException, GitAPIException {
-        String latestTag = TagValidator.getLatestTag(getAllHigherTags(resource, connection));
-        if (latestTag == null || latestTag.equals(resource.getTag())) {
-            //TODO remove log after testing
-            logger.info("Couldn't find new version for resource: \"{}\"", resource.getAnnotation());
-            return;
-        }
-        //TODO remove log after testing
-        logger.info("Found new version for resource: \"{}\", updating repository", resource.getAnnotation());
+        String latestTag = VersionNumberUtils.getLatestTag(getAllHigherTags(resource, connection));
         try {
             gitter.lock();
-            var repositoryResource = getRepositoryResource(gitter, resource.getResourceName());
+            var repositoryResource = getRepositoryResource(gitter, resource.getName());
             if (repositoryResource != null) {
-                SpecMapper.changeImageVersion(repositoryResource.getSpec(), latestTag);
+                var spec = repositoryResource.getSpec();
+                String prevTag = SpecUtils.getImageVersion(spec);
+                if (latestTag == null || latestTag.equals(prevTag)) {
+                    //TODO remove log after testing
+                    logger.info("Couldn't find new version for resource: \"{}\"", resource.getAnnotation());
+                    return;
+                }
+                //TODO remove log after testing
+                logger.info("Found new version for resource: \"{}\", updating repository", resource.getAnnotation());
+                SpecUtils.changeImageVersion(spec, latestTag);
                 Repository.update(gitter, repositoryResource);
                 logger.info("Successfully updated repository with: \"{}\"", resource.getAnnotation());
-            }else {
+            } else {
                 logger.warn("Resource: \"{}\" is not present in repository", resource.getAnnotation());
             }
         } finally {
@@ -58,15 +61,19 @@ public class TagUpdater {
     }
 
     private static List<String> getAllHigherTags(DynamicResource resource, RegistryConnection connection) {
-        String latest = resource.getTag();
+        String versionRange = resource.getVersionRange();
+        String image = resource.getImage();
         List<String> allHigherTags = new ArrayList<>();
         List<String> tags;
 
         //get tags in small amounts starting from current image-version
         do {
-            tags = connection.getTags("", PAGE_SIZE, latest);
-            allHigherTags.addAll(TagValidator.filterTags(tags, resource.getMask()));
-            latest = tags.get(tags.size() - 1);
+            tags = connection.getTags(image, PAGE_SIZE, versionRange);
+            if (tags == null || tags.size() < 1) {
+                break;
+            }
+            allHigherTags.addAll(VersionNumberUtils.filterTags(tags, resource.getVersionRange()));
+            versionRange = tags.get(tags.size() - 1);
         } while (!(tags.size() < PAGE_SIZE));
 
         return allHigherTags;
