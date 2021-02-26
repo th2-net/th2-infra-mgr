@@ -70,15 +70,15 @@ public class DynamicResourceProcessor {
     private static void addToTrackedResources(String schema, String name, String versionRange, RepositoryResource resource) {
         var spec = resource.getSpec();
         String image = SpecUtils.getImageName(spec);
-        String tag = SpecUtils.getImageVersion(spec);
+        String currentVersion = SpecUtils.getImageVersion(spec);
         String versionRangeTrimmed = VersionNumberUtils.trimVersionRange(versionRange);
 
-        if (VersionNumberUtils.validate(tag, versionRangeTrimmed)) {
+        if (VersionNumberUtils.validate(currentVersion, versionRangeTrimmed)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, versionRangeTrimmed, schema));
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeTrimmed, schema));
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
-                    tag, schema, name, versionRange);
+                    currentVersion, schema, name, versionRange);
         }
     }
 
