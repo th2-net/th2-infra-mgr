@@ -2,12 +2,12 @@ package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
-import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.exactpro.th2.inframgr.docker.util.VersionNumberUtils.chooseLatestVersion;
+import static com.exactpro.th2.inframgr.docker.util.VersionNumberUtils.filterTags;
 
 public class TagUpdater {
 
@@ -19,7 +19,7 @@ public class TagUpdater {
     static void getLatestTags(DynamicResource resource, List<SchemaJob.UpdatedResource> updatedResources, RegistryConnection connection) {
         String latestTag = chooseLatestVersion(getNewerTags(resource, connection));
         if (latestTag != null) {
-            updatedResources.add(new SchemaJob.UpdatedResource(resource.getName(), latestTag));
+            updatedResources.add(new SchemaJob.UpdatedResource(resource.getName(), resource.getVersionRange() + latestTag));
         }
     }
 
@@ -35,7 +35,7 @@ public class TagUpdater {
             if (tags == null || tags.size() < 1) {
                 break;
             }
-            allHigherTags.addAll(VersionNumberUtils.filterTags(tags, resource.getVersionRange()));
+            allHigherTags.addAll(filterTags(tags, resource.getVersionRange()));
             versionRange = tags.get(tags.size() - 1);
         } while (!(tags.size() < PAGE_SIZE));
 

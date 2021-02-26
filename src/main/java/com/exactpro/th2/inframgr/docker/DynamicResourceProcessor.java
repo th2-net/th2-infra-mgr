@@ -8,6 +8,7 @@ import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -72,12 +73,12 @@ public class DynamicResourceProcessor {
         var spec = resource.getSpec();
         String image = SpecUtils.getImageName(spec);
         String currentVersion = SpecUtils.getImageVersion(spec);
-        String versionRangeTrimmed = VersionNumberUtils.trimVersionRange(versionRange);
+        String versionRangeChopped = StringUtils.chop(versionRange);
 
         //TODO do we need this check?
-        if (VersionNumberUtils.validate(currentVersion, versionRangeTrimmed)) {
+        if (VersionNumberUtils.validate(currentVersion, versionRangeChopped)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeTrimmed, schema));
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeChopped, schema));
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
                     currentVersion, schema, name, versionRange);
