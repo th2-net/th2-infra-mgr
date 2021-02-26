@@ -19,13 +19,13 @@ public class SchemaJob extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
 
     private Collection<DynamicResource> dynamicResources;
-    private List<ModifiedResource> modifiedResources;
+    private List<UpdatedResource> updatedResources;
     private Gitter gitter;
     private RegistryConnection connection;
 
     public SchemaJob(Collection<DynamicResource> dynamicResources, Gitter gitter, RegistryConnection connection) {
         this.dynamicResources = dynamicResources;
-        this.modifiedResources = new ArrayList<>();
+        this.updatedResources = new ArrayList<>();
         this.gitter = gitter;
         this.connection = connection;
     }
@@ -34,7 +34,7 @@ public class SchemaJob extends Thread {
     public void start() {
         logger.info("Checking for new versions for resources in schema: \"{}\"", gitter.getBranch());
         for (DynamicResource resource : dynamicResources) {
-            TagUpdater.checkForNewVersion(resource, modifiedResources, connection);
+            TagUpdater.getLatestTags(resource, updatedResources, connection);
         }
         try {
             String commitRef = commitAndPush();
@@ -58,16 +58,25 @@ public class SchemaJob extends Thread {
                             Function.identity())
                     );
 
-            for (SchemaJob.ModifiedResource modifiedResource : modifiedResources) {
-                var repositoryResource = resourceSpecMap.get(modifiedResource.getName());
+            for (UpdatedResource updatedResource : updatedResources) {
+                var repositoryResource = resourceSpecMap.get(updatedResource.getName());
                 if (repositoryResource != null) {
                     var spec = repositoryResource.getSpec();
-                    SpecUtils.changeImageVersion(spec, modifiedResource.getLatestTag());
+                    String resourceName = repositoryResource.getMetadata().getName();
+                    String latestVersion = updatedResource.getLatestVersion();
+                    String currentVersion = SpecUtils.getImageVersion(spec);
+                    if (latestVersion.equals(currentVersion)) {
+                        //TODO remove log after testing
+                        logger.info("Couldn't find new version for resource: \"{}\"", resourceName);
+                        continue;
+                    }
+                    logger.info("Found new version for resource: \"{}\"", resourceName);
+                    SpecUtils.changeImageVersion(spec, latestVersion);
                     try {
                         Repository.update(gitter, repositoryResource);
-                        logger.info("Successfully updated repository with: \"{}\"", repositoryResource.getMetadata().getName());
+                        logger.info("Successfully updated repository with: \"{}\"", resourceName);
                     } catch (Exception e) {
-                        logger.info("Exception while updating repository with : \"{}\"", repositoryResource.getMetadata().getName());
+                        logger.info("Exception while updating repository with : \"{}\"", resourceName);
                     }
                 }
             }
@@ -77,21 +86,21 @@ public class SchemaJob extends Thread {
         }
     }
 
-    static class ModifiedResource {
+    static class UpdatedResource {
         private final String name;
-        private final String latestTag;
+        private final String latestVersion;
 
-        public ModifiedResource(String name, String latestTag) {
+        public UpdatedResource(String name, String latestVersion) {
             this.name = name;
-            this.latestTag = latestTag;
+            this.latestVersion = latestVersion;
         }
 
         public String getName() {
             return name;
         }
 
-        public String getLatestTag() {
-            return latestTag;
+        public String getLatestVersion() {
+            return latestVersion;
         }
     }
 }

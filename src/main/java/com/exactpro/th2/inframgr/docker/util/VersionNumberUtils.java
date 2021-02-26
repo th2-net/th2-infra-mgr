@@ -19,7 +19,7 @@ public class VersionNumberUtils {
                 .collect(Collectors.toList());
     }
 
-    public static String getLatestTag(List<String> tags) {
+    public static String chooseLatestVersion(List<String> tags) {
         //TODO logic to find latest tag
         return "7.7.7";
     }

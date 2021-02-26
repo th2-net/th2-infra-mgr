@@ -21,7 +21,7 @@ import java.util.List;
 @Component
 public class DynamicResourceProcessor {
     private static final Logger logger = LoggerFactory.getLogger(DynamicResourceProcessor.class);
-    private static final long REGISTRY_CHECK_PERIOD_SECONDS = 300;
+    private static final long REGISTRY_CHECK_PERIOD_SECONDS = 200;
     private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 30;
     private static final List<String> monitoredKinds = Arrays.asList(
             ResourceType.Th2Box.kind(),
@@ -73,6 +73,7 @@ public class DynamicResourceProcessor {
         String currentVersion = SpecUtils.getImageVersion(spec);
         String versionRangeTrimmed = VersionNumberUtils.trimVersionRange(versionRange);
 
+        //TODO do we need this check?
         if (VersionNumberUtils.validate(currentVersion, versionRangeTrimmed)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
             DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeTrimmed, schema));

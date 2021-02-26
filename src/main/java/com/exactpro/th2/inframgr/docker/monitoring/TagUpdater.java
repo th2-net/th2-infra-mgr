@@ -3,33 +3,27 @@ package com.exactpro.th2.inframgr.docker.monitoring;
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.exactpro.th2.inframgr.docker.util.VersionNumberUtils.chooseLatestVersion;
+
 public class TagUpdater {
 
-    private static final Logger logger = LoggerFactory.getLogger(TagUpdater.class);
     private static final int PAGE_SIZE = 10;
 
     private TagUpdater() {
     }
 
-    static void checkForNewVersion(DynamicResource resource, List<SchemaJob.ModifiedResource> modifiedResources, RegistryConnection connection) {
-        String latestTag = VersionNumberUtils.getLatestTag(getAllHigherTags(resource, connection));
-        if (latestTag == null || latestTag.equals(resource.getCurrentVersion())) {
-            //TODO remove log after testing
-            logger.info("Couldn't find new version for resource: \"{}\"", resource.getAnnotation());
-            return;
+    static void getLatestTags(DynamicResource resource, List<SchemaJob.UpdatedResource> updatedResources, RegistryConnection connection) {
+        String latestTag = chooseLatestVersion(getNewerTags(resource, connection));
+        if (latestTag != null) {
+            updatedResources.add(new SchemaJob.UpdatedResource(resource.getName(), latestTag));
         }
-        logger.info("Found new version for resource: \"{}\"", resource.getAnnotation());
-        modifiedResources.add(new SchemaJob.ModifiedResource(resource.getName(), latestTag));
-
     }
 
-    private static List<String> getAllHigherTags(DynamicResource resource, RegistryConnection connection) {
+    private static List<String> getNewerTags(DynamicResource resource, RegistryConnection connection) {
         String versionRange = resource.getVersionRange();
         String image = resource.getImage();
         List<String> allHigherTags = new ArrayList<>();
