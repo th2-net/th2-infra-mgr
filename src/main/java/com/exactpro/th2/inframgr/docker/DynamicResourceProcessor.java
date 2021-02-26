@@ -31,7 +31,8 @@ public class DynamicResourceProcessor {
     );
     private static final DynamicResourcesCache DYNAMIC_RESOURCES_CACHE = DynamicResourcesCache.INSTANCE;
 
-    private DynamicResourceProcessor() {}
+    private DynamicResourceProcessor() {
+    }
 
     public static void checkResource(RepositoryResource resource, String schema) {
         checkResource(resource, schema, false);
@@ -59,7 +60,7 @@ public class DynamicResourceProcessor {
             removeFromTrackedResources(schema, name);
             return;
         }
-        addToTrackedResources(schema, name, versionRange, resource);
+        updateTrackedResources(schema, name, versionRange, resource);
     }
 
     private static void removeFromTrackedResources(String schema, String name) {
@@ -67,7 +68,7 @@ public class DynamicResourceProcessor {
         DYNAMIC_RESOURCES_CACHE.remove(schema, name);
     }
 
-    private static void addToTrackedResources(String schema, String name, String versionRange, RepositoryResource resource) {
+    private static void updateTrackedResources(String schema, String name, String versionRange, RepositoryResource resource) {
         var spec = resource.getSpec();
         String image = SpecUtils.getImageName(spec);
         String currentVersion = SpecUtils.getImageVersion(spec);
@@ -80,6 +81,7 @@ public class DynamicResourceProcessor {
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
                     currentVersion, schema, name, versionRange);
+            removeFromTrackedResources(schema, name);
         }
     }
 
