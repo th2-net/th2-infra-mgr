@@ -67,6 +67,8 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
+    private static final String LOGGING_JSON_KEY = "logLevel";
+
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
 
     private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
@@ -305,10 +307,6 @@ public class SchemaInitializer {
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
         Map<String, String> cmData = cm.getData();
 
-        if (kube.getConfigMap(cm.getMetadata().getName()) != null && !forceUpdate) {
-            return;
-        }
-
         GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
         Gitter gitter = ctx.getGitter(schemaName);
         RepositorySettings settings;
@@ -327,23 +325,31 @@ public class SchemaInitializer {
 
         String logLevel = settings.getLogLevel();
 
+        ConfigMap configMap = kube.getConfigMap(cm.getMetadata().getName());
+        if (configMap != null && !forceUpdate) {
+            // check if logLevel is changed
+            Map<String, String> configMapData = configMap.getData();
+            if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel)) {
+                logger.info("Config map \"{}\" Not updated", resourceLabel);
+                return;
+            }
+        }
+
         // copy config map with updated log level value to namespace
         try {
             logger.info("Creating \"{}\"", resourceLabel);
 
             for (String key : cmData.keySet()) {
-                if (cmData.get(key).contains(LOGGING_CXX_PATH_SUBSTRING)) {
+                if (cmData.get(key).contains(LOGGING_CXX_PATH_SUBSTRING))
                     cmData.put(key, cmData.get(key).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel));
-                }
 
-                if (cmData.get(key).contains(LOGGING_PYTHON_PATH_SUBSTRING)) {
+                if (cmData.get(key).contains(LOGGING_PYTHON_PATH_SUBSTRING))
                     cmData.put(key, cmData.get(key).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel));
-                }
 
-                if (cmData.get(key).contains(LOGGING_JAVA_PATH_SUBSTRING)) {
+                if (cmData.get(key).contains(LOGGING_JAVA_PATH_SUBSTRING))
                     cmData.put(key, cmData.get(key).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel));
-                }
             }
+            cmData.put(LOGGING_JSON_KEY, logLevel + "\n");
 
             cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
             kube.createOrReplaceConfigMap(cm);
