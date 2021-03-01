@@ -20,12 +20,12 @@ configurations.all {
 
 repositories {
 	maven {
-		url "https://artifactory5.exactpro.com/artifactory/libs-release"
+		url "https://dl.bintray.com/exactpro/th2"
 	}
 }
 
 dependencies {
-	implementation 'com.exactpro.th2:th2-infra-repo:0.5.0'
+	implementation 'com.exactpro.th2:infra-repo:1.0.3'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
 
 	implementation 'org.apache.commons:commons-text:1.9'
