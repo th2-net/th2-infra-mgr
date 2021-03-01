@@ -5,6 +5,7 @@ import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.*;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
@@ -79,18 +80,20 @@ public class SchemaJob extends Thread {
                 String resourceName = repositoryResource.getMetadata().getName();
                 String latestVersion = updatedResource.getLatestVersion();
                 String currentVersion = SpecUtils.getImageVersion(spec);
+                String resourceLabel = ResourcePath.annotationFor(schema, repositoryResource.getKind(), resourceName);
+
                 if (latestVersion.equals(currentVersion)) {
                     //TODO remove log after testing
-                    logger.info("Couldn't find new version for resource: \"{}\"", resourceName);
+                    logger.info("Couldn't find new version for resource: \"{}\"", resourceLabel);
                     continue;
                 }
-                logger.info("Found new version for resource: \"{}\"", resourceName);
+                logger.info("Found new version for resource: \"{}\"", resourceLabel);
                 SpecUtils.changeImageVersion(spec, latestVersion);
                 try {
                     Repository.update(gitter, repositoryResource);
-                    logger.info("Successfully updated repository with: \"{}\"", resourceName);
+                    logger.info("Successfully updated repository with: \"{}\"", resourceLabel);
                 } catch (Exception e) {
-                    logger.info("Exception while updating repository with : \"{}\"", resourceName);
+                    logger.info("Exception while updating repository with : \"{}\"", resourceLabel);
                 }
             }
         }
