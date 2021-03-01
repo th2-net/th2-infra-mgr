@@ -47,7 +47,7 @@ public class DynamicResourceProcessor {
         }
 
         if (deleted) {
-            removeFromTrackedResources(schema, name);
+            removeFromTrackedResources(schema, name, "Resource deleted from repository");
             return;
         }
 
@@ -58,15 +58,17 @@ public class DynamicResourceProcessor {
 
         String versionRange = SpecUtils.getImageVersionRange(spec);
         if (versionRange == null) {
-            removeFromTrackedResources(schema, name);
+            removeFromTrackedResources(schema, name, "versionRange field is null");
             return;
         }
         updateTrackedResources(schema, name, versionRange, resource);
     }
 
-    private static void removeFromTrackedResources(String schema, String name) {
-        logger.info("Removing resource: \"{}.{}\" from dynamic version tracking", schema, name);
-        DYNAMIC_RESOURCES_CACHE.remove(schema, name);
+    private static void removeFromTrackedResources(String schema, String name, String cause) {
+        var removedResource = DYNAMIC_RESOURCES_CACHE.remove(schema, name);
+        if (removedResource != null) {
+            logger.info("Removing resource: \"{}.{}\" from dynamic version tracking. {}", schema, name, cause);
+        }
     }
 
     private static void updateTrackedResources(String schema, String name, String versionRange, RepositoryResource resource) {
@@ -76,12 +78,17 @@ public class DynamicResourceProcessor {
         String versionRangeChopped = StringUtils.chop(versionRange);
 
         if (VersionNumberUtils.validate(currentVersion, versionRangeChopped)) {
-            logger.info("Adding resource: \"{}.{}\" to dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, versionRangeChopped, schema));
+            logger.info("Resource: \"{}.{}\" needs dynamic version tracking", schema, name);
+            var alreadyInCache = DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeChopped, schema));
+            if (alreadyInCache != null) {
+                logger.info("Modified resource: \"{}.{}\" in dynamic resources cache", schema, name);
+            } else {
+                logger.info("Added: \"{}.{}\" to dynamic resources cache", schema, name);
+            }
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
                     currentVersion, schema, name, versionRange);
-            removeFromTrackedResources(schema, name);
+            removeFromTrackedResources(schema, name, "image-version doesn't match versionRange");
         }
     }
 

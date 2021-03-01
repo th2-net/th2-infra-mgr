@@ -32,7 +32,7 @@ public class RegistryConnection {
     }
 
     public List<String> getTags(String imageName, int count) {
-        String tagsUrl = String.format("/tags/list?n=%s", count);
+        String tagsUrl = String.format("/tags/list?n=%d", count);
         return requestTags(
                 toApiUrl(imageName, tagsUrl),
                 getAuthenticationDetails(imageName)
@@ -40,7 +40,7 @@ public class RegistryConnection {
     }
 
     public List<String> getTags(String imageName, int count, String last) {
-        String tagsUrl = String.format("/tags/list?n=%s&last=%s", count, last);
+        String tagsUrl = String.format("/tags/list?n=%d&last=%s", count, last);
         return requestTags(toApiUrl(imageName, tagsUrl),
                 getAuthenticationDetails(imageName)
         );

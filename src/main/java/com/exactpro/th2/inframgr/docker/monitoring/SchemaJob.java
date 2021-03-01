@@ -1,11 +1,11 @@
 package com.exactpro.th2.inframgr.docker.monitoring;
 
+import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
-import com.exactpro.th2.infrarepo.Gitter;
-import com.exactpro.th2.infrarepo.Repository;
-import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.infrarepo.*;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,52 +39,60 @@ public class SchemaJob extends Thread {
             TagUpdater.getLatestTags(resource, updatedResources, connection);
         }
         try {
-            String commitRef = commitAndPush();
-            if (commitRef != null) {
-                logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", schema, commitRef);
-            } else {
-                logger.info("All files up to date for branch: \"{}\"", schema);
-            }
+            commitAndPush();
         } catch (Exception e) {
             logger.info("Exception while pushing to branch: \"{}\".", schema);
         }
     }
 
-    private String commitAndPush() throws IOException, GitAPIException {
+    private void commitAndPush() throws IOException, GitAPIException {
         try {
             gitter.lock();
-            Set<RepositoryResource> repositoryResources = Repository.getSnapshot(gitter).getResources();
-            Map<String, RepositoryResource> resourceSpecMap = repositoryResources.stream()
-                    .collect(Collectors.toMap(
-                            x -> x.getMetadata().getName(),
-                            Function.identity())
-                    );
-
-            for (UpdatedResource updatedResource : updatedResources) {
-                var repositoryResource = resourceSpecMap.get(updatedResource.getName());
-                if (repositoryResource != null) {
-                    var spec = repositoryResource.getSpec();
-                    String resourceName = repositoryResource.getMetadata().getName();
-                    String latestVersion = updatedResource.getLatestVersion();
-                    String currentVersion = SpecUtils.getImageVersion(spec);
-                    if (latestVersion.equals(currentVersion)) {
-                        //TODO remove log after testing
-                        logger.info("Couldn't find new version for resource: \"{}\"", resourceName);
-                        continue;
-                    }
-                    logger.info("Found new version for resource: \"{}\"", resourceName);
-                    SpecUtils.changeImageVersion(spec, latestVersion);
-                    try {
-                        Repository.update(gitter, repositoryResource);
-                        logger.info("Successfully updated repository with: \"{}\"", resourceName);
-                    } catch (Exception e) {
-                        logger.info("Exception while updating repository with : \"{}\"", resourceName);
-                    }
-                }
+            var snapshot = Repository.getSnapshot(gitter);
+            updateRepository(snapshot);
+            String commitRef = gitter.commitAndPush("Updated image versions");
+            if (commitRef != null) {
+                logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", schema, commitRef);
+                SchemaEventRouter router = SchemaEventRouter.getInstance();
+                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schema, commitRef);
+                router.addEvent(event);
+            } else {
+                logger.info("All files up to date for branch: \"{}\"", schema);
             }
-            return gitter.commitAndPush("Updated image versions");
         } finally {
             gitter.unlock();
+        }
+    }
+
+    private void updateRepository(RepositorySnapshot snapshot) {
+        Set<RepositoryResource> repositoryResources = snapshot.getResources();
+        Map<String, RepositoryResource> resourceSpecMap = repositoryResources.stream()
+                .collect(Collectors.toMap(
+                        x -> x.getMetadata().getName(),
+                        Function.identity())
+                );
+
+        for (UpdatedResource updatedResource : updatedResources) {
+            var repositoryResource = resourceSpecMap.get(updatedResource.getName());
+            if (repositoryResource != null) {
+                var spec = repositoryResource.getSpec();
+                String resourceName = repositoryResource.getMetadata().getName();
+                String latestVersion = updatedResource.getLatestVersion();
+                String currentVersion = SpecUtils.getImageVersion(spec);
+                if (latestVersion.equals(currentVersion)) {
+                    //TODO remove log after testing
+                    logger.info("Couldn't find new version for resource: \"{}\"", resourceName);
+                    continue;
+                }
+                logger.info("Found new version for resource: \"{}\"", resourceName);
+                SpecUtils.changeImageVersion(spec, latestVersion);
+                try {
+                    Repository.update(gitter, repositoryResource);
+                    logger.info("Successfully updated repository with: \"{}\"", resourceName);
+                } catch (Exception e) {
+                    logger.info("Exception while updating repository with : \"{}\"", resourceName);
+                }
+            }
         }
     }
 
