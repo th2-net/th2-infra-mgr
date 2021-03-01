@@ -76,7 +76,7 @@ public class DynamicResourceProcessor {
         String versionRangeChopped = StringUtils.chop(versionRange);
 
         if (VersionNumberUtils.validate(currentVersion, versionRangeChopped)) {
-            logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
+            logger.info("Adding resource: \"{}.{}\" to dynamic version tracking", schema, name);
             DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, versionRangeChopped, schema));
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
