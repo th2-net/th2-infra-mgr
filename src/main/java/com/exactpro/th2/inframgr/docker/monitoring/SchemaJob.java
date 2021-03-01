@@ -18,33 +18,35 @@ import java.util.stream.Collectors;
 public class SchemaJob extends Thread {
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
 
-    private Collection<DynamicResource> dynamicResources;
-    private List<UpdatedResource> updatedResources;
-    private Gitter gitter;
-    private RegistryConnection connection;
+    private final Collection<DynamicResource> dynamicResources;
+    private final List<UpdatedResource> updatedResources;
+    private final RegistryConnection connection;
+    private final Gitter gitter;
+    private final String schema;
 
-    public SchemaJob(Collection<DynamicResource> dynamicResources, Gitter gitter, RegistryConnection connection) {
+    public SchemaJob(Collection<DynamicResource> dynamicResources, RegistryConnection connection, Gitter gitter, String schema) {
         this.dynamicResources = dynamicResources;
         this.updatedResources = new ArrayList<>();
-        this.gitter = gitter;
         this.connection = connection;
+        this.gitter = gitter;
+        this.schema = schema;
     }
 
     @Override
     public void start() {
-        logger.info("Checking for new versions for resources in schema: \"{}\"", gitter.getBranch());
+        logger.info("Checking for new versions for resources in schema: \"{}\"", schema);
         for (DynamicResource resource : dynamicResources) {
             TagUpdater.getLatestTags(resource, updatedResources, connection);
         }
         try {
             String commitRef = commitAndPush();
             if (commitRef != null) {
-                logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", gitter.getBranch(), commitRef);
+                logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", schema, commitRef);
             } else {
-                logger.info("All files up to date for branch: \"{}\"", gitter.getBranch());
+                logger.info("All files up to date for branch: \"{}\"", schema);
             }
         } catch (Exception e) {
-            logger.info("Exception while pushing to branch: \"{}\".", gitter.getBranch());
+            logger.info("Exception while pushing to branch: \"{}\".", schema);
         }
     }
 

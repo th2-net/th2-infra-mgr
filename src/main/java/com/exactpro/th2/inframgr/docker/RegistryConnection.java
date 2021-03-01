@@ -17,7 +17,7 @@ public class RegistryConnection {
     private static final String API_SUFFIX = "/v2";
     private static final char SLASH_CHAR = '/';
 
-    private Map<String, SecretMapper.AuthenticationDetails> secrets;
+    private final Map<String, SecretMapper.AuthenticationDetails> secrets;
 
     public RegistryConnection(Map<String, SecretMapper.AuthenticationDetails> secrets) {
         this.secrets = secrets;
@@ -31,16 +31,16 @@ public class RegistryConnection {
         );
     }
 
-    public List<String> getTags(String imageName, int n) {
-        String tagsUrl = String.format("/tags/list?n=%s", n);
+    public List<String> getTags(String imageName, int count) {
+        String tagsUrl = String.format("/tags/list?n=%s", count);
         return requestTags(
                 toApiUrl(imageName, tagsUrl),
                 getAuthenticationDetails(imageName)
         );
     }
 
-    public List<String> getTags(String imageName, int n, String last) {
-        String tagsUrl = String.format("/tags/list?n=%s&last=%s", n, last);
+    public List<String> getTags(String imageName, int count, String last) {
+        String tagsUrl = String.format("/tags/list?n=%s&last=%s", count, last);
         return requestTags(toApiUrl(imageName, tagsUrl),
                 getAuthenticationDetails(imageName)
         );

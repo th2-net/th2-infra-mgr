@@ -12,12 +12,12 @@ public class RegistryWatcher implements Runnable {
     private static final int THREAD_POOL_SIZE_SCHEDULER = 3;
     private static final DynamicResourcesCache DYNAMIC_RESOURCES_CACHE = DynamicResourcesCache.INSTANCE;
 
-    private long initialDelay;
-    private long repeatPeriod;
+    private final long initialDelay;
+    private final long repeatPeriod;
 
-    private ScheduledExecutorService taskScheduler;
+    private final ScheduledExecutorService taskScheduler;
+    private final RegistryConnection connection;
     private GitterContext ctx;
-    private RegistryConnection connection;
 
     public RegistryWatcher(long initialDelay, long repeatPeriod, RegistryConnection connection) {
         this.taskScheduler = new ScheduledThreadPoolExecutor(THREAD_POOL_SIZE_SCHEDULER);
@@ -44,8 +44,9 @@ public class RegistryWatcher implements Runnable {
         for (String schema : DYNAMIC_RESOURCES_CACHE.getSchemas()) {
             new SchemaJob(
                     DYNAMIC_RESOURCES_CACHE.getDynamicResourcesCopy(schema),
+                    connection,
                     ctx.getGitter(schema),
-                    connection
+                    schema
             ).start();
         }
     }

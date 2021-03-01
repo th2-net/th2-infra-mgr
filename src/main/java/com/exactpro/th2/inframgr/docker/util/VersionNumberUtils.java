@@ -1,8 +1,5 @@
 package com.exactpro.th2.inframgr.docker.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,6 +15,7 @@ public class VersionNumberUtils {
     }
 
     public static List<String> filterTags(List<String> tags, String versionRange) {
+        //choose only tags that follow versionRange map, and extract
         return tags.stream()
                 .filter(tag -> VersionNumberUtils.validate(tag, versionRange))
                 .map(tag -> tag.substring(versionRange.length()))
@@ -28,6 +26,7 @@ public class VersionNumberUtils {
         if (tags.size() < 1) {
             return null;
         }
+        //convert tag strings to tag objects
         List<TagObject> tagObjects = toTagObjects(tags);
         if (tagObjects.size() < 1) {
             return null;
@@ -64,6 +63,7 @@ public class VersionNumberUtils {
 
     private static List<TagObject> toTagObjects(List<String> tags) {
         List<TagObject> tagObjects = new ArrayList<>();
+        //convert integer part of tag string into array of integers.
         for (String tag : tags) {
             boolean isValid = true;
             String[] tagPieces = tag.split(SPLIT_CHAR);
@@ -84,8 +84,8 @@ public class VersionNumberUtils {
     }
 
     private static class TagObject {
-        private String tag;
-        private List<Integer> integerParts;
+        private final String tag;
+        private final List<Integer> integerParts;
 
         public TagObject(String tag, List<Integer> integerParts) {
             this.tag = tag;

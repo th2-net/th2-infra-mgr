@@ -75,10 +75,9 @@ public class DynamicResourceProcessor {
         String currentVersion = SpecUtils.getImageVersion(spec);
         String versionRangeChopped = StringUtils.chop(versionRange);
 
-        //TODO do we need this check?
         if (VersionNumberUtils.validate(currentVersion, versionRangeChopped)) {
             logger.info("Adding resource: \"{}.{}\" from dynamic version tracking", schema, name);
-            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, currentVersion, versionRangeChopped, schema));
+            DYNAMIC_RESOURCES_CACHE.add(schema, new DynamicResource(name, image, versionRangeChopped, schema));
         } else {
             logger.error("Current image-version: \"{}\" of resource: \"{}.{}\" doesn't match versionRange: \"{}\". Will not be monitored",
                     currentVersion, schema, name, versionRange);
@@ -88,7 +87,6 @@ public class DynamicResourceProcessor {
 
     @PostConstruct
     public void start() throws IOException {
-        logger.info("DynamicResourceProcessor has been started");
         Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
         ObjectMapper mapper = new ObjectMapper();
         SecretMapper secretMapper = new SecretMapper(kube, mapper);
@@ -99,5 +97,6 @@ public class DynamicResourceProcessor {
                 registryConnection
         );
         registryWatcher.startWatchingRegistry();
+        logger.info("DynamicResourceProcessor has been started");
     }
 }
