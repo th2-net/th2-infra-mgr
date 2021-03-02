@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class LoggingConfigMap {
 
-    private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
+    private static final Logger logger = LoggerFactory.getLogger(LoggingConfigMap.class);
 
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
@@ -80,14 +80,18 @@ public class LoggingConfigMap {
             logger.info("Creating \"{}\"", resourceLabel);
 
             for (String key : cmData.keySet()) {
-                if (cmData.get(key).contains(LOGGING_CXX_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel));
+                String data = cmData.get(key);
 
-                if (cmData.get(key).contains(LOGGING_PYTHON_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel));
+                if (data.contains(LOGGING_CXX_PATH_SUBSTRING))
+                    data = data.replace(LOGGING_CXX_PATH_SUBSTRING, logLevel);
 
-                if (cmData.get(key).contains(LOGGING_JAVA_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel));
+                if (data.contains(LOGGING_PYTHON_PATH_SUBSTRING))
+                    data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel);
+
+                if (data.contains(LOGGING_JAVA_PATH_SUBSTRING))
+                    data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel);
+
+                cmData.put(key, data);
             }
             cmData.put(LOGGING_JSON_KEY, logLevel + "\n");
 
