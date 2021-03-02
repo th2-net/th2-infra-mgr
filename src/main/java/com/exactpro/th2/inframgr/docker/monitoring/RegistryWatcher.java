@@ -22,7 +22,9 @@ import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.infrarepo.GitterContext;
 
 import java.io.IOException;
-import java.util.concurrent.*;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class RegistryWatcher implements Runnable {
     private static final int THREAD_POOL_SIZE_SCHEDULER = 3;

@@ -27,8 +27,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class SecretMapper {
-    private static final Logger logger = LoggerFactory.getLogger(SecretMapper.class);
+public class RegistryCredentialLookup {
+    private static final Logger logger = LoggerFactory.getLogger(RegistryCredentialLookup.class);
 
     private static final String SECRET_DATA_ALIAS = ".dockerconfigjson";
     private static final String AUTHS_ALIAS = "auths";
@@ -41,14 +41,14 @@ public class SecretMapper {
     private final Kubernetes kube;
     private final ObjectMapper mapper;
 
-    public SecretMapper(Kubernetes kube, ObjectMapper mapper) {
+    public RegistryCredentialLookup(Kubernetes kube) {
         this.kube = kube;
-        this.mapper = mapper;
+        this.mapper = new ObjectMapper();;
     }
 
-    public Map<String, AuthenticationDetails> mapSecrets() {
-        List<Secret> secrets = kube.getRegistrySecrets();
-        Map<String, AuthenticationDetails> secretsMap = new HashMap<>();
+    public Map<String, RegistryCredentials> getCredentials() {
+        List<Secret> secrets = kube.getDockerRegistrySecrets();
+        Map<String, RegistryCredentials> secretsMap = new HashMap<>();
         for (Secret secret : secrets) {
             //extract data part from secrets
             String data = new String(Base64.getDecoder().decode(secret.getData().get(SECRET_DATA_ALIAS)));
@@ -62,38 +62,38 @@ public class SecretMapper {
                 //for each repository extract credentials
                 for (var entry : authMap.entrySet()) {
                     String key = entry.getKey();
-                    AuthenticationDetails credentials = getCredentials(entry.getValue());
+                    RegistryCredentials credentials = getCredentials(entry.getValue());
                     secretsMap.put(key, credentials);
                 }
             } catch (Exception e) {
-                logger.warn("Exception while decoding secret: \"{}\"", secret.getMetadata().getName());
+                logger.error("Exception while decoding secret: \"{}\"", secret.getMetadata().getName());
             }
         }
         return secretsMap;
     }
 
-    private AuthenticationDetails getCredentials(Object entryValue) {
+    private RegistryCredentials getCredentials(Object entryValue) {
         Map<String, String> credentials = mapper.convertValue(entryValue, Map.class);
         if (credentials.containsKey(USER_ALIAS) && credentials.containsKey(PASSWORD_ALIAS)) {
-            return new AuthenticationDetails(
+            return new RegistryCredentials(
                     credentials.get(USER_ALIAS),
                     credentials.get(PASSWORD_ALIAS)
             );
         } else if (credentials.containsKey(AUTHENTICATION_STRING_ALIAS)) {
             String authStr = credentials.get(AUTHENTICATION_STRING_ALIAS);
             String authStrDecoded = new String(Base64.getDecoder().decode(authStr));
-            return new AuthenticationDetails(
+            return new RegistryCredentials(
                     authStrDecoded.substring(0, authStrDecoded.indexOf(SEPARATOR)),
                     authStrDecoded.substring(authStrDecoded.indexOf(SEPARATOR) + 1)
             );
         } else return null;
     }
 
-    public static class AuthenticationDetails {
+    public static class RegistryCredentials {
         private final String user;
         private final String password;
 
-        public AuthenticationDetails(String user, String password) {
+        public RegistryCredentials(String user, String password) {
             this.user = user;
             this.password = password;
         }

@@ -33,9 +33,9 @@ public class RegistryConnection {
     private static final String API_SUFFIX = "/v2";
     private static final char SLASH_CHAR = '/';
 
-    private final Map<String, SecretMapper.AuthenticationDetails> secrets;
+    private final Map<String, RegistryCredentialLookup.RegistryCredentials> secrets;
 
-    public RegistryConnection(Map<String, SecretMapper.AuthenticationDetails> secrets) {
+    public RegistryConnection(Map<String, RegistryCredentialLookup.RegistryCredentials> secrets) {
         this.secrets = secrets;
     }
 
@@ -62,7 +62,7 @@ public class RegistryConnection {
         );
     }
 
-    private List<String> requestTags(String url, SecretMapper.AuthenticationDetails authenticationDetails) {
+    private List<String> requestTags(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         TagResponseBody tagResponseBody = null;
         RestTemplate restTemplate = buildRest(authenticationDetails);
         try {
@@ -73,7 +73,7 @@ public class RegistryConnection {
         return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.tags;
     }
 
-    private RestTemplate buildRest(SecretMapper.AuthenticationDetails authenticationDetails) {
+    private RestTemplate buildRest(RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplateBuilder builder = new RestTemplateBuilder();
         if (authenticationDetails == null) {
            return builder.basicAuthentication("USER", "PASSWORD").build();
@@ -85,7 +85,7 @@ public class RegistryConnection {
         }
     }
 
-    private SecretMapper.AuthenticationDetails getAuthenticationDetails(String imageName) {
+    private RegistryCredentialLookup.RegistryCredentials getAuthenticationDetails(String imageName) {
         String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
         return secrets.get(registry);
     }

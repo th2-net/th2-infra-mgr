@@ -24,12 +24,10 @@ import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
@@ -114,9 +112,8 @@ public class DynamicResourceProcessor {
     @PostConstruct
     public void start() throws IOException {
         Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
-        ObjectMapper mapper = new ObjectMapper();
-        SecretMapper secretMapper = new SecretMapper(kube, mapper);
-        RegistryConnection registryConnection = new RegistryConnection(secretMapper.mapSecrets());
+        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+        RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
         RegistryWatcher registryWatcher = new RegistryWatcher(
                 REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
                 REGISTRY_CHECK_PERIOD_SECONDS,
