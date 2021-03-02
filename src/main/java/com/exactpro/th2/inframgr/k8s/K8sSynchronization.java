@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.docker.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
@@ -82,7 +83,8 @@ public class K8sSynchronization {
                         String hashTag = Strings.formatHash(resource.getSourceHash());
                         // add resource to cache
                         cache.add(namespace, resource);
-
+                        //check resources for dynamic image version range
+                        DynamicResourceProcessor.checkResource(resource, schemaName);
                         // check repository items against k8s
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
@@ -119,6 +121,7 @@ public class K8sSynchronization {
                                 RepositoryResource resource = new RepositoryResource();
                                 resource.setKind(type.kind());
                                 resource.setMetadata(new RepositoryResource.Metadata(resourceName));
+                                DynamicResourceProcessor.checkResource(resource, schemaName, true);
                                 kube.deleteCustomResource(resource);
                             } catch (Exception e) {
                                 logger.error("Exception deleting resource {}", resourceLabel, e);
