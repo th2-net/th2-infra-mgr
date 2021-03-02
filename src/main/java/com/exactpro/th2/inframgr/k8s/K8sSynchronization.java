@@ -37,6 +37,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.exactpro.th2.inframgr.initializer.LoggingConfigMap.checkLoggingConfigMap;
+
 @Component
 public class K8sSynchronization {
 
@@ -56,7 +58,8 @@ public class K8sSynchronization {
         }
     }
 
-    private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources) throws Exception {
+    private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                      RepositorySettings repositorySettings) throws Exception {
 
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
@@ -76,7 +79,7 @@ public class K8sSynchronization {
                     Map<String, RepositoryResource> resources = repositoryResources.get(type.kind());
                     Map<String, K8sCustomResource> customResources = k8sResources.get(type.kind());
 
-                    for (RepositoryResource resource: resources.values()) {
+                    for (RepositoryResource resource : resources.values()) {
                         String resourceName = resource.getMetadata().getName();
                         String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, type.kind(), resourceName) + "\"";
                         String hashTag = Strings.formatHash(resource.getSourceHash());
@@ -103,6 +106,7 @@ public class K8sSynchronization {
                                 try {
                                     Strings.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
+                                    checkLoggingConfigMap(resource, repositorySettings.getLogLevel(), kube);
                                 } catch (Exception e) {
                                     logger.error("Exception updating resource {} {}", resourceLabel, hashTag, e);
                                 }
@@ -124,10 +128,9 @@ public class K8sSynchronization {
                                 logger.error("Exception deleting resource {}", resourceLabel, e);
                             }
                         }
-            }
+                }
         }
     }
-
 
     public void synchronizeBranch(String branch) {
 
@@ -175,13 +178,12 @@ public class K8sSynchronization {
                 }
 
             // synchronize entries
-            synchronizeNamespace(branch, repositoryMap);
+            synchronizeNamespace(branch, repositoryMap, repositorySettings);
 
         } catch (Exception e) {
             logger.error("Exception synchronizing schema \"{}\"", branch, e);
         }
     }
-
 
     @PostConstruct
     public void start() {
@@ -214,7 +216,6 @@ public class K8sSynchronization {
         subscribeToRepositoryEvents();
     }
 
-
     private void subscribeToRepositoryEvents() {
         ExecutorService executor = Executors.newCachedThreadPool();
         for (int i = 0; i < SYNC_PARALLELIZATION_THREADS; i++)
@@ -225,14 +226,13 @@ public class K8sSynchronization {
                 .onBackpressureBuffer()
                 .observeOn(Schedulers.computation())
                 .filter(event -> (
-                                (event instanceof SynchronizationRequestEvent
+                        (event instanceof SynchronizationRequestEvent
                                 || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
                 ))
                 .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
         logger.info("Kubernetes synchronization process subscribed to repository events");
     }
-
 
     private void processRepositoryEvents() {
 
@@ -255,7 +255,6 @@ public class K8sSynchronization {
         }
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
     }
-
 
     public static boolean isStartupSynchronizationComplete() {
         return startupSynchronizationComplete;

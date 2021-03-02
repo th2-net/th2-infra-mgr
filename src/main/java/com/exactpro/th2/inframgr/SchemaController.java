@@ -43,6 +43,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.exactpro.th2.inframgr.initializer.LoggingConfigMap.checkLoggingConfigMap;
+
 @Controller
 public class SchemaController {
 
@@ -216,7 +218,7 @@ public class SchemaController {
                 router.addEvent(event);
 
                 if (propagating)
-                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName);
+                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
             }
 
             return new SchemaControllerResponse(snapshot);
@@ -228,8 +230,8 @@ public class SchemaController {
         }
     }
 
-    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName)
-            throws ServiceException {
+    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName,
+                                    RepositorySettings repoSettings) throws ServiceException {
 
         try (Kubernetes kube = new Kubernetes(k8sConfig, schemaName)) {
 
@@ -250,6 +252,7 @@ public class SchemaController {
                                 break;
                             case update:
                                 kube.replaceCustomResource(resource);
+                                checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
                                 break;
                             case remove:
                                 kube.deleteCustomResource(resource);
@@ -314,7 +317,6 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
     }
-
 
     private void validateResourceNames(List<RequestEntry> operations) {
 
