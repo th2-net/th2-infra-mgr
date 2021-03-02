@@ -60,12 +60,13 @@ public class RegistryWatcher implements Runnable {
     @Override
     public void run() {
         for (String schema : DYNAMIC_RESOURCES_CACHE.getSchemas()) {
-            new SchemaJob(
+            new Thread(new SchemaJob(
                     DYNAMIC_RESOURCES_CACHE.getDynamicResourcesCopy(schema),
                     connection,
                     ctx.getGitter(schema),
                     schema
-            ).run();
+            )).start();
+
         }
     }
 
