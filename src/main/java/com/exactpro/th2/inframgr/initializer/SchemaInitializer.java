@@ -17,14 +17,8 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.errors.NotAcceptableException;
-import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.infrarepo.Gitter;
-import com.exactpro.th2.infrarepo.GitterContext;
-import com.exactpro.th2.infrarepo.Repository;
-import com.exactpro.th2.infrarepo.RepositorySettings;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -33,19 +27,14 @@ import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.text.RandomStringGenerator;
-import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
-import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-
-import static com.exactpro.th2.inframgr.SchemaController.REPOSITORY_ERROR;
 
 public class SchemaInitializer {
 
@@ -55,8 +44,6 @@ public class SchemaInitializer {
     private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
-    private static final String JAVA_LOGGING_CONFIGMAP_PARAM = "java-logging";
-    private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -67,13 +54,7 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEY = "cradle.json";
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
-    private static final String LOGGING_JSON_KEY = "logLevel";
-
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
-
-    private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
-    private static final String LOGGING_JAVA_PATH_SUBSTRING = "${LOGLEVEL_JAVA}";
-    private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
 
     /*
         Ingress annotation values with following key prefixes should be
@@ -119,10 +100,6 @@ public class SchemaInitializer {
         }
 
         copySecrets(config, kube, forceUpdate);
-
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        copyConfigMap(configMaps, JAVA_LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
-        copyLoggingConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, schemaName, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
 
@@ -257,105 +234,6 @@ public class SchemaInitializer {
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
         copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
         copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-    }
-
-    static void copyConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube, boolean force) {
-
-        String configMapName = configMaps.get(configMapKey);
-        if (configMapName == null || configMapName.isEmpty()) {
-            logger.warn("ConfigMap for \"{}\" not configured, ignoring", configMapKey);
-            return;
-        }
-
-        String namespace = kube.getNamespaceName();
-        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null) {
-            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
-            return;
-        }
-
-        if (kube.getConfigMap(configMapName) != null && !force) {
-            return;
-        }
-
-        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
-
-        // copy config map
-        try {
-            logger.info("Creating \"{}\"", resourceLabel);
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
-            kube.createOrReplaceConfigMap(cm);
-        } catch (Exception e) {
-            logger.error("Exception creating \"{}\"", resourceLabel, e);
-        }
-    }
-
-    static void copyLoggingConfigMap(Map<String, String> configMaps, String configMapKey, String schemaName,
-                                     Kubernetes kube, boolean forceUpdate) throws IOException {
-
-        String configMapName = configMaps.get(configMapKey);
-        if (configMapName == null || configMapName.isEmpty())
-            return;
-
-        String namespace = kube.getNamespaceName();
-        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null) {
-            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
-            return;
-        }
-
-        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
-        Map<String, String> cmData = cm.getData();
-
-        GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
-        Gitter gitter = ctx.getGitter(schemaName);
-        RepositorySettings settings;
-
-        try {
-            gitter.lock();
-            settings = Repository.getSnapshot(gitter).getRepositorySettings();
-        } catch (RefNotAdvertisedException | RefNotFoundException e) {
-            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exist");
-        } catch (Exception e) {
-            logger.error("Exception retrieving schema {} from repository", schemaName, e);
-            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
-        } finally {
-            gitter.unlock();
-        }
-
-        String logLevel = settings.getLogLevel();
-
-        ConfigMap configMap = kube.getConfigMap(cm.getMetadata().getName());
-        if (configMap != null && !forceUpdate) {
-            // check if logLevel is changed
-            Map<String, String> configMapData = configMap.getData();
-            if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel)) {
-                logger.info("Config map \"{}\" Not updated", resourceLabel);
-                return;
-            }
-        }
-
-        // copy config map with updated log level value to namespace
-        try {
-            logger.info("Creating \"{}\"", resourceLabel);
-
-            for (String key : cmData.keySet()) {
-                if (cmData.get(key).contains(LOGGING_CXX_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_CXX_PATH_SUBSTRING, logLevel));
-
-                if (cmData.get(key).contains(LOGGING_PYTHON_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel));
-
-                if (cmData.get(key).contains(LOGGING_JAVA_PATH_SUBSTRING))
-                    cmData.put(key, cmData.get(key).replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel));
-            }
-            cmData.put(LOGGING_JSON_KEY, logLevel + "\n");
-
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
-            kube.createOrReplaceConfigMap(cm);
-        } catch (Exception e) {
-            logger.error("Exception copying \"{}\"", resourceLabel, e);
-        }
     }
 
     private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
