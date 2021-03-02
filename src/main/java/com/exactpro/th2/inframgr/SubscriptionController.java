@@ -41,7 +41,7 @@ import java.util.concurrent.ForkJoinPool;
 @Controller
 public class SubscriptionController {
 
-    private static final long SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+    private static final long SESSION_TIMEOUT = 60 * 1000;
     private final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
     private ExecutorService executor = Executors.newSingleThreadExecutor();
 
