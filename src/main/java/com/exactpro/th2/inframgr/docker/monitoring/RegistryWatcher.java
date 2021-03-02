@@ -65,7 +65,7 @@ public class RegistryWatcher implements Runnable {
                     connection,
                     ctx.getGitter(schema),
                     schema
-            ).start();
+            ).run();
         }
     }
 

@@ -35,7 +35,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class SchemaJob extends Thread {
+public class SchemaJob implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
 
     private final Collection<DynamicResource> dynamicResources;
@@ -53,8 +53,8 @@ public class SchemaJob extends Thread {
     }
 
     @Override
-    public void start() {
-        logger.info("Checking for new versions for resources in schema: \"{}\"", schema);
+    public void run() {
+        logger.info("Checking for new versions of resources in schema: \"{}\"", schema);
         for (DynamicResource resource : dynamicResources) {
             TagUpdater.getLatestTags(resource, updatedResources, connection);
         }
