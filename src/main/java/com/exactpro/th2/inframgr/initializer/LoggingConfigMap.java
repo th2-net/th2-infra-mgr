@@ -69,7 +69,7 @@ public class LoggingConfigMap {
             // check if logLevel is changed
             Map<String, String> configMapData = configMap.getData();
             try {
-                if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel)) {
+                if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel + "\n")) {
                     logger.info("Config map \"{}\" already exists, skipping", resourceLabel);
                     return;
                 }
