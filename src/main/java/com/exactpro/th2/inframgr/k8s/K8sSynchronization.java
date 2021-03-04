@@ -18,11 +18,12 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.inframgr.util.Strings;
+import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +37,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
-import static com.exactpro.th2.inframgr.initializer.LoggingConfigMap.checkLoggingConfigMap;
 
 @Component
 public class K8sSynchronization {
@@ -66,6 +65,11 @@ public class K8sSynchronization {
             String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
+            try {
+                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevel(), kube);
+            } catch (Exception e) {
+                logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
+            }
 
             // load custom resources from k8s
             Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
@@ -106,7 +110,6 @@ public class K8sSynchronization {
                                 try {
                                     Strings.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
-                                    checkLoggingConfigMap(resource, repositorySettings.getLogLevel(), kube);
                                 } catch (Exception e) {
                                     logger.error("Exception updating resource {} {}", resourceLabel, hashTag, e);
                                 }

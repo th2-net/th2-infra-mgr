@@ -255,7 +255,7 @@ public class SchemaController {
                                 try {
                                     LoggingConfigMap.checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
                                 } catch (Exception e) {
-                                    logger.error("Exception copying \"{}\" config map", resource.getMetadata().getName(), e);
+                                    logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
                                 }
                                 break;
                             case remove:
