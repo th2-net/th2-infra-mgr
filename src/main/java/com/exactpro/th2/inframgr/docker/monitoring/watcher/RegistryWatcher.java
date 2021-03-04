@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.monitoring;
+package com.exactpro.th2.inframgr.docker.monitoring.watcher;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.docker.DynamicResourcesCache;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
+import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourcesCache;
 import com.exactpro.th2.infrarepo.GitterContext;
 
 import java.io.IOException;

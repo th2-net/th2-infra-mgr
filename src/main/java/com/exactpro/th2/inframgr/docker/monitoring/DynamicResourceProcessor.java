@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker;
+package com.exactpro.th2.inframgr.docker.monitoring;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.docker.monitoring.RegistryWatcher;
+import com.exactpro.th2.inframgr.docker.RegistryConnection;
+import com.exactpro.th2.inframgr.docker.RegistryCredentialLookup;
+import com.exactpro.th2.inframgr.docker.monitoring.watcher.RegistryWatcher;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
@@ -69,6 +71,7 @@ public class DynamicResourceProcessor {
 
         var spec = resource.getSpec();
         if (spec == null) {
+            removeFromTrackedResources(schema, name, resourceLabel, "spec section is null");
             return;
         }
 

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.monitoring;
+package com.exactpro.th2.inframgr.docker.monitoring.watcher;
 
 import com.exactpro.th2.inframgr.SchemaEventRouter;
-import com.exactpro.th2.inframgr.docker.DynamicResource;
+import com.exactpro.th2.inframgr.docker.monitoring.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;

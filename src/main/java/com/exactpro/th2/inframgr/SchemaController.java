@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.docker.DynamicResourceProcessor;
+import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.errors.BadRequestException;
 import com.exactpro.th2.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;

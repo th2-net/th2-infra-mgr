@@ -17,6 +17,8 @@
 package com.exactpro.th2.inframgr.docker;
 
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.Secret;
 import org.slf4j.Logger;
@@ -43,7 +45,7 @@ public class RegistryCredentialLookup {
 
     public RegistryCredentialLookup(Kubernetes kube) {
         this.kube = kube;
-        this.mapper = new ObjectMapper();;
+        this.mapper = new ObjectMapper();
     }
 
     public Map<String, RegistryCredentials> getCredentials() {
