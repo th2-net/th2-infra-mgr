@@ -19,8 +19,7 @@ package com.exactpro.th2.inframgr;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.RegistryCredentialLookup;
 import com.exactpro.th2.inframgr.docker.descriptor.DescriptorExtractor;
-import com.exactpro.th2.inframgr.docker.descriptor.errors.BlobNotFoundException;
-import com.exactpro.th2.inframgr.docker.descriptor.errors.ManifestNotFoundException;
+import com.exactpro.th2.inframgr.docker.descriptor.errors.RegistryRequestException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
@@ -38,8 +37,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 public class DescriptorController {
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
     private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
-    private static final String MANIFEST_ERROR = "MANIFEST_REQUEST_ERROR";
-    private static final String BLOB_ERROR = "BLOB_REQUEST_ERROR";
+    private static final String REGISTRY_ERROR = "DOCKER_REGISTRY_ERROR";
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
@@ -55,7 +53,7 @@ public class DescriptorController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid resourceName");
         }
         if (ResourceType.forKind(kind) == null) {
-            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid kind");
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid resource kind");
         }
 
 
@@ -74,11 +72,9 @@ public class DescriptorController {
             descriptor = descriptorExtractor.getImageDescriptor(kind, box);
         } catch (ResourceNotFoundException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e.getMessage());
-        } catch (ManifestNotFoundException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, MANIFEST_ERROR, e.getMessage());
-        } catch (BlobNotFoundException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, BLOB_ERROR, e.getMessage());
-        } catch (Exception e) {
+        } catch (RegistryRequestException e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e.getMessage());
+        }catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
         return descriptor;

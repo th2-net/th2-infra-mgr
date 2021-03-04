@@ -16,8 +16,8 @@
 
 package com.exactpro.th2.inframgr.docker.descriptor.errors;
 
-public class BlobNotFoundException extends RuntimeException {
-    public BlobNotFoundException(String message) {
-        super(message);
+public class RegistryRequestException extends RuntimeException {
+    public RegistryRequestException(Throwable cause) {
+        super(cause);
     }
 }

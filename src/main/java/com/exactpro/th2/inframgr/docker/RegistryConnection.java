@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr.docker;
 
+import com.exactpro.th2.inframgr.docker.descriptor.errors.RegistryRequestException;
 import com.exactpro.th2.inframgr.docker.model.schemav2.Blob;
 import com.exactpro.th2.inframgr.docker.model.schemav2.ImageManifestV2;
 import com.exactpro.th2.inframgr.docker.model.tag.TagResponseBody;
@@ -104,7 +105,7 @@ public class RegistryConnection {
             return restTemplate.exchange(url, HttpMethod.GET, entity, ImageManifestV2.class).getBody();
         } catch (Exception e) {
             logger.info("Exception executing request: {}", url, e);
-            throw e;
+            throw new RegistryRequestException(e);
         }
     }
 
@@ -117,7 +118,7 @@ public class RegistryConnection {
             return restTemplate.getForObject(url, Blob.class);
         } catch (Exception e) {
             logger.info("Exception executing request: {}", url, e);
-            throw e;
+            throw new RegistryRequestException(e);
         }
     }
 

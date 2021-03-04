@@ -17,8 +17,6 @@
 package com.exactpro.th2.inframgr.docker.descriptor;
 
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
-import com.exactpro.th2.inframgr.docker.descriptor.errors.BlobNotFoundException;
-import com.exactpro.th2.inframgr.docker.descriptor.errors.ManifestNotFoundException;
 import com.exactpro.th2.inframgr.docker.model.schemav2.Blob;
 import com.exactpro.th2.inframgr.docker.model.schemav2.ImageManifestV2;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
@@ -65,12 +63,12 @@ public class DescriptorExtractor {
     private Map<String, String> getImageLabels(String imageName, String version) {
         ImageManifestV2 manifest = connection.getImageManifest(imageName, version);
         if (manifest == null) {
-            throw new ManifestNotFoundException(String.format("Couldn't execute request or couldn't find manifest for image: '%s:%s'", imageName, version));
+            return null;
         }
         String digest = manifest.getConfig().getDigest();
         Blob blob = connection.getBlob(imageName, digest);
         if (blob == null) {
-            throw new BlobNotFoundException(String.format("Couldn't execute request or couldn't find blob for digest: '%s'", digest));
+            return null;
         }
         return blob.getConfig().getLabels();
     }
