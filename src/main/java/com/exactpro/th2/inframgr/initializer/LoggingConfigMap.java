@@ -40,18 +40,18 @@ public class LoggingConfigMap {
     private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
 
     public static void checkLoggingConfigMap(RepositoryResource resource, String logLevel, Kubernetes kube) throws IOException {
-        String cmName = Config.getInstance().getKubernetes().getConfigMaps().get(LOGGING_CONFIGMAP_PARAM);
-        if (resource.getMetadata().getName().equals(cmName)) {
-            copyLoggingConfigMap(cmName, logLevel, kube, true);
+        if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
+            copyLoggingConfigMap(logLevel, kube, true);
         }
     }
 
-    public static void copyLoggingConfigMap(String configMapName, String logLevel, Kubernetes kube) {
-        copyLoggingConfigMap(configMapName, logLevel, kube, false);
+    public static void copyLoggingConfigMap(String logLevel, Kubernetes kube) throws IOException {
+        copyLoggingConfigMap(logLevel, kube, false);
     }
 
-    public static void copyLoggingConfigMap(String configMapName, String logLevel, Kubernetes kube, boolean forceUpdate) {
+    public static void copyLoggingConfigMap(String logLevel, Kubernetes kube, boolean forceUpdate) throws IOException {
 
+        String configMapName = getLoggingConfigMapName();
         if (configMapName == null || configMapName.isEmpty())
             return;
 
@@ -63,19 +63,23 @@ public class LoggingConfigMap {
 
         String namespace = kube.getNamespaceName();
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
-        Map<String, String> cmData = cm.getData();
 
         ConfigMap configMap = kube.getConfigMap(cm.getMetadata().getName());
         if (configMap != null && !forceUpdate) {
             // check if logLevel is changed
             Map<String, String> configMapData = configMap.getData();
-            if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel)) {
-                logger.info("Config map \"{}\" already exists, skipping", resourceLabel);
-                return;
+            try {
+                if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel)) {
+                    logger.info("Config map \"{}\" already exists, skipping", resourceLabel);
+                    return;
+                }
+            } catch (NullPointerException e) {
+                logger.error("Config map \"{}\" misses \"{}\" property", resourceLabel, LOGGING_JSON_KEY);
             }
         }
 
         // copy config map with updated log level value to namespace
+        Map<String, String> cmData = cm.getData();
         try {
             logger.info("Creating \"{}\"", resourceLabel);
 
@@ -100,5 +104,9 @@ public class LoggingConfigMap {
         } catch (Exception e) {
             logger.error("Exception copying \"{}\"", resourceLabel, e);
         }
+    }
+
+    private static String getLoggingConfigMapName() throws IOException {
+        return Config.getInstance().getKubernetes().getConfigMaps().get(LOGGING_CONFIGMAP_PARAM);
     }
 }

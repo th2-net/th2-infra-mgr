@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.errors.BadRequestException;
 import com.exactpro.th2.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
+import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
@@ -42,8 +43,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
-import static com.exactpro.th2.inframgr.initializer.LoggingConfigMap.checkLoggingConfigMap;
 
 @Controller
 public class SchemaController {
@@ -156,7 +155,8 @@ public class SchemaController {
         List<RequestEntry> operations;
         try {
             ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
-            operations = mapper.readValue(requestBody, new TypeReference<>() {});
+            operations = mapper.readValue(requestBody, new TypeReference<>() {
+            });
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
         }
@@ -252,7 +252,11 @@ public class SchemaController {
                                 break;
                             case update:
                                 kube.replaceCustomResource(resource);
-                                checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
+                                try {
+                                    LoggingConfigMap.checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
+                                } catch (Exception e) {
+                                    logger.error("Exception copying \"{}\" config map", resource.getMetadata().getName(), e);
+                                }
                                 break;
                             case remove:
                                 kube.deleteCustomResource(resource);
