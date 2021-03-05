@@ -32,19 +32,24 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletResponse;
+
 
 @Controller
 public class DescriptorController {
+    private static final String PROTOBUF_DESCRIPTOR = "protobuf-description-base64";
+
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
-    private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
     private static final String REGISTRY_ERROR = "DOCKER_REGISTRY_ERROR";
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
-    public String getDescriptor(@PathVariable(name = "schema") String schemaName,
-                                @PathVariable(name = "kind") String kind,
-                                @PathVariable(name = "box") String box
+    public DescriptorControllerResponse getDescriptor(@PathVariable(name = "schema") String schemaName,
+                               @PathVariable(name = "kind") String kind,
+                               @PathVariable(name = "box") String box,
+                               HttpServletResponse response
+
     ) throws ServiceException {
         if (!K8sCustomResource.isNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
@@ -56,27 +61,24 @@ public class DescriptorController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid resource kind");
         }
 
-
-        DescriptorExtractor descriptorExtractor;
+        String descriptor;
         try {
             Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
             RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-            descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
-        } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
-        }
-
-        String descriptor;
-        try {
-            descriptor = descriptorExtractor.getImageDescriptor(kind, box);
+            DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
+            descriptor = descriptorExtractor.getImageDescriptor(kind, box, PROTOBUF_DESCRIPTOR);
         } catch (ResourceNotFoundException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e.getMessage());
         } catch (RegistryRequestException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e.getMessage());
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
-        return descriptor;
+        if (descriptor != null) {
+            return new DescriptorControllerResponse(PROTOBUF_DESCRIPTOR, descriptor);
+        }
+        response.setStatus(HttpStatus.NO_CONTENT.value());
+        return null;
     }
 }

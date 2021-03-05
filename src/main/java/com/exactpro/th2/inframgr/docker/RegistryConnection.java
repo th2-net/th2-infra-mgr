@@ -135,8 +135,13 @@ public class RegistryConnection {
     }
 
     private RegistryCredentialLookup.RegistryCredentials getAuthenticationDetails(String imageName) {
-        String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
-        return secrets.get(registry);
+        try {
+            String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
+            return secrets.get(registry);
+        }catch (Exception e) {
+            logger.error("Invalid image format for \"{}\"", imageName);
+        }
+        return null;
     }
 
     private String toApiUrl(String imageName, String request) {
