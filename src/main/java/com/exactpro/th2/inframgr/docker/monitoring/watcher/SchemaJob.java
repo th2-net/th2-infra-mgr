@@ -61,7 +61,7 @@ public class SchemaJob implements Runnable {
         try {
             commitAndPush();
         } catch (Exception e) {
-            logger.info("Exception while pushing to branch: \"{}\".", schema);
+            logger.error("Exception while pushing to branch: \"{}\".", schema);
         }
     }
 
@@ -110,7 +110,7 @@ public class SchemaJob implements Runnable {
                     Repository.update(gitter, repositoryResource);
                     logger.info("Successfully updated repository with: \"{}\"", resourceLabel);
                 } catch (Exception e) {
-                    logger.info("Exception while updating repository with : \"{}\"", resourceLabel);
+                    logger.error("Exception while updating repository with : \"{}\"", resourceLabel);
                 }
             }
         }
