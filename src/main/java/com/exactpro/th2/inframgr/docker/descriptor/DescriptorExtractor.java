@@ -25,11 +25,13 @@ import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
 public class DescriptorExtractor {
-    private static final String DESCRIPTOR_ALIAS = "protobuf-description-base64";
+    private static final Logger logger = LoggerFactory.getLogger(DescriptorExtractor.class);
 
     private final Kubernetes kube;
 
@@ -40,24 +42,25 @@ public class DescriptorExtractor {
         this.kube = kube;
     }
 
-    public String getImageDescriptor(String kind, String box) {
+    public String getImageDescriptor(String kind, String box, String descriptor) {
         K8sCustomResource resource = kube.loadCustomResource(ResourceType.forKind(kind), box);
         if (resource != null) {
             Object spec = resource.getSpec();
             String imageName = SpecUtils.getImageName(spec);
             String version = SpecUtils.getImageVersion(spec);
-            return getDescriptor(imageName, version);
+            return getDescriptor(imageName, version, descriptor);
         }
-        String errorMessage = String.format("Couldn't find resource: '%s' on cluster", ResourcePath.annotationFor(kube.getNamespaceName(), kind, box));
+        String errorMessage = String.format("Couldn't find resource: \"%s\" on cluster", ResourcePath.annotationFor(kube.getNamespaceName(), kind, box));
+        logger.error(errorMessage);
         throw new ResourceNotFoundException(errorMessage);
     }
 
-    private String getDescriptor(String imageName, String version) {
+    private String getDescriptor(String imageName, String version, String descriptor) {
         Map<String, String> imageLabels = getImageLabels(imageName, version);
         if (imageLabels == null) {
             return null;
         }
-        return imageLabels.get(DESCRIPTOR_ALIAS);
+        return imageLabels.get(descriptor);
     }
 
     private Map<String, String> getImageLabels(String imageName, String version) {
