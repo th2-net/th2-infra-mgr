@@ -90,7 +90,7 @@ public class RegistryConnection {
         try {
             tagResponseBody = restTemplate.getForObject(url, TagResponseBody.class);
         } catch (Exception e) {
-            logger.info("Exception executing request: {}", url, e);
+            logger.error("Exception executing request: {}", url, e);
         }
         return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.getTags();
     }
@@ -100,11 +100,10 @@ public class RegistryConnection {
         HttpHeaders headers = new HttpHeaders();
         headers.add("Accept", "application/vnd.docker.distribution.manifest.v2+json");
         HttpEntity<String> entity = new HttpEntity<>(headers);
-
         try {
             return restTemplate.exchange(url, HttpMethod.GET, entity, ImageManifestV2.class).getBody();
         } catch (Exception e) {
-            logger.info("Exception executing request: {}", url, e);
+            logger.error("Exception executing request: {}", url, e);
             throw new RegistryRequestException(e);
         }
     }
@@ -117,7 +116,7 @@ public class RegistryConnection {
         try {
             return restTemplate.getForObject(url, Blob.class);
         } catch (Exception e) {
-            logger.info("Exception executing request: {}", url, e);
+            logger.error("Exception executing request: {}", url, e);
             throw new RegistryRequestException(e);
         }
     }
@@ -138,10 +137,10 @@ public class RegistryConnection {
         try {
             String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
             return secrets.get(registry);
-        }catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Invalid image format for \"{}\"", imageName);
+            throw e;
         }
-        return null;
     }
 
     private String toApiUrl(String imageName, String request) {
