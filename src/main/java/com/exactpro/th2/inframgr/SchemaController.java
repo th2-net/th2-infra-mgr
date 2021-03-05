@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.errors.BadRequestException;
 import com.exactpro.th2.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
+import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
@@ -217,7 +218,7 @@ public class SchemaController {
                 router.addEvent(event);
 
                 if (propagating)
-                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName);
+                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
             }
 
             return new SchemaControllerResponse(snapshot);
@@ -229,8 +230,8 @@ public class SchemaController {
         }
     }
 
-    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName)
-            throws ServiceException {
+    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName,
+                                    RepositorySettings repoSettings) throws ServiceException {
 
         try (Kubernetes kube = new Kubernetes(k8sConfig, schemaName)) {
 
@@ -253,6 +254,11 @@ public class SchemaController {
                             case update:
                                 DynamicResourceProcessor.checkResource(resource, schemaName);
                                 kube.replaceCustomResource(resource);
+                                try {
+                                    LoggingConfigMap.checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
+                                } catch (Exception e) {
+                                    logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
+                                }
                                 break;
                             case remove:
                                 DynamicResourceProcessor.checkResource(resource, schemaName, true);
@@ -318,7 +324,6 @@ public class SchemaController {
             throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
         }
     }
-
 
     private void validateResourceNames(List<RequestEntry> operations) {
 

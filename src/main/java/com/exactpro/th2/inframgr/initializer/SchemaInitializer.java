@@ -31,8 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SchemaInitializer {
 
@@ -42,7 +44,6 @@ public class SchemaInitializer {
     private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
-    private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -74,7 +75,7 @@ public class SchemaInitializer {
         ensureSchema(schemaName, kube, SchemaSyncMode.CHECK_NAMESPACE);
     }
 
-    public static void ensureSchema (String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
+    public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
         switch (syncMode) {
             case CHECK_NAMESPACE:
                 if (kube.existsNamespace())
@@ -88,11 +89,9 @@ public class SchemaInitializer {
         }
     }
 
-
     private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
 
         Config config = Config.getInstance();
-
 
         if (!kube.existsNamespace()) {
             // namespace not found, create it
@@ -102,15 +101,11 @@ public class SchemaInitializer {
 
         copySecrets(config, kube, forceUpdate);
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        copyConfigMap(configMaps, LOGGING_CONFIGMAP_PARAM, kube, forceUpdate);
-
         copyIngress(config, kube, forceUpdate);
 
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
-        ensureKeyspace(config, schemaName,  kube, forceUpdate);
+        ensureKeyspace(config, schemaName, kube, forceUpdate);
     }
-
 
     static void createRabbitMQSecret(Config config, Kubernetes kube, String username, boolean forceUpdate) {
 
@@ -139,7 +134,6 @@ public class SchemaInitializer {
         kube.createOrReplaceSecret(secret);
     }
 
-
     static void copyRabbitMQConfigMap(String configMapName, String vHostName, String username, Kubernetes kube, boolean forceUpdate) {
 
         if (configMapName == null || configMapName.isEmpty())
@@ -147,7 +141,7 @@ public class SchemaInitializer {
 
         String namespace = kube.getNamespaceName();
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null)   {
+        if (cm == null || cm.getData() == null || cm.getData().get(RABBITMQ_JSON_KEY) == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -196,14 +190,13 @@ public class SchemaInitializer {
         }
     }
 
-
     private static void copyCassandraConfigMap(String configMapName, String keyspaceName, Kubernetes kube, boolean forceUpdate) {
 
         if (configMapName == null || configMapName.isEmpty())
             return;
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null)   {
+        if (cm == null || cm.getData() == null || cm.getData().get(CASSANDRA_JSON_KEY) == null) {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
@@ -219,7 +212,7 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            logger.info("Creating \"{}\"",resourceLabel );
+            logger.info("Creating \"{}\"", resourceLabel);
 
             ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
@@ -233,7 +226,6 @@ public class SchemaInitializer {
         }
     }
 
-
     static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         Config.CassandraConfig cassandraConfig = config.getCassandra();
@@ -243,40 +235,6 @@ public class SchemaInitializer {
         copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
         copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
     }
-
-
-    static void copyConfigMap(Map<String, String> configMaps, String configMapKey, Kubernetes kube, boolean force) {
-
-
-        String configMapName = configMaps.get(configMapKey);
-        if (configMapName == null || configMapName.isEmpty()) {
-            logger.warn("ConfigMap for \"{}\" not configured, ignoring", configMapKey);
-            return;
-        }
-
-        String namespace = kube.getNamespaceName();
-        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
-        if (cm == null || cm.getData() == null)   {
-            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
-            return;
-        }
-
-        if (kube.getConfigMap(configMapName) != null && !force) {
-            return;
-        }
-
-        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
-
-        // copy config map
-        try {
-            logger.info("Creating \"{}\"", resourceLabel);
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
-            kube.createOrReplaceConfigMap(cm);
-        } catch (Exception e) {
-            logger.error("Exception creating \"{}\"", resourceLabel, e);
-        }
-    }
-
 
     private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
 
@@ -292,15 +250,14 @@ public class SchemaInitializer {
 
             logger.info("Creating \"{}\"", resourceLabel);
 
-
             ObjectMapper mapper = new ObjectMapper();
             String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
             IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
             ObjectMeta meta = Kubernetes.createMetadataWithAnnotation(ingressName, resourceLabel);
 
-            Map <String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
-            Map <String, String> newAnnotations = meta.getAnnotations();
+            Map<String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
+            Map<String, String> newAnnotations = meta.getAnnotations();
             for (var entry : oldAnnotations.entrySet()) {
                 if (entry.getKey() == null)
                     continue;
@@ -321,7 +278,6 @@ public class SchemaInitializer {
         }
     }
 
-
     private static Secret makeCopy(Secret secret) {
         Secret secretCopy = new Secret();
         secretCopy.setKind(secret.getKind());
@@ -332,7 +288,6 @@ public class SchemaInitializer {
         secretCopy.setData(secret.getData());
         return secretCopy;
     }
-
 
     private static void copySecrets(Config config, Kubernetes kube, boolean forceUpdate) {
 
@@ -356,7 +311,6 @@ public class SchemaInitializer {
                     continue;
                 }
 
-
                 if (targetNamespaceSecrets.containsKey(secretName) && !forceUpdate)
                     logger.info("Secret \"{}\" already exists, skipping", resourceLabel);
                 else
@@ -371,14 +325,12 @@ public class SchemaInitializer {
             }
     }
 
-
     private static String generateRandomPassword(Config.RabbitMQConfig config) {
         RandomStringGenerator pwdGenerator = new RandomStringGenerator.Builder()
                 .selectFrom(config.getPasswordChars().toCharArray())
                 .build();
         return pwdGenerator.generate(config.getPasswordLength());
     }
-
 
     private static String base64Encode(String s) {
         return new String(Base64.getEncoder().encode(s.getBytes()));

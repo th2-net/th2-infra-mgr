@@ -19,11 +19,12 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
+import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.inframgr.util.Strings;
+import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,13 +58,19 @@ public class K8sSynchronization {
         }
     }
 
-    private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources) throws Exception {
+    private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                      RepositorySettings repositorySettings) throws Exception {
 
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
             String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
+            try {
+                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevel(), kube);
+            } catch (Exception e) {
+                logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
+            }
 
             // load custom resources from k8s
             Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
@@ -77,7 +84,7 @@ public class K8sSynchronization {
                     Map<String, RepositoryResource> resources = repositoryResources.get(type.kind());
                     Map<String, K8sCustomResource> customResources = k8sResources.get(type.kind());
 
-                    for (RepositoryResource resource: resources.values()) {
+                    for (RepositoryResource resource : resources.values()) {
                         String resourceName = resource.getMetadata().getName();
                         String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, type.kind(), resourceName) + "\"";
                         String hashTag = Strings.formatHash(resource.getSourceHash());
@@ -127,10 +134,9 @@ public class K8sSynchronization {
                                 logger.error("Exception deleting resource {}", resourceLabel, e);
                             }
                         }
-            }
+                }
         }
     }
-
 
     public void synchronizeBranch(String branch) {
 
@@ -178,13 +184,12 @@ public class K8sSynchronization {
                 }
 
             // synchronize entries
-            synchronizeNamespace(branch, repositoryMap);
+            synchronizeNamespace(branch, repositoryMap, repositorySettings);
 
         } catch (Exception e) {
             logger.error("Exception synchronizing schema \"{}\"", branch, e);
         }
     }
-
 
     @PostConstruct
     public void start() {
@@ -217,7 +222,6 @@ public class K8sSynchronization {
         subscribeToRepositoryEvents();
     }
 
-
     private void subscribeToRepositoryEvents() {
         ExecutorService executor = Executors.newCachedThreadPool();
         for (int i = 0; i < SYNC_PARALLELIZATION_THREADS; i++)
@@ -228,14 +232,13 @@ public class K8sSynchronization {
                 .onBackpressureBuffer()
                 .observeOn(Schedulers.computation())
                 .filter(event -> (
-                                (event instanceof SynchronizationRequestEvent
+                        (event instanceof SynchronizationRequestEvent
                                 || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
                 ))
                 .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
         logger.info("Kubernetes synchronization process subscribed to repository events");
     }
-
 
     private void processRepositoryEvents() {
 
@@ -258,7 +261,6 @@ public class K8sSynchronization {
         }
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
     }
-
 
     public static boolean isStartupSynchronizationComplete() {
         return startupSynchronizationComplete;
