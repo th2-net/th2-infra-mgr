@@ -43,7 +43,7 @@ public class RegistryCredentialLookup {
 
     public RegistryCredentialLookup(Kubernetes kube) {
         this.kube = kube;
-        this.mapper = new ObjectMapper();;
+        this.mapper = new ObjectMapper();
     }
 
     public Map<String, RegistryCredentials> getCredentials() {

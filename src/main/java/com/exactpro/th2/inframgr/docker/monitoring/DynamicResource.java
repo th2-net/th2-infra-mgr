@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker;
+package com.exactpro.th2.inframgr.docker.monitoring;
 
 public class DynamicResource {
     private final String resourceName;

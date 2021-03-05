@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker;
+package com.exactpro.th2.inframgr.docker.monitoring;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

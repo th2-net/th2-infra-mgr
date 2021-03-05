@@ -16,12 +16,22 @@
 
 package com.exactpro.th2.inframgr.docker;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.exactpro.th2.inframgr.docker.descriptor.errors.RegistryRequestException;
+import com.exactpro.th2.inframgr.docker.model.schemav2.Blob;
+import com.exactpro.th2.inframgr.docker.model.schemav2.ImageManifestV2;
+import com.exactpro.th2.inframgr.docker.model.tag.TagResponseBody;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +72,18 @@ public class RegistryConnection {
         );
     }
 
+    public ImageManifestV2 getImageManifest(String imageName, String version) {
+        String manifestsUrl = String.format("/manifests/%s", version);
+        return requestImageManifest(toApiUrl(imageName, manifestsUrl),
+                getAuthenticationDetails(imageName));
+    }
+
+    public Blob getBlob(String imageName, String digest) {
+        String blobsUrl = String.format("/blobs/%s", digest);
+        return requestBlobs(toApiUrl(imageName, blobsUrl),
+                getAuthenticationDetails(imageName));
+    }
+
     private List<String> requestTags(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         TagResponseBody tagResponseBody = null;
         RestTemplate restTemplate = buildRest(authenticationDetails);
@@ -70,15 +92,42 @@ public class RegistryConnection {
         } catch (Exception e) {
             logger.info("Exception executing request: {}", url, e);
         }
-        return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.tags;
+        return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.getTags();
+    }
+
+    private ImageManifestV2 requestImageManifest(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
+        RestTemplate restTemplate = buildRest(authenticationDetails);
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Accept", "application/vnd.docker.distribution.manifest.v2+json");
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, entity, ImageManifestV2.class).getBody();
+        } catch (Exception e) {
+            logger.info("Exception executing request: {}", url, e);
+            throw new RegistryRequestException(e);
+        }
+    }
+
+    private Blob requestBlobs(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
+        RestTemplate restTemplate = buildRest(authenticationDetails);
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+        converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));
+        restTemplate.setMessageConverters(Arrays.asList(converter, new FormHttpMessageConverter()));
+        try {
+            return restTemplate.getForObject(url, Blob.class);
+        } catch (Exception e) {
+            logger.info("Exception executing request: {}", url, e);
+            throw new RegistryRequestException(e);
+        }
     }
 
     private RestTemplate buildRest(RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplateBuilder builder = new RestTemplateBuilder();
         if (authenticationDetails == null) {
-           return builder.basicAuthentication("USER", "PASSWORD").build();
+            return builder.basicAuthentication("USER", "PASSWORD").build();
         } else {
-           return builder.basicAuthentication(
+            return builder.basicAuthentication(
                     authenticationDetails.getUser(),
                     authenticationDetails.getPassword()
             ).build();
@@ -97,27 +146,5 @@ public class RegistryConnection {
                 .insert(position, API_SUFFIX)
                 .append(request)
                 .toString();
-    }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TagResponseBody {
-        private String name;
-        private List<String> tags;
-
-        public String getName() {
-            return name;
-        }
-
-        public List<String> getTags() {
-            return tags;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public void setTags(List<String> tags) {
-            this.tags = tags;
-        }
     }
 }
