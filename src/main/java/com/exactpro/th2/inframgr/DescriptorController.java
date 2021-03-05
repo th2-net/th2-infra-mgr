@@ -45,10 +45,10 @@ public class DescriptorController {
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
-    public DescriptorControllerResponse getDescriptor(@PathVariable(name = "schema") String schemaName,
-                               @PathVariable(name = "kind") String kind,
-                               @PathVariable(name = "box") String box,
-                               HttpServletResponse response
+    public Response getDescriptor(@PathVariable(name = "schema") String schemaName,
+                                  @PathVariable(name = "kind") String kind,
+                                  @PathVariable(name = "box") String box,
+                                  HttpServletResponse response
 
     ) throws ServiceException {
         if (!K8sCustomResource.isNameValid(schemaName)) {
@@ -76,9 +76,28 @@ public class DescriptorController {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
         if (descriptor != null) {
-            return new DescriptorControllerResponse(PROTOBUF_DESCRIPTOR, descriptor);
+            return new Response(PROTOBUF_DESCRIPTOR, descriptor);
         }
         response.setStatus(HttpStatus.NO_CONTENT.value());
         return null;
     }
+
+    public class Response {
+        private final String descriptor;
+        private final String content;
+
+        public Response(String descriptor, String content) {
+            this.descriptor = descriptor;
+            this.content = content;
+        }
+
+        public String getDescriptor() {
+            return descriptor;
+        }
+
+        public String getContent() {
+            return content;
+        }
+    }
+
 }
