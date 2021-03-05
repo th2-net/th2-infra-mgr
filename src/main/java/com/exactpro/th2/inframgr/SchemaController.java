@@ -156,8 +156,7 @@ public class SchemaController {
         List<RequestEntry> operations;
         try {
             ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
-            operations = mapper.readValue(requestBody, new TypeReference<>() {
-            });
+            operations = mapper.readValue(requestBody, new TypeReference<>() {});
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
         }
