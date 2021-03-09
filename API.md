@@ -1,11 +1,11 @@
 ## Descriptor API
 ### GET/descriptor/{schema}/{kind}/{box}
 ### Path variables
-__schema:__ Name of the schema without specific NAMESPACE_PREFIX. Same as the branch name.
+__schema:__ Name of the schema without specific __NAMESPACE_PREFIX__. Same as the branch name.
 
-__kind:__  Kind of the box as defined in TH2 kinds enum.  [Th2CoreBox, Th2Mstore, Th2Estore, Th2Box]
+__kind:__  Kind of the box as defined in Th2 kinds enum. _("Th2CoreBox", "Th2Mstore", "Th2Estore", "Th2Box")_
 
-__box:__  Name pf the resource
+__box:__  Name of the resource
 
 ### Returns
 value of "protobuf-description-base64" label for specified box.
