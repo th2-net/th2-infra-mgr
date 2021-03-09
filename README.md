@@ -100,3 +100,5 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
 
 ```
 ##
+## For API documentation please refer to
+[API Documentation](API.md)
