@@ -99,4 +99,3 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       # this ConfigMaps will be populated with schema specific data before copying to target namespace
 
 ```
-##
