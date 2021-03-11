@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
@@ -26,14 +27,15 @@ import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
 import javax.annotation.PostConstruct;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -154,7 +156,7 @@ public class K8sSynchronization {
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
-            detectUrlPathsConflicts(repositoryResources, branch);
+            UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
@@ -189,74 +191,6 @@ public class K8sSynchronization {
         } catch (Exception e) {
             logger.error("Exception synchronizing schema \"{}\"", branch, e);
         }
-    }
-
-    private void detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
-
-        Map<RepositoryResource, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
-        if (map.isEmpty()) return;
-
-        List<Set<String>> urlPaths = new ArrayList<>(map.values());
-        Set<Set<String>> conflictedUrlPaths = new HashSet<>();
-
-        for (int i = 0; i < urlPaths.size() - 1; i++)
-            for (int j = i + 1; j < urlPaths.size(); j++) {
-                Set<String> value1 = urlPaths.get(i);
-                Set<String> value2 = urlPaths.get(j);
-                Set<String> set = new HashSet<>(value1);
-                set.addAll(value2);
-
-                if (value1.size() + value2.size() > set.size()) {
-                    conflictedUrlPaths.add(value1);
-                    conflictedUrlPaths.add(value2);
-                }
-            }
-
-        Set<RepositoryResource> conflictedResources = new HashSet<>();
-        if (!conflictedUrlPaths.isEmpty()) {
-            for (Map.Entry<RepositoryResource, Set<String>> entry : map.entrySet())
-                if (conflictedUrlPaths.contains(entry.getValue()))
-                    conflictedResources.add(entry.getKey());
-
-            repositoryResources.removeAll(conflictedResources);
-            List<String> conflictedResourceNames = new ArrayList<>();
-            conflictedResources.forEach(resource -> conflictedResourceNames.add(resource.getMetadata().getName()));
-            logger.error("Url path conflicts between resources {} in schema \"{}\"",
-                conflictedResourceNames, branch);
-        }
-    }
-
-    private Map<RepositoryResource, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources, String branch) {
-        Map<RepositoryResource, Set<String>> map = new HashMap<>();
-        ObjectMapper mapper = new ObjectMapper();
-
-        for (RepositoryResource r : resources) {
-            Set<String> urlPaths;
-            try {
-                var spec = mapper.convertValue(r.getSpec(), Map.class);
-                var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
-                var service = mapper.convertValue(settings.get("service"), Map.class);
-                var ingress = mapper.convertValue(service.get("ingress"), Map.class);
-                List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
-
-                urlPaths = new HashSet<>(list);
-                if (urlPaths.size() < list.size()) {
-                    logger.warn("Url path duplication in resource \"{}\" in schema \"{}\"",
-                        r.getMetadata().getName(), branch);
-                    ingress.put("urlPaths", new ArrayList<>(urlPaths));
-                    service.put("ingress", ingress);
-                    settings.put("service", service);
-                    spec.put("extended-settings", settings);
-                    r.setSpec(spec);
-                }
-            } catch (Exception e) {
-                continue;
-            }
-            if (!urlPaths.isEmpty())
-                map.put(r, urlPaths);
-        }
-
-        return map;
     }
 
     @PostConstruct

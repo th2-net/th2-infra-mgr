@@ -217,8 +217,10 @@ public class SchemaController {
                 event.setSyncingK8s(true);
                 router.addEvent(event);
 
-                if (propagating)
+                if (propagating) {
+                    UrlPathConflicts.detectUrlPathsConflicts(operations, schemaName);
                     synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
+                }
             }
 
             return new SchemaControllerResponse(snapshot);
