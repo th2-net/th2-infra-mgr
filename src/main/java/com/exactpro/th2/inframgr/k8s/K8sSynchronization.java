@@ -37,7 +37,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Component
 public class K8sSynchronization {
@@ -77,9 +76,6 @@ public class K8sSynchronization {
             for (ResourceType t : ResourceType.values())
                 if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease))
                     k8sResources.put(t.kind(), kube.loadCustomResources(t));
-
-            detectUrlPathsConflicts(repositoryResources.values(), k8sResources.values());
-            if (repositoryResources.isEmpty()) return;
 
             // synchronize by resource type
             for (ResourceType type : ResourceType.values())
@@ -158,6 +154,7 @@ public class K8sSynchronization {
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
+            detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
@@ -194,88 +191,69 @@ public class K8sSynchronization {
         }
     }
 
-    private void detectUrlPathsConflicts(Collection<Map<String, RepositoryResource>> repositoryResource,
-                                         Collection<Map<String, K8sCustomResource>> customResources) {
-        Map<String, RepositoryResource> resources = repositoryResource.stream().flatMap(map -> map.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        Map<String, K8sCustomResource> k8sResources = customResources.stream().flatMap(map -> map.entrySet().stream())
-            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    private void detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
 
-        Map<String, Set<String>> urlPaths = getRepositoryUrlPaths(resources);
-        urlPaths.putAll(getK8sUrlPaths(k8sResources));
-        if (urlPaths.isEmpty()) return;
+        Map<RepositoryResource, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
+        if (map.isEmpty()) return;
 
-        ObjectMapper mapper = new ObjectMapper();
-        List<Set<String>> values = mapper.convertValue(urlPaths.values(), List.class);
-        Set<String> conflicted = new HashSet<>();
+        List<Set<String>> urlPaths = new ArrayList<>(map.values());
+        Set<Set<String>> conflictedUrlPaths = new HashSet<>();
 
-        for (int i = 0; i < values.size() - 1; i++)
-            for (int j = i + 1; j < values.size(); j++) {
-                Set<String> value1 = values.get(i);
-                Set<String> value2 = values.get(j);
-                Set<String> set = new HashSet<>();
-                set.addAll(value1);
+        for (int i = 0; i < urlPaths.size() - 1; i++)
+            for (int j = i + 1; j < urlPaths.size(); j++) {
+                Set<String> value1 = urlPaths.get(i);
+                Set<String> value2 = urlPaths.get(j);
+                Set<String> set = new HashSet<>(value1);
                 set.addAll(value2);
 
-                if (value1.size() + value2.size() > set.size())
-                    conflicted.add(urlPaths.entrySet().stream()
-                        .filter(entry -> value1.equals(entry.getValue()) || value2.equals(entry.getValue()))
-                        .map(Map.Entry::getKey).toString());
+                if (value1.size() + value2.size() > set.size()) {
+                    conflictedUrlPaths.add(value1);
+                    conflictedUrlPaths.add(value2);
+                }
             }
 
-        if (!conflicted.isEmpty()) {
-            for (String k : conflicted) {
-                resources.remove(k);
-            }
-            logger.error("Url path conflicts between resources {}", conflicted);
+        Set<RepositoryResource> conflictedResources = new HashSet<>();
+        if (!conflictedUrlPaths.isEmpty()) {
+            for (Map.Entry<RepositoryResource, Set<String>> entry : map.entrySet())
+                if (conflictedUrlPaths.contains(entry.getValue()))
+                    conflictedResources.add(entry.getKey());
+
+            repositoryResources.removeAll(conflictedResources);
+            List<String> conflictedResourceNames = new ArrayList<>();
+            conflictedResources.forEach(resource -> conflictedResourceNames.add(resource.getMetadata().getName()));
+            logger.error("Url path conflicts between resources {} in schema \"{}\"",
+                conflictedResourceNames, branch);
         }
     }
 
-    private Map<String, Set<String>> getRepositoryUrlPaths(Map<String, RepositoryResource> resources) {
-        var keys = resources.keySet();
-        Map<String, Set<String>> map = new HashMap<>();
+    private Map<RepositoryResource, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources, String branch) {
+        Map<RepositoryResource, Set<String>> map = new HashMap<>();
         ObjectMapper mapper = new ObjectMapper();
 
-        for (String k : keys) {
+        for (RepositoryResource r : resources) {
             Set<String> urlPaths;
             try {
-                var spec = mapper.convertValue(resources.get(k).getSpec(), Map.class);
+                var spec = mapper.convertValue(r.getSpec(), Map.class);
                 var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
                 var service = mapper.convertValue(settings.get("service"), Map.class);
                 var ingress = mapper.convertValue(service.get("ingress"), Map.class);
                 List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
+
                 urlPaths = new HashSet<>(list);
-                if (urlPaths.size() < list.size()) ingress.put("urlPaths", urlPaths.toArray());
+                if (urlPaths.size() < list.size()) {
+                    logger.warn("Url path duplication in resource \"{}\" in schema \"{}\"",
+                        r.getMetadata().getName(), branch);
+                    ingress.put("urlPaths", new ArrayList<>(urlPaths));
+                    service.put("ingress", ingress);
+                    settings.put("service", service);
+                    spec.put("extended-settings", settings);
+                    r.setSpec(spec);
+                }
             } catch (Exception e) {
                 continue;
             }
             if (!urlPaths.isEmpty())
-                map.put(k, urlPaths);
-        }
-
-        return map;
-    }
-
-    private Map<String, Set<String>> getK8sUrlPaths(Map<String, K8sCustomResource> customResources) {
-        var keys = customResources.keySet();
-        Map<String, Set<String>> map = new HashMap<>();
-        ObjectMapper mapper = new ObjectMapper();
-
-        for (String k : keys) {
-            Set<String> urlPaths;
-            try {
-                var spec = mapper.convertValue(customResources.get(k).getSpec(), Map.class);
-                var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
-                var service = mapper.convertValue(settings.get("service"), Map.class);
-                var ingress = mapper.convertValue(service.get("ingress"), Map.class);
-                List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
-                urlPaths = new HashSet<>(list);
-                if (urlPaths.size() < list.size()) ingress.put("urlPaths", urlPaths.toArray());
-            } catch (Exception e) {
-                continue;
-            }
-            if (!urlPaths.isEmpty())
-                map.put(k, urlPaths);
+                map.put(r, urlPaths);
         }
 
         return map;
