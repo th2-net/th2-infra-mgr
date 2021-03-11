@@ -26,18 +26,18 @@ import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
 import javax.annotation.PostConstruct;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Component
 public class K8sSynchronization {
@@ -77,6 +77,9 @@ public class K8sSynchronization {
             for (ResourceType t : ResourceType.values())
                 if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease))
                     k8sResources.put(t.kind(), kube.loadCustomResources(t));
+
+            detectUrlPathsConflicts(repositoryResources.values(), k8sResources.values());
+            if (repositoryResources.isEmpty()) return;
 
             // synchronize by resource type
             for (ResourceType type : ResourceType.values())
@@ -191,6 +194,93 @@ public class K8sSynchronization {
         }
     }
 
+    private void detectUrlPathsConflicts(Collection<Map<String, RepositoryResource>> repositoryResource,
+                                         Collection<Map<String, K8sCustomResource>> customResources) {
+        Map<String, RepositoryResource> resources = repositoryResource.stream().flatMap(map -> map.entrySet().stream())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<String, K8sCustomResource> k8sResources = customResources.stream().flatMap(map -> map.entrySet().stream())
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        Map<String, Set<String>> urlPaths = getRepositoryUrlPaths(resources);
+        urlPaths.putAll(getK8sUrlPaths(k8sResources));
+        if (urlPaths.isEmpty()) return;
+
+        ObjectMapper mapper = new ObjectMapper();
+        List<Set<String>> values = mapper.convertValue(urlPaths.values(), List.class);
+        Set<String> conflicted = new HashSet<>();
+
+        for (int i = 0; i < values.size() - 1; i++)
+            for (int j = i + 1; j < values.size(); j++) {
+                Set<String> value1 = values.get(i);
+                Set<String> value2 = values.get(j);
+                Set<String> set = new HashSet<>();
+                set.addAll(value1);
+                set.addAll(value2);
+
+                if (value1.size() + value2.size() > set.size())
+                    conflicted.add(urlPaths.entrySet().stream()
+                        .filter(entry -> value1.equals(entry.getValue()) || value2.equals(entry.getValue()))
+                        .map(Map.Entry::getKey).toString());
+            }
+
+        if (!conflicted.isEmpty()) {
+            for (String k : conflicted) {
+                resources.remove(k);
+            }
+            logger.error("Url path conflicts between resources {}", conflicted);
+        }
+    }
+
+    private Map<String, Set<String>> getRepositoryUrlPaths(Map<String, RepositoryResource> resources) {
+        var keys = resources.keySet();
+        Map<String, Set<String>> map = new HashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        for (String k : keys) {
+            Set<String> urlPaths;
+            try {
+                var spec = mapper.convertValue(resources.get(k).getSpec(), Map.class);
+                var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
+                var service = mapper.convertValue(settings.get("service"), Map.class);
+                var ingress = mapper.convertValue(service.get("ingress"), Map.class);
+                List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
+                urlPaths = new HashSet<>(list);
+                if (urlPaths.size() < list.size()) ingress.put("urlPaths", urlPaths.toArray());
+            } catch (Exception e) {
+                continue;
+            }
+            if (!urlPaths.isEmpty())
+                map.put(k, urlPaths);
+        }
+
+        return map;
+    }
+
+    private Map<String, Set<String>> getK8sUrlPaths(Map<String, K8sCustomResource> customResources) {
+        var keys = customResources.keySet();
+        Map<String, Set<String>> map = new HashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+
+        for (String k : keys) {
+            Set<String> urlPaths;
+            try {
+                var spec = mapper.convertValue(customResources.get(k).getSpec(), Map.class);
+                var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
+                var service = mapper.convertValue(settings.get("service"), Map.class);
+                var ingress = mapper.convertValue(service.get("ingress"), Map.class);
+                List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
+                urlPaths = new HashSet<>(list);
+                if (urlPaths.size() < list.size()) ingress.put("urlPaths", urlPaths.toArray());
+            } catch (Exception e) {
+                continue;
+            }
+            if (!urlPaths.isEmpty())
+                map.put(k, urlPaths);
+        }
+
+        return map;
+    }
+
     @PostConstruct
     public void start() {
         logger.info("Starting Kubernetes synchronization phase");
@@ -229,13 +319,13 @@ public class K8sSynchronization {
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
-                .onBackpressureBuffer()
-                .observeOn(Schedulers.computation())
-                .filter(event -> (
-                        (event instanceof SynchronizationRequestEvent
-                                || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
-                ))
-                .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
+            .onBackpressureBuffer()
+            .observeOn(Schedulers.computation())
+            .filter(event -> (
+                (event instanceof SynchronizationRequestEvent
+                    || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
+            ))
+            .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
         logger.info("Kubernetes synchronization process subscribed to repository events");
     }
