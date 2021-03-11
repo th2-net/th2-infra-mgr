@@ -66,40 +66,14 @@ public class UrlPathConflicts {
     public static void detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
 
         Set<RepositoryResource> repositoryResources = new HashSet<>();
-        for (RequestEntry entry : operations){
+        for (RequestEntry entry : operations) {
             repositoryResources.add(entry.getPayload().toRepositoryResource());
         }
-        Map<RepositoryResource, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
-        if (map.isEmpty()) return;
 
-        List<Set<String>> urlPaths = new ArrayList<>(map.values());
-        Set<Set<String>> conflictedUrlPaths = new HashSet<>();
-
-        for (int i = 0; i < urlPaths.size() - 1; i++)
-            for (int j = i + 1; j < urlPaths.size(); j++) {
-                Set<String> value1 = urlPaths.get(i);
-                Set<String> value2 = urlPaths.get(j);
-                Set<String> set = new HashSet<>(value1);
-                set.addAll(value2);
-
-                if (value1.size() + value2.size() > set.size()) {
-                    conflictedUrlPaths.add(value1);
-                    conflictedUrlPaths.add(value2);
-                }
-            }
-
-        Set<RepositoryResource> conflictedResources = new HashSet<>();
-        if (!conflictedUrlPaths.isEmpty()) {
-            for (Map.Entry<RepositoryResource, Set<String>> entry : map.entrySet())
-                if (conflictedUrlPaths.contains(entry.getValue()))
-                    conflictedResources.add(entry.getKey());
-
-            operations.removeIf(entry -> conflictedResources.contains(entry.getPayload().toRepositoryResource()));
-            List<String> conflictedResourceNames = new ArrayList<>();
-            conflictedResources.forEach(resource -> conflictedResourceNames.add(resource.getMetadata().getName()));
-            logger.error("Url path conflicts between resources {} in schema \"{}\"",
-                conflictedResourceNames, branch);
-        }
+        int initialSize = repositoryResources.size();
+        detectUrlPathsConflicts(repositoryResources, branch);
+        if (initialSize > repositoryResources.size())
+            operations.removeIf(entry -> !repositoryResources.contains(entry.getPayload().toRepositoryResource()));
     }
 
     private static Map<RepositoryResource, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
