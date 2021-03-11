@@ -350,7 +350,7 @@ public class Kubernetes implements Closeable {
                 @Override
                 public void onUpdate(T oldObj, T newObj) {
                     if (namespacePrefixMatches(oldObj) || namespacePrefixMatches(newObj)) {
-                        resourceEventHandler.onUpdate(newObj, oldObj);
+                        resourceEventHandler.onUpdate(oldObj, newObj);
                     }
                 }
 
