@@ -105,7 +105,6 @@ public class Kubernetes implements Closeable {
 
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
-                        k8sResource.getMetadata().setResourceVersion(null);
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);
@@ -192,7 +191,6 @@ public class Kubernetes implements Closeable {
 
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
-                        k8sResource.getMetadata().setResourceVersion(null);
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);
@@ -327,7 +325,6 @@ public class Kubernetes implements Closeable {
     }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
-        configMap.getMetadata().setResourceVersion(null);
         configMap.getMetadata().setNamespace(namespace);
         client.configMaps().inNamespace(namespace).createOrReplace(configMap);
     }
@@ -350,7 +347,7 @@ public class Kubernetes implements Closeable {
                 @Override
                 public void onUpdate(T oldObj, T newObj) {
                     if (namespacePrefixMatches(oldObj) || namespacePrefixMatches(newObj)) {
-                        resourceEventHandler.onUpdate(newObj, oldObj);
+                        resourceEventHandler.onUpdate(oldObj, newObj);
                     }
                 }
 
@@ -487,7 +484,6 @@ public class Kubernetes implements Closeable {
 
 
     public Secret createOrReplaceSecret(Secret secret) {
-        secret.getMetadata().setResourceVersion(null);
         secret.getMetadata().setNamespace(namespace);
         return client.secrets().inNamespace(namespace).createOrReplace(secret);
     }

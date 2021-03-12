@@ -33,7 +33,7 @@ public class K8sCustomResource extends CustomResource {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
     private static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
-    public static final int RESOURCE_NAME_MAX_LENGTH = 48;
+    public static final int RESOURCE_NAME_MAX_LENGTH = 64;
     private Object spec;
     public Object status;
 
