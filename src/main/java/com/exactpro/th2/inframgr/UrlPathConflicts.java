@@ -18,7 +18,6 @@ package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.infrarepo.RepositoryResource;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,32 +78,39 @@ public class UrlPathConflicts {
     private static Map<RepositoryResource, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
                                                                               String branch) {
         Map<RepositoryResource, Set<String>> map = new HashMap<>();
-        ObjectMapper mapper = new ObjectMapper();
-
         for (RepositoryResource r : resources) {
-            Set<String> urlPaths;
-            try {
-                var spec = mapper.convertValue(r.getSpec(), Map.class);
-                var settings = mapper.convertValue(spec.get("extended-settings"), Map.class);
-                var service = mapper.convertValue(settings.get("service"), Map.class);
-                var ingress = mapper.convertValue(service.get("ingress"), Map.class);
-                List<String> list = mapper.convertValue(ingress.get("urlPaths"), List.class);
 
-                urlPaths = new HashSet<>(list);
-                if (urlPaths.size() < list.size()) {
-                    logger.warn("Url path duplication in resource \"{}\" in schema \"{}\"",
-                        r.getMetadata().getName(), branch);
-                    ingress.put("urlPaths", new ArrayList<>(urlPaths));
-                    service.put("ingress", ingress);
-                    settings.put("service", service);
-                    spec.put("extended-settings", settings);
-                    r.setSpec(spec);
+            var spec = (Map<String, Object>) r.getSpec();
+            if (spec == null || !spec.containsKey("extended-settings")) continue;
+
+            var settings = (Map<String, Object>) spec.get("extended-settings");
+            if (settings == null || !settings.containsKey("service")) continue;
+
+            var service = (Map<String, Object>) settings.get("service");
+            if (service == null || !service.containsKey("ingress")) continue;
+
+            var ingress = (Map<String, Object>) service.get("ingress");
+            if (ingress == null || !ingress.containsKey("urlPaths")) continue;
+
+            List<String> urls = (List<String>) ingress.get("urlPaths");
+            if (urls == null || urls.isEmpty()) continue;
+
+            Set<String> urlPaths = new HashSet<>();
+            List<String> duplicated = new ArrayList<>();
+            for (String url : urls) {
+                if (!(urlPaths.add(url) || duplicated.contains(url))) {
+                    duplicated.add(url);
                 }
-            } catch (Exception e) {
-                continue;
             }
-            if (!urlPaths.isEmpty())
-                map.put(r, urlPaths);
+
+            if (!duplicated.isEmpty()) {
+                logger.warn("Duplication of url paths {} in resource \"{}\" in schema \"{}\"",
+                    duplicated, r.getMetadata().getName(), branch);
+
+                ingress.put("urlPaths", new ArrayList<>(urlPaths));
+            }
+
+            map.put(r, urlPaths);
         }
 
         return map;
