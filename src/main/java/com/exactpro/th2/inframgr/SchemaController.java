@@ -147,7 +147,7 @@ public class SchemaController {
     @PostMapping("/schema/{name}")
     @ResponseBody
     public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName, @RequestBody String requestBody)
-            throws Exception {
+        throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -218,8 +218,9 @@ public class SchemaController {
                 router.addEvent(event);
 
                 if (propagating) {
-                    UrlPathConflicts.detectUrlPathsConflicts(operations, schemaName);
-                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
+                    operations = UrlPathConflicts.detectUrlPathsConflicts(operations, schemaName);
+                    if (!operations.isEmpty())
+                        synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
                 }
             }
 
@@ -272,9 +273,9 @@ public class SchemaController {
                             k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
                         k8se.addItem(entry.getPayload());
                         logger.error("Exception provisioning {} resource \"{}\" to Kubernetes"
-                                , entry.getPayload().getKind().kind()
-                                , entry.getPayload().getName()
-                                , e);
+                            , entry.getPayload().getKind().kind()
+                            , entry.getPayload().getName()
+                            , e);
                     }
                 }
             if (k8se != null)
@@ -337,9 +338,9 @@ public class SchemaController {
             if (!K8sCustomResource.isNameValid(resourceName)) {
                 logger.error("Invalid resource name: \"{}\"", resourceName);
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
-                        "Invalid resource name : \"%s\" (%s)"
-                        , entry.getPayload().getName()
-                        , entry.getPayload().getKind().kind()
+                    "Invalid resource name : \"%s\" (%s)"
+                    , entry.getPayload().getName()
+                    , entry.getPayload().getKind().kind()
                 ));
             }
 

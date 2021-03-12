@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.models.RequestEntry;
+import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,60 +28,74 @@ public class UrlPathConflicts {
 
     private static final Logger logger = LoggerFactory.getLogger(UrlPathConflicts.class);
 
-    public static void detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
+    public static Set<RepositoryResource> detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
 
-        Map<RepositoryResource, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
-        if (map.isEmpty()) return;
+        Map<String, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
+        if (map.isEmpty()) return repositoryResources;
 
-        List<Set<String>> urlPaths = new ArrayList<>(map.values());
-        Set<Set<String>> conflictedUrlPaths = new HashSet<>();
+        Set<String> conflictedResourceLabels = new HashSet<>();
+        List<Map.Entry<String, Set<String>>> entries = new ArrayList<>();
 
-        for (int i = 0; i < urlPaths.size() - 1; i++)
-            for (int j = i + 1; j < urlPaths.size(); j++) {
-                Set<String> value1 = urlPaths.get(i);
-                Set<String> value2 = urlPaths.get(j);
-                Set<String> set = new HashSet<>(value1);
-                set.addAll(value2);
+        for (Map.Entry<String, Set<String>> entry1 : map.entrySet()) {
+            entries.add(entry1);
+            if (entries.size() == map.size()) break;
 
-                if (value1.size() + value2.size() > set.size()) {
-                    conflictedUrlPaths.add(value1);
-                    conflictedUrlPaths.add(value2);
+            for (Map.Entry<String, Set<String>> entry2 : map.entrySet()) {
+                if (entries.contains(entry2)) continue;
+
+                List<String> duplicated = new ArrayList<>();
+                Set<String> checker = new HashSet<>(entry1.getValue());
+                for (String url : entry2.getValue())
+                    if (!checker.add(url)) duplicated.add(url);
+
+                if (!duplicated.isEmpty()) {
+                    logger.error("Conflicts of url paths {} between resources \"{}\" and \"{}\"",
+                        duplicated, entry1.getKey(), entry2.getKey());
+                    conflictedResourceLabels.add(entry1.getKey());
+                    conflictedResourceLabels.add(entry2.getKey());
                 }
             }
-
-        Set<RepositoryResource> conflictedResources = new HashSet<>();
-        if (!conflictedUrlPaths.isEmpty()) {
-            for (Map.Entry<RepositoryResource, Set<String>> entry : map.entrySet())
-                if (conflictedUrlPaths.contains(entry.getValue()))
-                    conflictedResources.add(entry.getKey());
-
-            repositoryResources.removeAll(conflictedResources);
-            List<String> conflictedResourceNames = new ArrayList<>();
-            conflictedResources.forEach(resource -> conflictedResourceNames.add(resource.getMetadata().getName()));
-            logger.error("Url path conflicts between resources {} in schema \"{}\"",
-                conflictedResourceNames, branch);
         }
+        if (conflictedResourceLabels.isEmpty()) return repositoryResources;
+
+        conflictedResourceLabels.forEach(map::remove);
+        Set<RepositoryResource> validResources = new HashSet<>();
+        Set<String> keys = map.keySet();
+        for (RepositoryResource resource : repositoryResources)
+            if (keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+                validResources.add(resource);
+
+        return validResources;
     }
 
-    public static void detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
+    public static List<RequestEntry> detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
 
         Set<RepositoryResource> repositoryResources = new HashSet<>();
-        for (RequestEntry entry : operations) {
+        for (RequestEntry entry : operations)
             repositoryResources.add(entry.getPayload().toRepositoryResource());
-        }
 
         int initialSize = repositoryResources.size();
-        detectUrlPathsConflicts(repositoryResources, branch);
-        if (initialSize > repositoryResources.size())
-            operations.removeIf(entry -> !repositoryResources.contains(entry.getPayload().toRepositoryResource()));
+        repositoryResources = detectUrlPathsConflicts(repositoryResources, branch);
+        if (initialSize == repositoryResources.size()) return operations;
+
+        Set<String> names = new HashSet<>();
+        for (RepositoryResource resource : repositoryResources)
+            names.add(resource.getMetadata().getName());
+
+        List<RequestEntry> validOperations = new ArrayList<>();
+        for (RequestEntry entry : operations)
+            if (names.contains(entry.getPayload().toRepositoryResource().getMetadata().getName()))
+                validOperations.add(entry);
+
+        return validOperations;
     }
 
-    private static Map<RepositoryResource, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
-                                                                              String branch) {
-        Map<RepositoryResource, Set<String>> map = new HashMap<>();
-        for (RepositoryResource r : resources) {
+    private static Map<String, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
+                                                                  String branch) {
+        Map<String, Set<String>> map = new HashMap<>();
+        for (RepositoryResource resource : resources) {
 
-            var spec = (Map<String, Object>) r.getSpec();
+            var spec = (Map<String, Object>) resource.getSpec();
             if (spec == null || !spec.containsKey("extended-settings")) continue;
 
             var settings = (Map<String, Object>) spec.get("extended-settings");
@@ -97,20 +112,19 @@ public class UrlPathConflicts {
 
             Set<String> urlPaths = new HashSet<>();
             List<String> duplicated = new ArrayList<>();
-            for (String url : urls) {
-                if (!(urlPaths.add(url) || duplicated.contains(url))) {
+            for (String url : urls)
+                if (!(urlPaths.add(url) || duplicated.contains(url)))
                     duplicated.add(url);
-                }
-            }
+
+            String resourceLabel = ResourcePath.annotationFor(
+                branch, resource.getKind(), resource.getMetadata().getName());
 
             if (!duplicated.isEmpty()) {
-                logger.warn("Duplication of url paths {} in resource \"{}\" in schema \"{}\"",
-                    duplicated, r.getMetadata().getName(), branch);
-
+                logger.warn("Duplication of url paths {} in resource \"{}\"",
+                    duplicated, resourceLabel);
                 ingress.put("urlPaths", new ArrayList<>(urlPaths));
             }
-
-            map.put(r, urlPaths);
+            map.put(resourceLabel, urlPaths);
         }
 
         return map;
