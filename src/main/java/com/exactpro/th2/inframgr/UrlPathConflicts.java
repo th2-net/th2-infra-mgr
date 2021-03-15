@@ -64,13 +64,13 @@ public class UrlPathConflicts {
         Set<RepositoryResource> validResources = new HashSet<>();
         Set<RepositoryResource> resourcesWithUrlPaths = new HashSet<>();
         Set<String> keys = repositoryUrlPaths.keySet();
+
         for (RepositoryResource resource : repositoryResources)
             // add resources with no url paths to valid resources
             if (!keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
                 validResources.add(resource);
-                // collect resources with url paths
-            else
-                resourcesWithUrlPaths.add(resource);
+            // collect resources with url paths
+            else resourcesWithUrlPaths.add(resource);
 
         conflictedResourceLabels.forEach(repositoryUrlPaths::remove);
 
