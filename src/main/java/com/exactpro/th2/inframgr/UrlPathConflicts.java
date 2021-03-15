@@ -61,16 +61,26 @@ public class UrlPathConflicts {
         if (conflictedResourceLabels.isEmpty())
             return repositoryResources;
 
-        conflictedResourceLabels.forEach(repositoryUrlPaths::remove);
         Set<RepositoryResource> validResources = new HashSet<>();
+        Set<RepositoryResource> resourcesWithUrlPaths = new HashSet<>();
         Set<String> keys = repositoryUrlPaths.keySet();
         for (RepositoryResource resource : repositoryResources)
-            if (keys.equals(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+            // add resources with no url paths to valid resources
+            if (!keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+                validResources.add(resource);
+                // collect resources with url paths
+            else
+                resourcesWithUrlPaths.add(resource);
+
+        conflictedResourceLabels.forEach(repositoryUrlPaths::remove);
+
+        // add resources with no url path conflicts to valid resources
+        for (RepositoryResource resource : resourcesWithUrlPaths)
+            if (keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
                 validResources.add(resource);
 
         return validResources;
     }
-
 
     public static List<RequestEntry> detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
 
@@ -93,7 +103,6 @@ public class UrlPathConflicts {
 
         return validOperations;
     }
-
 
     private static Map<String, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
                                                                   String branch) {
