@@ -30,22 +30,27 @@ public class UrlPathConflicts {
 
     public static Set<RepositoryResource> detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
 
+        // get map of resource label and url paths pairs
         Map<String, Set<String>> repositoryUrlPaths = getRepositoryUrlPaths(repositoryResources, branch);
-        if (repositoryUrlPaths.isEmpty())
+        // if no resource or just one resource contains url paths then there can't be conflicts
+        if (repositoryUrlPaths.size() < 2)
             return repositoryResources;
 
         Set<String> conflictedResourceLabels = new HashSet<>();
         Set<String> entries = new HashSet<>();
 
+        // detect conflicts, if any
         for (var entry1 : repositoryUrlPaths.entrySet()) {
             entries.add(entry1.getKey());
 
             for (var entry2 : repositoryUrlPaths.entrySet()) {
+                // avoid comparing resource with itself and comparing the same resources twice
                 if (entries.contains(entry2.getKey()))
                     continue;
 
                 List<String> duplicated = new ArrayList<>();
                 Set<String> checker = new HashSet<>(entry1.getValue());
+                // use the set 'checker' to detect url duplications between resources
                 for (String url : entry2.getValue())
                     if (checker.contains(url))
                         duplicated.add(url);
@@ -62,21 +67,10 @@ public class UrlPathConflicts {
             return repositoryResources;
 
         Set<RepositoryResource> validResources = new HashSet<>();
-        Set<RepositoryResource> resourcesWithUrlPaths = new HashSet<>();
-        Set<String> keys = repositoryUrlPaths.keySet();
-
         for (RepositoryResource resource : repositoryResources)
-            // add resources with no url paths to valid resources
-            if (!keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
-                validResources.add(resource);
-            // collect resources with url paths
-            else resourcesWithUrlPaths.add(resource);
-
-        conflictedResourceLabels.forEach(repositoryUrlPaths::remove);
-
-        // add resources with no url path conflicts to valid resources
-        for (RepositoryResource resource : resourcesWithUrlPaths)
-            if (keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+            // add resources with no url path conflicts to valid resources
+            if (!conflictedResourceLabels.contains(
+                ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
                 validResources.add(resource);
 
         return validResources;
@@ -85,20 +79,23 @@ public class UrlPathConflicts {
     public static List<RequestEntry> detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
 
         Set<RepositoryResource> repositoryResources = new HashSet<>();
+        // extract repository resources from the operations
         for (RequestEntry entry : operations)
             repositoryResources.add(entry.getPayload().toRepositoryResource());
 
         int initialSize = repositoryResources.size();
         repositoryResources = detectUrlPathsConflicts(repositoryResources, branch);
-        if (initialSize == repositoryResources.size()) return operations;
+        // in case of conflicts the size of 'repositoryResources' would be reduced
+        if (initialSize == repositoryResources.size())
+            return operations;
 
-        Set<String> names = new HashSet<>();
+        Set<String> namesOfValidResources = new HashSet<>();
         for (RepositoryResource resource : repositoryResources)
-            names.add(resource.getMetadata().getName());
+            namesOfValidResources.add(resource.getMetadata().getName());
 
         List<RequestEntry> validOperations = new ArrayList<>();
         for (RequestEntry entry : operations)
-            if (names.contains(entry.getPayload().toRepositoryResource().getMetadata().getName()))
+            if (namesOfValidResources.contains(entry.getPayload().toRepositoryResource().getMetadata().getName()))
                 validOperations.add(entry);
 
         return validOperations;
@@ -133,18 +130,21 @@ public class UrlPathConflicts {
 
                 Set<String> urlPaths = new HashSet<>();
                 Set<String> duplicated = new HashSet<>();
+                // use the set 'urlPaths' to detect url duplication in a resource
                 for (String url : urls)
                     if (!urlPaths.add(url))
                         duplicated.add(url);
 
                 if (!duplicated.isEmpty()) {
                     logger.warn("Resource \"{}\" contains duplicate urlPath entries {}", resourceLabel, duplicated);
+                    // put fixed urlPaths property in the resource
                     ingress.put("urlPaths", new ArrayList<>(urlPaths));
                 }
+                // collect resources that contain url paths
                 map.put(resourceLabel, urlPaths);
 
             } catch (ClassCastException e) {
-                logger.error("Exception extracting urlPaths property from \"{}\"", e);
+                logger.error("Exception extracting urlPaths property from \"{}\"", resourceLabel, e);
             }
         }
 
