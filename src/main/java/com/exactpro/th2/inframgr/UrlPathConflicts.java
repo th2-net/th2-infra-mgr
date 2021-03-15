@@ -30,23 +30,25 @@ public class UrlPathConflicts {
 
     public static Set<RepositoryResource> detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
 
-        Map<String, Set<String>> map = getRepositoryUrlPaths(repositoryResources, branch);
-        if (map.isEmpty()) return repositoryResources;
+        Map<String, Set<String>> repositoryUrlPaths = getRepositoryUrlPaths(repositoryResources, branch);
+        if (repositoryUrlPaths.isEmpty())
+            return repositoryResources;
 
         Set<String> conflictedResourceLabels = new HashSet<>();
-        List<Map.Entry<String, Set<String>>> entries = new ArrayList<>();
+        Set<String> entries = new HashSet<>();
 
-        for (Map.Entry<String, Set<String>> entry1 : map.entrySet()) {
-            entries.add(entry1);
-            if (entries.size() == map.size()) break;
+        for (var entry1 : repositoryUrlPaths.entrySet()) {
+            entries.add(entry1.getKey());
 
-            for (Map.Entry<String, Set<String>> entry2 : map.entrySet()) {
-                if (entries.contains(entry2)) continue;
+            for (var entry2 : repositoryUrlPaths.entrySet()) {
+                if (entries.contains(entry2.getKey()))
+                    continue;
 
                 List<String> duplicated = new ArrayList<>();
                 Set<String> checker = new HashSet<>(entry1.getValue());
                 for (String url : entry2.getValue())
-                    if (!checker.add(url)) duplicated.add(url);
+                    if (checker.contains(url))
+                        duplicated.add(url);
 
                 if (!duplicated.isEmpty()) {
                     logger.error("Conflicts of url paths {} between resources \"{}\" and \"{}\"",
@@ -56,17 +58,19 @@ public class UrlPathConflicts {
                 }
             }
         }
-        if (conflictedResourceLabels.isEmpty()) return repositoryResources;
+        if (conflictedResourceLabels.isEmpty())
+            return repositoryResources;
 
-        conflictedResourceLabels.forEach(map::remove);
+        conflictedResourceLabels.forEach(repositoryUrlPaths::remove);
         Set<RepositoryResource> validResources = new HashSet<>();
-        Set<String> keys = map.keySet();
+        Set<String> keys = repositoryUrlPaths.keySet();
         for (RepositoryResource resource : repositoryResources)
-            if (keys.contains(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+            if (keys.equals(ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
                 validResources.add(resource);
 
         return validResources;
     }
+
 
     public static List<RequestEntry> detectUrlPathsConflicts(List<RequestEntry> operations, String branch) {
 
@@ -90,41 +94,49 @@ public class UrlPathConflicts {
         return validOperations;
     }
 
+
     private static Map<String, Set<String>> getRepositoryUrlPaths(Set<RepositoryResource> resources,
                                                                   String branch) {
         Map<String, Set<String>> map = new HashMap<>();
         for (RepositoryResource resource : resources) {
 
-            var spec = (Map<String, Object>) resource.getSpec();
-            if (spec == null || !spec.containsKey("extended-settings")) continue;
+            String resourceLabel = ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName());
+            try {
+                var spec = (Map<String, Object>) resource.getSpec();
+                if (spec == null)
+                    continue;
 
-            var settings = (Map<String, Object>) spec.get("extended-settings");
-            if (settings == null || !settings.containsKey("service")) continue;
+                var settings = (Map<String, Object>) spec.get("extended-settings");
+                if (settings == null)
+                    continue;
 
-            var service = (Map<String, Object>) settings.get("service");
-            if (service == null || !service.containsKey("ingress")) continue;
+                var service = (Map<String, Object>) settings.get("service");
+                if (service == null)
+                    continue;
 
-            var ingress = (Map<String, Object>) service.get("ingress");
-            if (ingress == null || !ingress.containsKey("urlPaths")) continue;
+                var ingress = (Map<String, Object>) service.get("ingress");
+                if (ingress == null)
+                    continue;
 
-            List<String> urls = (List<String>) ingress.get("urlPaths");
-            if (urls == null || urls.isEmpty()) continue;
+                List<String> urls = (List<String>) ingress.get("urlPaths");
+                if (urls == null || urls.isEmpty())
+                    continue;
 
-            Set<String> urlPaths = new HashSet<>();
-            List<String> duplicated = new ArrayList<>();
-            for (String url : urls)
-                if (!(urlPaths.add(url) || duplicated.contains(url)))
-                    duplicated.add(url);
+                Set<String> urlPaths = new HashSet<>();
+                Set<String> duplicated = new HashSet<>();
+                for (String url : urls)
+                    if (!urlPaths.add(url))
+                        duplicated.add(url);
 
-            String resourceLabel = ResourcePath.annotationFor(
-                branch, resource.getKind(), resource.getMetadata().getName());
+                if (!duplicated.isEmpty()) {
+                    logger.warn("Resource \"{}\" contains duplicate urlPath entries {}", resourceLabel, duplicated);
+                    ingress.put("urlPaths", new ArrayList<>(urlPaths));
+                }
+                map.put(resourceLabel, urlPaths);
 
-            if (!duplicated.isEmpty()) {
-                logger.warn("Duplication of url paths {} in resource \"{}\"",
-                    duplicated, resourceLabel);
-                ingress.put("urlPaths", new ArrayList<>(urlPaths));
+            } catch (ClassCastException e) {
+                logger.error("Exception extracting urlPaths property from \"{}\"", e);
             }
-            map.put(resourceLabel, urlPaths);
         }
 
         return map;
