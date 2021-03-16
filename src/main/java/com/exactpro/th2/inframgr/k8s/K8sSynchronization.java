@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
@@ -155,6 +156,7 @@ public class K8sSynchronization {
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
+            repositoryResources = UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
@@ -229,13 +231,13 @@ public class K8sSynchronization {
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
-                .onBackpressureBuffer()
-                .observeOn(Schedulers.computation())
-                .filter(event -> (
-                        (event instanceof SynchronizationRequestEvent
-                                || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
-                ))
-                .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
+            .onBackpressureBuffer()
+            .observeOn(Schedulers.computation())
+            .filter(event -> (
+                (event instanceof SynchronizationRequestEvent
+                    || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
+            ))
+            .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
         logger.info("Kubernetes synchronization process subscribed to repository events");
     }
