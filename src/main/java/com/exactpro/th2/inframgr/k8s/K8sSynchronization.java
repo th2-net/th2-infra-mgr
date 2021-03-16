@@ -157,7 +157,6 @@ public class K8sSynchronization {
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
             repositoryResources = UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
-            if (repositoryResources.isEmpty()) return;
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
