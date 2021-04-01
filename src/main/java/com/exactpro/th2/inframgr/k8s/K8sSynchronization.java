@@ -141,6 +141,12 @@ public class K8sSynchronization {
 
     public void synchronizeBranch(String branch) {
 
+        if (!K8sCustomResource.isSchemaNameValid(branch)) {
+            logger.error("Schema name \"{}\" is invalid. Name length must less than {} characters and match pattern: \"{}\"",
+                    branch, K8sCustomResource.SCHEMA_NAME_MAX_LENGTH, K8sCustomResource.RESOURCE_NAME_REGEXP);
+            return;
+        }
+
         try {
             logger.info("Checking settings for schema \"{}\"", branch);
 

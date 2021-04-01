@@ -92,7 +92,7 @@ public class SchemaController {
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
-        if (!K8sCustomResource.isNameValid(schemaName))
+        if (!K8sCustomResource.isSchemaNameValid(schemaName))
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
         Config config = Config.getInstance();

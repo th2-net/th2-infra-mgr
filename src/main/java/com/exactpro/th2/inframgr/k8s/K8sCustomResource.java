@@ -32,8 +32,9 @@ import java.util.regex.Pattern;
 public class K8sCustomResource extends CustomResource {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
-    private static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
-    public static final int RESOURCE_NAME_MAX_LENGTH = 64;
+    public static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
+    public static final int RESOURCE_NAME_MAX_LENGTH = 31;
+    public static final int SCHEMA_NAME_MAX_LENGTH = 16;
     private Object spec;
     public Object status;
 
@@ -101,8 +102,13 @@ public class K8sCustomResource extends CustomResource {
     @JsonIgnore
     public static boolean isNameValid(String name) {
         return (name.length() < RESOURCE_NAME_MAX_LENGTH && pattern.matcher(name).matches());
-
     }
+
+    @JsonIgnore
+    public static boolean isSchemaNameValid(String name) {
+        return (name.length() < SCHEMA_NAME_MAX_LENGTH && pattern.matcher(name).matches());
+    }
+
     private static final Pattern pattern;
     static {
         pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
