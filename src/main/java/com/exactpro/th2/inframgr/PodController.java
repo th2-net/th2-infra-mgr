@@ -51,7 +51,7 @@ public class PodController {
 
         try {
             // check schema name against valid pattern
-            if (!K8sCustomResource.isNameValid(schemaName))
+            if (!K8sCustomResource.isSchemaNameValid(schemaName))
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
             Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);

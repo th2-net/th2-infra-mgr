@@ -24,6 +24,7 @@ import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.infrarepo.*;
+import io.fabric8.kubernetes.api.model.KubernetesResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -76,7 +77,7 @@ public class K8sSynchronization {
                     Map<String, RepositoryResource> resources = repositoryResources.get(type.kind());
                     Map<String, K8sCustomResource> customResources = k8sResources.get(type.kind());
 
-                    for (RepositoryResource resource: resources.values()) {
+                    for (RepositoryResource resource : resources.values()) {
                         String resourceName = resource.getMetadata().getName();
                         String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, type.kind(), resourceName) + "\"";
                         String hashTag = Strings.formatHash(resource.getSourceHash());
@@ -124,12 +125,17 @@ public class K8sSynchronization {
                                 logger.error("Exception deleting resource {}", resourceLabel, e);
                             }
                         }
-            }
+                }
         }
     }
 
 
     public void synchronizeBranch(String branch) {
+        if (!K8sCustomResource.isSchemaNameValid(branch)) {
+            logger.error("Schema name \"{}\" is invalid. Name length must less than {} characters and match pattern: \"{}\"",
+                    branch, K8sCustomResource.SCHEMA_NAME_MAX_LENGTH, K8sCustomResource.RESOURCE_NAME_REGEXP);
+            return;
+        }
 
         try {
             logger.info("Checking settings for schema \"{}\"", branch);
@@ -225,7 +231,7 @@ public class K8sSynchronization {
                 .onBackpressureBuffer()
                 .observeOn(Schedulers.computation())
                 .filter(event -> (
-                                (event instanceof SynchronizationRequestEvent
+                        (event instanceof SynchronizationRequestEvent
                                 || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
                 ))
                 .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
