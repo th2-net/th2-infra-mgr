@@ -17,7 +17,10 @@
 package com.exactpro.th2.inframgr.util.cfg;
 
 public class _CassandraConfig {
+
     private String keyspacePrefix;
+
+    private String secret;
 
     public String getKeyspacePrefix() {
         return keyspacePrefix == null ? "" : keyspacePrefix;
@@ -25,5 +28,13 @@ public class _CassandraConfig {
 
     public void setKeyspacePrefix(String keyspacePrefix) {
         this.keyspacePrefix = keyspacePrefix;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+    public String getSecret() {
+        return secret == null ? "" : secret;
     }
 }
