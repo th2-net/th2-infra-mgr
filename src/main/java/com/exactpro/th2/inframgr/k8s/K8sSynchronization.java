@@ -68,7 +68,7 @@ public class K8sSynchronization {
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
             try {
-                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevel(), kube);
+                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevelRoot(), repositorySettings.getLogLevelTh2(), kube);
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
@@ -237,13 +237,13 @@ public class K8sSynchronization {
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
-            .onBackpressureBuffer()
-            .observeOn(Schedulers.computation())
-            .filter(event -> (
-                (event instanceof SynchronizationRequestEvent
-                    || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
-            ))
-            .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
+                .onBackpressureBuffer()
+                .observeOn(Schedulers.computation())
+                .filter(event -> (
+                        (event instanceof SynchronizationRequestEvent
+                                || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
+                ))
+                .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
         logger.info("Kubernetes synchronization process subscribed to repository events");
     }
