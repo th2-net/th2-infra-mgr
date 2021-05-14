@@ -40,6 +40,9 @@ public class SchemaInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
+    private static final String RABBITMQ_SECRET_NAME_FOR_NAMESPACES = "rabbitmq";
+    private static final String CASSANDRA_SECRET_NAME_FOR_NAMESPACES = "cassandra";
+
     private static final String RABBITMQ_CONFIGMAP_PARAM = "rabbitmq";
     private static final String RABBITMQ_EXTERNAL_CONFIGMAP_PARAM = "rabbitmq-ext";
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
@@ -100,6 +103,7 @@ public class SchemaInitializer {
         }
 
         copySecrets(config, kube, forceUpdate);
+        copyCassandraSecret(config, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
 
@@ -112,13 +116,14 @@ public class SchemaInitializer {
         Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
         String secretName = rabbitMQConfig.getSecret();
         String password = generateRandomPassword(rabbitMQConfig);
-        String resourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+        String serviceResourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+        String resourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, RABBITMQ_SECRET_NAME_FOR_NAMESPACES);
 
-        if (kube.getSecret(secretName) != null && !forceUpdate) {
+        if (kube.getSecret(RABBITMQ_SECRET_NAME_FOR_NAMESPACES) != null && !forceUpdate) {
             return;
         }
 
-        logger.info("Creating \"{}\"", resourceLabel);
+        logger.info("Creating \"{}\" from  \"{}\"", resourceLabel, serviceResourceLabel);
 
         Map<String, String> data = new HashMap<>();
         data.put(RABBITMQ_SECRET_PASSWORD_KEY, base64Encode(password));
@@ -128,11 +133,37 @@ public class SchemaInitializer {
         secret.setApiVersion(Kubernetes.API_VERSION_V1);
         secret.setKind(Kubernetes.KIND_SECRET);
         secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
-        secret.setMetadata(Kubernetes.createMetadataWithAnnotation(secretName, resourceLabel));
+        secret.setMetadata(Kubernetes.createMetadataWithAnnotation(RABBITMQ_SECRET_NAME_FOR_NAMESPACES, resourceLabel));
         secret.setData(data);
 
         kube.createOrReplaceSecret(secret);
     }
+
+    static void copyCassandraSecret(Config config, Kubernetes kube, boolean forceUpdate) {
+
+        Config.CassandraConfig cassandraConfig = config.getCassandra();
+        String secretName = cassandraConfig.getSecret();
+        String serviceResourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+        String resourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, CASSANDRA_SECRET_NAME_FOR_NAMESPACES);
+
+        if (kube.getSecret(CASSANDRA_SECRET_NAME_FOR_NAMESPACES) != null && !forceUpdate) {
+            logger.info("Secret \"{}\" already exists, skipping", resourceLabel);
+            return;
+        }
+
+        logger.info("Creating \"{}\" from  \"{}\"", resourceLabel, serviceResourceLabel);
+
+        Secret secret = kube.currentNamespace().getSecrets().get(secretName);
+        try {
+            Secret copy = makeCopy(secret);
+            copy.setMetadata(Kubernetes.createMetadataWithAnnotation(CASSANDRA_SECRET_NAME_FOR_NAMESPACES, resourceLabel));
+            kube.createOrReplaceSecret(copy);
+            logger.info("Copied \"{}\"", resourceLabel);
+        } catch (Exception e) {
+            logger.error("Exception copying \"{}\"", resourceLabel, e);
+        }
+    }
+
 
     static void copyRabbitMQConfigMap(String configMapName, String vHostName, String username, Kubernetes kube, boolean forceUpdate) {
 
@@ -299,8 +330,11 @@ public class SchemaInitializer {
         Config.RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
         String rmqSecretName = rabbitMQConfig.getSecret();
 
+        Config.CassandraConfig cassandraConfig = config.getCassandra();
+        String cassandraSecretName = cassandraConfig.getSecret();
+
         for (String secretName : config.getKubernetes().getSecretNames())
-            if (!secretName.equals(rmqSecretName)) {
+            if (!secretName.equals(rmqSecretName) && !secretName.equals(cassandraSecretName)) {
 
                 Secret secret = workingNamespaceSecrets.get(secretName);
                 String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, secretName);

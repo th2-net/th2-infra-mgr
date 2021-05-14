@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
@@ -67,7 +68,7 @@ public class K8sSynchronization {
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
             try {
-                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevel(), kube);
+                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevelRoot(), repositorySettings.getLogLevelTh2(), kube);
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
@@ -140,6 +141,12 @@ public class K8sSynchronization {
 
     public void synchronizeBranch(String branch) {
 
+        if (!K8sCustomResource.isSchemaNameValid(branch)) {
+            logger.error("Schema name \"{}\" is invalid. Name length must less than {} characters and match pattern: \"{}\"",
+                    branch, K8sCustomResource.SCHEMA_NAME_MAX_LENGTH, K8sCustomResource.RESOURCE_NAME_REGEXP);
+            return;
+        }
+
         try {
             logger.info("Checking settings for schema \"{}\"", branch);
 
@@ -155,6 +162,7 @@ public class K8sSynchronization {
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
+            repositoryResources = UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {

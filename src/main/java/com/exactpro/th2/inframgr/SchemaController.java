@@ -16,19 +16,12 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.errors.BadRequestException;
-import com.exactpro.th2.inframgr.errors.K8sProvisioningException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
-import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
-import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
-import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
-import com.exactpro.th2.inframgr.util.Strings;
-import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -99,7 +92,7 @@ public class SchemaController {
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
 
-        if (!K8sCustomResource.isNameValid(schemaName))
+        if (!K8sCustomResource.isSchemaNameValid(schemaName))
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
 
         Config config = Config.getInstance();
@@ -147,7 +140,7 @@ public class SchemaController {
     @PostMapping("/schema/{name}")
     @ResponseBody
     public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName, @RequestBody String requestBody)
-            throws Exception {
+        throws Exception {
 
         if (schemaName.equals(SOURCE_BRANCH))
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -156,7 +149,8 @@ public class SchemaController {
         List<RequestEntry> operations;
         try {
             ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
-            operations = mapper.readValue(requestBody, new TypeReference<>() {});
+            operations = mapper.readValue(requestBody, new TypeReference<>() {
+            });
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
         }
@@ -182,16 +176,8 @@ public class SchemaController {
             final Gitter gitter = ctx.getGitter(schemaName);
             RepositorySnapshot snapshot;
             String commitRef;
-            boolean wasPropagated = false;
-
             try {
                 gitter.lock();
-
-                snapshot = Repository.getSnapshot(gitter);
-                RepositorySettings repoSettings = snapshot.getRepositorySettings();
-                if (repoSettings != null)
-                    wasPropagated = repoSettings.isK8sSynchronizationRequired();
-
                 commitRef = updateRepository(gitter, operations);
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
@@ -202,85 +188,17 @@ public class SchemaController {
                 logger.info("Nothing changed, leaving");
             } else {
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
-                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, commitRef);
-
-                RepositorySettings repoSettings = snapshot.getRepositorySettings();
-                boolean propagating = (repoSettings != null) && repoSettings.isK8sSynchronizationRequired();
-                if ((propagating && !wasPropagated) || (repoSettings != null && repoSettings.isK8sPropagationDenied())) {
-                    // we need to resynchronize whole schema
-                    // delegate this job to K8sSynchronization
-                    event.setSyncingK8s(false);
-                    router.addEvent(event);
-                    return new SchemaControllerResponse(snapshot);
-                }
-
-                event.setSyncingK8s(true);
+                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
+                RepositorySettings rs = snapshot.getRepositorySettings();
+                event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied() || rs.isK8sSynchronizationRequired())));
                 router.addEvent(event);
-
-                if (propagating)
-                    synchronizeWithK8s(config.getKubernetes(), operations, schemaName, repoSettings);
             }
-
             return new SchemaControllerResponse(snapshot);
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
             logger.error("Exception updating schema \"{}\" request", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
-        }
-    }
-
-    private void synchronizeWithK8s(Config.K8sConfig k8sConfig, List<RequestEntry> operations, String schemaName,
-                                    RepositorySettings repoSettings) throws ServiceException {
-
-        try (Kubernetes kube = new Kubernetes(k8sConfig, schemaName)) {
-
-            SchemaInitializer.ensureSchema(schemaName, kube);
-            K8sProvisioningException k8se = null;
-
-            for (RequestEntry entry : operations)
-                if (entry.getPayload().getKind().isK8sResource()) {
-                    try {
-                        if (entry.getPayload().getKind() == ResourceType.Th2Dictionary)
-                            Th2DictionaryProcessor.compressData(entry.getPayload().toRepositoryResource());
-
-                        Strings.stringify(entry.getPayload().getSpec());
-                        RepositoryResource resource = entry.getPayload().toRepositoryResource();
-                        switch (entry.getOperation()) {
-                            case add:
-                                DynamicResourceProcessor.checkResource(resource, schemaName);
-                                kube.createCustomResource(resource);
-                                break;
-                            case update:
-                                DynamicResourceProcessor.checkResource(resource, schemaName);
-                                kube.replaceCustomResource(resource);
-                                try {
-                                    LoggingConfigMap.checkLoggingConfigMap(resource, repoSettings.getLogLevel(), kube);
-                                } catch (Exception e) {
-                                    logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
-                                }
-                                break;
-                            case remove:
-                                DynamicResourceProcessor.checkResource(resource, schemaName, true);
-                                kube.deleteCustomResource(resource);
-                                break;
-                        }
-                    } catch (Exception e) {
-                        if (k8se == null)
-                            k8se = new K8sProvisioningException("Exception provisioning resource(s) to Kubernetes");
-                        k8se.addItem(entry.getPayload());
-                        logger.error("Exception provisioning {} resource \"{}\" to Kubernetes"
-                                , entry.getPayload().getKind().kind()
-                                , entry.getPayload().getName()
-                                , e);
-                    }
-                }
-            if (k8se != null)
-                throw k8se;
-        } catch (Exception e) {
-            logger.error("Exception provisioning resource(s) to Kubernetes", e);
-            ServiceException se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
-            se.addSuppressed(e);
         }
     }
 
@@ -335,9 +253,9 @@ public class SchemaController {
             if (!K8sCustomResource.isNameValid(resourceName)) {
                 logger.error("Invalid resource name: \"{}\"", resourceName);
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
-                        "Invalid resource name : \"%s\" (%s)"
-                        , entry.getPayload().getName()
-                        , entry.getPayload().getKind().kind()
+                    "Invalid resource name : \"%s\" (%s)"
+                    , entry.getPayload().getName()
+                    , entry.getPayload().getKind().kind()
                 ));
             }
 

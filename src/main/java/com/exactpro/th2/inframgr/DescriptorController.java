@@ -51,7 +51,7 @@ public class DescriptorController {
                                   HttpServletResponse response
 
     ) throws ServiceException {
-        if (!K8sCustomResource.isNameValid(schemaName)) {
+        if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
         if (!K8sCustomResource.isNameValid(box)) {

@@ -33,23 +33,25 @@ public class LoggingConfigMap {
 
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
 
-    private static final String LOGGING_JSON_KEY = "logLevel";
+    private static final String TH2_LOGGING_JSON_KEY = "logLevelTh2";
+    private static final String ROOT_LOGGING_JSON_KEY = "logLevelRoot";
 
     private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
     private static final String LOGGING_JAVA_PATH_SUBSTRING = "${LOGLEVEL_JAVA}";
     private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
+    private static final String LOGGING_ROOT_PATH_SUBSTRING = "${LOGLEVEL_ROOT}";
 
-    public static void checkLoggingConfigMap(RepositoryResource resource, String logLevel, Kubernetes kube) throws IOException {
+    public static void checkLoggingConfigMap(RepositoryResource resource, String logLevelRoot, String logLevelTh2, Kubernetes kube) throws IOException {
         if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
-            copyLoggingConfigMap(logLevel, kube, true);
+            copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, true);
         }
     }
 
-    public static void copyLoggingConfigMap(String logLevel, Kubernetes kube) throws IOException {
-        copyLoggingConfigMap(logLevel, kube, false);
+    public static void copyLoggingConfigMap(String logLevelRoot, String logLevelTh2, Kubernetes kube) throws IOException {
+        copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, false);
     }
 
-    public static void copyLoggingConfigMap(String logLevel, Kubernetes kube, boolean forceUpdate) throws IOException {
+    public static void copyLoggingConfigMap(String logLevelRoot, String logLevelTh2, Kubernetes kube, boolean forceUpdate) throws IOException {
 
         String configMapName = getLoggingConfigMapName();
         if (configMapName == null || configMapName.isEmpty())
@@ -69,12 +71,14 @@ public class LoggingConfigMap {
             // check if logLevel is changed
             Map<String, String> configMapData = configMap.getData();
             try {
-                if (configMapData.get(LOGGING_JSON_KEY).equals(logLevel + "\n")) {
+                if (configMapData.get(TH2_LOGGING_JSON_KEY).equals(logLevelTh2 + "\n")
+                        && configMapData.get(ROOT_LOGGING_JSON_KEY).equals(logLevelRoot + "\n")) {
                     logger.info("Config map \"{}\" already exists, skipping", resourceLabel);
                     return;
                 }
             } catch (NullPointerException e) {
-                logger.error("Config map \"{}\" misses \"{}\" property", resourceLabel, LOGGING_JSON_KEY);
+                logger.error("Config map \"{}\" misses \"{}\" or \"{}\" property", resourceLabel,
+                        TH2_LOGGING_JSON_KEY, ROOT_LOGGING_JSON_KEY);
             }
         }
 
@@ -86,18 +90,22 @@ public class LoggingConfigMap {
             for (String key : cmData.keySet()) {
                 String data = cmData.get(key);
 
+                if (data.contains(LOGGING_ROOT_PATH_SUBSTRING))
+                    data = data.replace(LOGGING_ROOT_PATH_SUBSTRING, logLevelRoot);
+
                 if (data.contains(LOGGING_CXX_PATH_SUBSTRING))
-                    data = data.replace(LOGGING_CXX_PATH_SUBSTRING, logLevel);
+                    data = data.replace(LOGGING_CXX_PATH_SUBSTRING, logLevelTh2);
 
                 if (data.contains(LOGGING_PYTHON_PATH_SUBSTRING))
-                    data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevel);
+                    data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevelTh2);
 
                 if (data.contains(LOGGING_JAVA_PATH_SUBSTRING))
-                    data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevel);
+                    data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevelTh2);
 
                 cmData.put(key, data);
             }
-            cmData.put(LOGGING_JSON_KEY, logLevel + "\n");
+            cmData.put(TH2_LOGGING_JSON_KEY, logLevelTh2 + "\n");
+            cmData.put(ROOT_LOGGING_JSON_KEY, logLevelRoot + "\n");
 
             cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
             kube.createOrReplaceConfigMap(cm);
