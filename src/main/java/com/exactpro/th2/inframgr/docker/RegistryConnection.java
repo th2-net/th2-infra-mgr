@@ -110,11 +110,20 @@ public class RegistryConnection {
 
     private Blob requestBlobs(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplate restTemplate = buildRest(authenticationDetails);
+        //dummy header for github
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Authorization" , "Bearer null" );
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
         converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));
         restTemplate.setMessageConverters(Arrays.asList(converter, new FormHttpMessageConverter()));
         try {
-            return restTemplate.getForObject(url, Blob.class);
+            if(authenticationDetails == null) {
+                return restTemplate.exchange(url, HttpMethod.GET, entity, Blob.class).getBody();
+            }else {
+                return restTemplate.getForObject(url, Blob.class);
+            }
         } catch (Exception e) {
             logger.error("Exception executing request: {}", url, e);
             throw new RegistryRequestException(e);
