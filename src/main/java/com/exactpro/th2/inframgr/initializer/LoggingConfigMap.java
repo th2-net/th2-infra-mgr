@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_SOURCE_HASH;
 
@@ -37,6 +36,8 @@ public class LoggingConfigMap {
     private static final Logger logger = LoggerFactory.getLogger(LoggingConfigMap.class);
 
     private static final String LOGGING_CONFIGMAP_PARAM = "logging";
+
+    private static final String LOGGING_CONFIGMAP_NAME_IN_NAMESPACE = "logging-config";
 
     private static final String TH2_LOGGING_JSON_KEY = "logLevelTh2";
     private static final String ROOT_LOGGING_JSON_KEY = "logLevelRoot";
@@ -69,9 +70,9 @@ public class LoggingConfigMap {
         }
 
         String namespace = kube.getNamespaceName();
-        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, LOGGING_CONFIGMAP_NAME_IN_NAMESPACE);
 
-        ConfigMap configMap = kube.getConfigMap(cm.getMetadata().getName());
+        ConfigMap configMap = kube.getConfigMap(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE);
         if (configMap != null && !forceUpdate) {
             // check if logLevel is changed
             Map<String, String> configMapData = configMap.getData();
@@ -112,7 +113,7 @@ public class LoggingConfigMap {
             cmData.put(TH2_LOGGING_JSON_KEY, logLevelTh2 + "\n");
             cmData.put(ROOT_LOGGING_JSON_KEY, logLevelRoot + "\n");
 
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE, resourceLabel));
             setSourceHash(cm.getMetadata().getAnnotations(), cmData);
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
