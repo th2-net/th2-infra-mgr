@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
+import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
@@ -72,6 +73,13 @@ public class K8sSynchronization {
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
+
+            Th2BoxConfigurations.synchronizeBoxConfigMaps(
+                    repositorySettings.getMqRouter(),
+                    repositorySettings.getGrpcRouter(),
+                    repositorySettings.getCradleManager(),
+                    kube
+            );
 
             // load custom resources from k8s
             Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();

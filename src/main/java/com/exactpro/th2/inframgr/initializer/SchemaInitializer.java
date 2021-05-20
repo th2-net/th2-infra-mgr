@@ -36,6 +36,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
+
 public class SchemaInitializer {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
@@ -103,6 +105,7 @@ public class SchemaInitializer {
         }
 
         copySecrets(config, kube, forceUpdate);
+        copyTh2BoxConfigMaps(kube);
         copyCassandraSecret(config, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
@@ -357,6 +360,30 @@ public class SchemaInitializer {
                         logger.error("Exception copying \"{}\"", resourceLabel, e);
                     }
             }
+    }
+
+    private static void copyTh2BoxConfigMaps(Kubernetes kube) {
+        String mqRouter = "mq-router";
+        String grpcRouter = "grpc-router";
+        String cradleManager = "cradle-manager";
+        copyConfigMap(kube, mqRouter);
+        copyConfigMap(kube, grpcRouter);
+        copyConfigMap(kube, cradleManager);
+    }
+
+    private static void copyConfigMap(Kubernetes kube, String configMapName) {
+        String namespace = kube.getNamespaceName();
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
+        ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
+
+        if (cm == null || cm.getData() == null) {
+            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
+            return;
+        }
+        cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+        setSourceHash(cm.getMetadata().getAnnotations(), cm.getData());
+        kube.createOrReplaceConfigMap(cm);
+        logger.info("Copied \"{}\"", resourceLabel);
     }
 
     private static String generateRandomPassword(Config.RabbitMQConfig config) {
