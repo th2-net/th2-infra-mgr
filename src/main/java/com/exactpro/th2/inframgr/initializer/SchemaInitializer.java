@@ -19,6 +19,7 @@ package com.exactpro.th2.inframgr.initializer;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
+import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -31,10 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
 
@@ -262,12 +260,28 @@ public class SchemaInitializer {
 
     static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
-        Config.CassandraConfig cassandraConfig = config.getCassandra();
-        String keyspaceName = (cassandraConfig.getKeyspacePrefix() + schemaName).replace("-", "_");
+        try {
+            GitterContext ctx = GitterContext.getContext(config.getGit());
+            Gitter gitter = ctx.getGitter(schemaName);
+            RepositorySnapshot snapshot;
+            try {
+                gitter.lock();
+                snapshot = Repository.getSnapshot(gitter);
+                RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
-        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-        copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-        copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+                Config.CassandraConfig cassandraConfig = config.getCassandra();
+                String keyspace = repositorySettings.getKeyspace() != null ? repositorySettings.getKeyspace() : schemaName;
+                String keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
+
+                Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+            } finally {
+                gitter.unlock();
+            }
+        }catch (Exception e){
+            logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
+        }
     }
 
     private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
