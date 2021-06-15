@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr;
 
+import com.exactpro.th2.inframgr.metrics.PrometheusServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -32,6 +33,7 @@ public class InfraManagerApplication {
 			// preload configuration
 			Config.getInstance();
 
+			PrometheusServer.start();
 			SpringApplication application = new SpringApplication(InfraManagerApplication.class);
 			application.run(args);
 
