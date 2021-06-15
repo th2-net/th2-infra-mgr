@@ -16,10 +16,7 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.util.cfg._CassandraConfig;
-import com.exactpro.th2.inframgr.util.cfg._GitConfig;
-import com.exactpro.th2.inframgr.util.cfg._K8sConfig;
-import com.exactpro.th2.inframgr.util.cfg._RabbitMQConfig;
+import com.exactpro.th2.inframgr.util.cfg.*;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -37,7 +34,7 @@ import java.nio.file.Files;
 
 public class Config {
     private static final String CONFIG_FILE = "config.yml";
-    private static final String CONFIG_DIR_SYSTEM_PROPERTY ="inframgr.config.dir";
+    private static final String CONFIG_DIR_SYSTEM_PROPERTY = "inframgr.config.dir";
     private static volatile Config instance;
     private Logger logger;
     private String configDir;
@@ -67,7 +64,7 @@ public class Config {
             if (rabbitmq == null)
                 rabbitmq = new RabbitMQConfig();
 
-        } catch(UnrecognizedPropertyException e) {
+        } catch (UnrecognizedPropertyException e) {
             logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
                     , e.getPropertyName()
                     , CONFIG_FILE);
@@ -96,22 +93,27 @@ public class Config {
     }
 
     private GitConfig git;
+
     public GitConfig getGit() {
         return git;
     }
+
     public void setGit(Config.GitConfig git) {
         this.git = git;
     }
 
     private K8sConfig kubernetes;
+
     public K8sConfig getKubernetes() {
         return kubernetes;
     }
+
     public void setKubernetes(K8sConfig kubernetes) {
         this.kubernetes = kubernetes;
     }
 
     private RabbitMQConfig rabbitmq;
+
     @JsonProperty("rabbitmq")
     public RabbitMQConfig getRabbitMQ() {
         return rabbitmq;
@@ -123,15 +125,37 @@ public class Config {
     }
 
     private CassandraConfig cassandra;
+
     public CassandraConfig getCassandra() {
         return cassandra;
     }
+
     public void setCassandra(CassandraConfig cassandra) {
         this.cassandra = cassandra;
     }
 
-    public static class GitConfig  extends _GitConfig {}
-    public static class RabbitMQConfig extends _RabbitMQConfig {}
-    public static class CassandraConfig extends _CassandraConfig {}
-    public static class K8sConfig extends _K8sConfig {}
+    private PrometheusConfiguration prometheusConfiguration;
+
+    public PrometheusConfiguration getPrometheusConfiguration() {
+        return prometheusConfiguration;
+    }
+
+    public void setPrometheusConfiguration(PrometheusConfiguration prometheusConfiguration) {
+        this.prometheusConfiguration = prometheusConfiguration;
+    }
+
+    public static class GitConfig extends _GitConfig {
+    }
+
+    public static class RabbitMQConfig extends _RabbitMQConfig {
+    }
+
+    public static class CassandraConfig extends _CassandraConfig {
+    }
+
+    public static class K8sConfig extends _K8sConfig {
+    }
+
+    public static class PrometheusConfiguration extends _PrometheusConfig {
+    }
 }

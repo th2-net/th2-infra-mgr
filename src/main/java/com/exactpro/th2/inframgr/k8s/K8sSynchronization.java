@@ -23,11 +23,13 @@ import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
+import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
+import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -63,6 +65,7 @@ public class K8sSynchronization {
     private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources,
                                       RepositorySettings repositorySettings) throws Exception {
 
+        Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
 
             String namespace = kube.formatNamespaceName(schemaName);
@@ -144,6 +147,8 @@ public class K8sSynchronization {
                             }
                         }
                 }
+        }finally {
+            timer.observeDuration();
         }
     }
 
