@@ -64,7 +64,7 @@ public class Kubernetes implements Closeable {
     public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(name);
-        Map <String, String> annotations = new HashMap<>();
+        Map<String, String> annotations = new HashMap<>();
         annotations.put(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue);
         metadata.setAnnotations(annotations);
 
@@ -121,6 +121,7 @@ public class Kubernetes implements Closeable {
                         .build();
                 k8sResource.setMetadata(metaData);
                 k8sResource.setSourceHash(repoResource.getSourceHash());
+                k8sResource.setCommitHash(repoResource.getCommitHash());
                 k8sResource.setKind(repoResource.getKind());
                 k8sResource.setSpec(repoResource.getSpec());
                 mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -155,6 +156,7 @@ public class Kubernetes implements Closeable {
                     .build();
             k8sResource.setMetadata(metaData);
             k8sResource.setSourceHash(repoResource.getSourceHash());
+            k8sResource.setCommitHash(repoResource.getCommitHash());
             k8sResource.setKind(repoResource.getKind());
             k8sResource.setSpec(repoResource.getSpec());
             mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -191,6 +193,7 @@ public class Kubernetes implements Closeable {
 
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
+                        k8sResource.setCommitHash(repoResource.getCommitHash());
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);
@@ -312,11 +315,11 @@ public class Kubernetes implements Closeable {
         client.namespaces().create(ns);
     }
 
-    public ConfigMap getConfigMap (String configMapName) {
+    public ConfigMap getConfigMap(String configMapName) {
         return client.configMaps().inNamespace(namespace).withName(configMapName).get();
     }
 
-    public Secret getSecret (String secretName) {
+    public Secret getSecret(String secretName) {
         return client.secrets().inNamespace(namespace).withName(secretName).get();
     }
 
@@ -398,7 +401,7 @@ public class Kubernetes implements Closeable {
         registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Link.Type.class, Th2Link.List.class);
     }
 
-    public void registerSharedInformersAll (ResourceEventHandler eventHandler) {
+    public void registerSharedInformersAll(ResourceEventHandler eventHandler) {
         registerCustomResourceSharedInformers(eventHandler);
         SharedInformerFactory factory = getInformerFactory();
 
@@ -433,12 +436,13 @@ public class Kubernetes implements Closeable {
         return informerFactory;
     }
 
-    public void startInformers () {
+    public void startInformers() {
         informerFactory.startAllRegisteredInformers();
     }
 
     private KubernetesClient client;
     private String namespace;
+
     public Kubernetes(Config.K8sConfig config, String schemaName) {
 
         // if we are not using custom configutation, let fabric8 handle initialization
@@ -499,7 +503,8 @@ public class Kubernetes implements Closeable {
     }
 
     private CurrentNamespace _currentNamespace;
-    public  CurrentNamespace currentNamespace() {
+
+    public CurrentNamespace currentNamespace() {
         return _currentNamespace;
     }
 
@@ -527,6 +532,7 @@ public class Kubernetes implements Closeable {
         public Map<String, Secret> getSecrets() {
             return mapOf(client.secrets().list().getItems());
         }
+
         public K8sCustomResource loadCustomResource(ResourceType type, String name) {
             return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
         }

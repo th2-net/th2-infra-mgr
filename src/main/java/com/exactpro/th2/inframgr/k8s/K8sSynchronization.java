@@ -28,6 +28,8 @@ import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
+import com.exactpro.th2.inframgr.validator.SchemaValidator;
+import com.exactpro.th2.inframgr.validator.cache.ValidationCache;
 import com.exactpro.th2.infrarepo.*;
 import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
@@ -86,10 +88,11 @@ public class K8sSynchronization {
 
             // load custom resources from k8s
             Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
-            for (ResourceType t : ResourceType.values())
-                if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease))
+            for (ResourceType t : ResourceType.values()) {
+                if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
                     k8sResources.put(t.kind(), kube.loadCustomResources(t));
-
+                }
+            }
             // synchronize by resource type
             for (ResourceType type : ResourceType.values())
                 if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
@@ -204,6 +207,16 @@ public class K8sSynchronization {
                     typeMap.put(resource.getMetadata().getName(), resource);
                 }
 
+            // validate schema links, and remove invalid ones
+            if (!SchemaValidator.validate(branch, repositoryMap)) {
+                logger.warn("Commit \"{}\" contains link errors. Invalid links will not by applied to Kubernetes",
+                        snapshot.getCommitRef());
+                ValidationCache.getSchemaTable(branch).printErrors();
+            } else {
+                logger.info("Commit \"{}\" validated.", snapshot.getCommitRef());
+            }
+            // add commit reference in annotations to every resource
+            setCommitHashes(repositoryMap, snapshot.getCommitRef());
             // synchronize entries
             synchronizeNamespace(branch, repositoryMap, repositorySettings);
 
@@ -285,5 +298,12 @@ public class K8sSynchronization {
 
     public static boolean isStartupSynchronizationComplete() {
         return startupSynchronizationComplete;
+    }
+
+    private void setCommitHashes(Map<String, Map<String, RepositoryResource>> repositoryMap, String commitHash) {
+        repositoryMap.values()
+                .forEach(repoResources -> repoResources.values()
+                        .forEach(resource -> resource.setCommitHash(commitHash))
+                );
     }
 }
