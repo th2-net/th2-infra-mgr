@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 public class K8sCustomResource extends CustomResource {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
+    public static final String KEY_COMMIT_HASH = "th2.exactpro.com/git-commit-hash";
     public static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
     public static final int RESOURCE_NAME_MAX_LENGTH = 64;
     public static final int SCHEMA_NAME_MAX_LENGTH = 21;
@@ -42,28 +43,29 @@ public class K8sCustomResource extends CustomResource {
     private String kind;
 
     @Override
-    public void setKind (String kind) {
-       this.kind = kind;
+    public void setKind(String kind) {
+        this.kind = kind;
     }
 
     @Override
-    public String getKind () {
+    public String getKind() {
         return this.kind;
     }
 
     @Override
-    public String getApiVersion () {
+    public String getApiVersion() {
         return apiVersion;
     }
 
     @Override
-    public void setApiVersion (String apiVersion) {
+    public void setApiVersion(String apiVersion) {
         this.apiVersion = apiVersion;
     }
 
     public void setSpec(Object spec) {
         this.spec = spec;
     }
+
     public Object getSpec() {
         return spec;
     }
@@ -93,10 +95,24 @@ public class K8sCustomResource extends CustomResource {
             getMetadata().setAnnotations(map);
         }
 
-        if (hash != null)
+        if (hash != null) {
             map.put(KEY_SOURCE_HASH, hash);
-        else
+        } else {
             map.remove(KEY_SOURCE_HASH);
+        }
+    }
+
+    @JsonIgnore
+    public void setCommitHash(String hash) {
+
+        // Metadata object should already be present!!!
+        Map<String, String> annotations = getMetadata().getAnnotations();
+
+        if (hash != null) {
+            annotations.put(KEY_COMMIT_HASH, hash);
+        } else {
+            annotations.remove(KEY_COMMIT_HASH);
+        }
     }
 
     @JsonIgnore
@@ -110,6 +126,7 @@ public class K8sCustomResource extends CustomResource {
     }
 
     private static final Pattern pattern;
+
     static {
         pattern = Pattern.compile(K8sCustomResource.RESOURCE_NAME_REGEXP);
     }

@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.inframgr.statuswatcher;
 
+import com.exactpro.th2.infrarepo.RepositoryResource;
+
 public class ResourcePath {
     private String namespace;
     private String kind;
@@ -23,6 +25,14 @@ public class ResourcePath {
 
     public static String annotationFor(String namespace, String kind, String resourceName) {
         return String.format("%s:%s/%s", namespace, kind, resourceName);
+    }
+
+    public static String annotationFor(RepositoryResource resource, String namespace) {
+        return annotationFor(
+                namespace,
+                resource.getKind(),
+                resource.getMetadata().getName()
+        );
     }
 
     public static ResourcePath fromAnnotation(ResourceCondition resource) {
