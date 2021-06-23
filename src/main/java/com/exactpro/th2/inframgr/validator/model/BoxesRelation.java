@@ -39,11 +39,15 @@ public final class BoxesRelation {
     }
 
     public void setMqLinks(List<MessageLink> mqLinks) {
-        this.mqLinks = mqLinks;
+        if (mqLinks != null) {
+            this.mqLinks = mqLinks;
+        }
     }
 
     public void setGrpcLinks(List<MessageLink> grpcLinks) {
-        this.grpcLinks = grpcLinks;
+        if (grpcLinks != null) {
+            this.grpcLinks = grpcLinks;
+        }
     }
 
     @Override

@@ -27,7 +27,7 @@ import java.util.List;
 public final class Th2LinkSpec {
 
     @JsonProperty("boxes-relation")
-    private final BoxesRelation boxesRelation = new BoxesRelation();
+    private BoxesRelation boxesRelation = new BoxesRelation();
 
     @JsonProperty("dictionaries-relation")
     private List<DictionaryLink> dictionariesRelation = new ArrayList<>();
@@ -41,7 +41,15 @@ public final class Th2LinkSpec {
     }
 
     public void setDictionariesRelation(List<DictionaryLink> dictionariesRelation) {
-        this.dictionariesRelation = dictionariesRelation;
+        if (dictionariesRelation != null) {
+            this.dictionariesRelation = dictionariesRelation;
+        }
+    }
+
+    public void setBoxesRelation(BoxesRelation boxesRelation) {
+        if (boxesRelation != null) {
+            this.boxesRelation = boxesRelation;
+        }
     }
 
     @Override
