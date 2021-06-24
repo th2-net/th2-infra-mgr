@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public enum SchemaConnectionType {
     mq,
+    @Deprecated
     grpc,
     @JsonProperty("grpc-server")
     grpc_server,
