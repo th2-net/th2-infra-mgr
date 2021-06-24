@@ -42,7 +42,7 @@ class GrpcLinkValidator extends BoxesLinkValidator {
                 .boxName(fromBoxSpec.getBox())
                 .boxPinName(fromBoxSpec.getPin())
                 .boxDirection(BoxDirection.from)
-                .connectionType(SchemaConnectionType.grpc)
+                .connectionType(SchemaConnectionType.grpc_client)
                 .build();
 
         var toBoxSpec = link.getTo();
@@ -51,7 +51,7 @@ class GrpcLinkValidator extends BoxesLinkValidator {
                 .boxName(toBoxSpec.getBox())
                 .boxPinName(toBoxSpec.getPin())
                 .boxDirection(BoxDirection.to)
-                .connectionType(SchemaConnectionType.grpc)
+                .connectionType(SchemaConnectionType.grpc_server)
                 .build();
 
         validate(fromContext, toContext, linkRes, link);
