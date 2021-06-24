@@ -1,16 +1,18 @@
-## Descriptor API
-### GET/descriptor/{schema}/{kind}/{box}
-### Path variables
-__schema:__ Name of the schema, same as the branch name.
+### Descriptor API
+#### GET/descriptor/{schema}/{kind}/{box}
+__Path variables:__
 
-__kind:__  Kind of the box as defined in Th2 kinds enum. _("Th2CoreBox", "Th2Mstore", "Th2Estore", "Th2Box")_
+*schema* - Name of the schema, same as the branch name.
 
-__box:__  Name of the resource
+*kind* -  Kind of the box as defined in Th2 kinds enum: `Th2CoreBox`, `Th2Mstore`, `Th2Estore`, `Th2Box`
 
-### Returns
-value of "protobuf-description-base64" label for specified box.
+*box* -  Name of the resource
 
-### Response body example
+__Returns:__
+
+value of `protobuf-description-base64` label for specified box.
+
+#### Response body examples:
 
 __case 1:__ `protobuf-description-base64` is present in box manifest and has __non-null__ value
 ```json
@@ -25,4 +27,65 @@ __case 2:__ `protobuf-description-base64` is __NOT__ present in box manifest or 
 
 Response body is empty, with `204 No Content` response code.
 
+
+### Secrets API
+#### GET/secrets
+
+__Returns:__
+
+Set containing names of keys  in `schema-custom-secrets` file.
+
+#### Response body example
+
+__case 1:__ there are two keys in `schema-custom-secrets` namespace
+```json
+[
+    "key1",
+    "key2"
+]
+
+```
+ 
+#### POST/secrets
+__Request Body:__
+```json
+[
+   {
+    "key": "key1",
+    "data": "dXBkYXRlZHZhbHVl"
+   },
+   {
+    "key": "key2",
+    "data":"c29tZS1zZWNyZXQtdmFsdWU="
+   }
+]
+```
+__Returns:__
+Set containing names of created/updated keys.
+
+### Response body example:
+```json
+[
+    "key1",
+    "key2"
+]
+```
+ 
+### DELETE/secrets
+__RequestBody:__
+```json
+[
+    "key1"
+]
+```
+Deletes key from `schema-custom-secrets` file
+### Returns
+List containing names of deleted keys.
+
+### Response body example:
+```json
+[
+    "key1"
+]
+```
 ##
