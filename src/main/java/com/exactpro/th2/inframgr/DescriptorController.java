@@ -82,7 +82,7 @@ public class DescriptorController {
         return null;
     }
 
-    public class Response {
+    private static class Response {
         private final String descriptor;
         private final String content;
 
