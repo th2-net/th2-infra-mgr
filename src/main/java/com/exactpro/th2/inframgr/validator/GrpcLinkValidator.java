@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.validator;
 
 import com.exactpro.th2.inframgr.validator.cache.SchemaValidationTable;
 import com.exactpro.th2.inframgr.validator.chain.impl.ExpectedConnectionType;
+import com.exactpro.th2.inframgr.validator.chain.impl.ExpectedServiceClass;
 import com.exactpro.th2.inframgr.validator.chain.impl.PinExist;
 import com.exactpro.th2.inframgr.validator.chain.impl.ResourceExists;
 import com.exactpro.th2.inframgr.validator.enums.BoxDirection;
@@ -37,15 +38,18 @@ class GrpcLinkValidator extends BoxesLinkValidator {
     void validateLink(RepositoryResource linkRes, MessageLink link) {
 
         var fromBoxSpec = link.getFrom();
+        var toBoxSpec = link.getTo();
+
+        RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
 
         var fromContext = BoxLinkContext.builder()
                 .boxName(fromBoxSpec.getBox())
                 .boxPinName(fromBoxSpec.getPin())
                 .boxDirection(BoxDirection.from)
                 .connectionType(SchemaConnectionType.grpc_client)
+                .linkedResource(toRes)
+                .linkedPinName(toBoxSpec.getPin())
                 .build();
-
-        var toBoxSpec = link.getTo();
 
         var toContext = fromContext.toBuilder()
                 .boxName(toBoxSpec.getBox())
@@ -70,9 +74,11 @@ class GrpcLinkValidator extends BoxesLinkValidator {
         var resValidator = new ResourceExists();
         var pinExist = new PinExist(context);
         var expectedPin = new ExpectedConnectionType(context);
+        var expectedServiceClass = new ExpectedServiceClass(context);
 
         resValidator.setNext(pinExist);
         pinExist.setNext(expectedPin);
+        expectedPin.setNext(expectedServiceClass);
 
         return resValidator.validate(resource);
     }

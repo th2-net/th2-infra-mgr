@@ -26,12 +26,18 @@ import java.util.Set;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class PinSpec {
 
-    protected String name;
+    private String name;
 
     @JsonProperty("connection-type")
-    protected SchemaConnectionType connectionType;
+    private SchemaConnectionType connectionType;
 
-    protected Set<String> attributes = new HashSet<>();
+    private Set<String> attributes = new HashSet<>();
+
+    @JsonProperty("service-classes")
+    private Set<String> serviceClasses = new HashSet<>();
+
+    @JsonProperty("service-class")
+    private String serviceClass;
 
     public String getName() {
         return name;
@@ -43,5 +49,13 @@ public final class PinSpec {
 
     public Set<String> getAttributes() {
         return attributes;
+    }
+
+    public Set<String> getServiceClasses() {
+        return serviceClasses;
+    }
+
+    public String getServiceClass() {
+        return serviceClass;
     }
 }
