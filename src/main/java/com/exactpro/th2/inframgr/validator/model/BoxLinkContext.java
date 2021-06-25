@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.validator.model;
 
 import com.exactpro.th2.inframgr.validator.enums.BoxDirection;
 import com.exactpro.th2.inframgr.validator.enums.SchemaConnectionType;
+import com.exactpro.th2.infrarepo.RepositoryResource;
 import lombok.Builder;
 
 @Builder(toBuilder = true)
@@ -30,6 +31,10 @@ public final class BoxLinkContext {
     private final BoxDirection boxDirection;
 
     private final SchemaConnectionType connectionType;
+
+    private RepositoryResource linkedResource;
+
+    private String linkedPinName;
 
     public String getBoxName() {
         return boxName;
@@ -47,4 +52,11 @@ public final class BoxLinkContext {
         return connectionType;
     }
 
+    public RepositoryResource getLinkedResource() {
+        return linkedResource;
+    }
+
+    public String getLinkedPinName() {
+        return linkedPinName;
+    }
 }
