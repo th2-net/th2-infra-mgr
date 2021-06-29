@@ -17,7 +17,9 @@
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.errors.BadRequestException;
+import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
+import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,23 +40,31 @@ import java.util.Set;
 public class SecretsController {
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+    private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
-    @GetMapping("/secrets")
+
+    @GetMapping("/secrets/{schemaName}")
     @ResponseBody
-    public Set<String> getSecrets(HttpServletResponse response) throws ServiceException {
+    public Set<String> getSecrets(@PathVariable(name = "schemaName") String schemaName) throws ServiceException {
+        if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+        }
         try {
             SecretsManager secretsManager = new SecretsManager();
-            Map<String, String> secretData = secretsManager.getCustomSecret().getData();
+            Map<String, String> secretData = secretsManager.getCustomSecret(schemaName).getData();
             return secretData != null ? secretData.keySet() : Collections.emptySet();
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }
 
-    @PutMapping("/secrets")
+    @PutMapping("/secrets/{schemaName}")
     @ResponseBody
-    public Set<String> postSecrets(@RequestBody String requestBody,
-                                   HttpServletResponse response) {
+    public Set<String> putSecrets(@PathVariable(name = "schemaName") String schemaName,
+                                  @RequestBody String requestBody) {
+        if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+        }
         List<SecretsRequestEntry> secretEntries;
         try {
             ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
@@ -66,16 +76,19 @@ public class SecretsController {
 
         try {
             SecretsManager secretsManager = new SecretsManager();
-            return secretsManager.createOrReplaceSecrets(secretEntries);
+            return secretsManager.createOrReplaceSecrets(schemaName, secretEntries);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }
 
-    @DeleteMapping("/secrets")
+    @DeleteMapping("/secrets/{schemaName}")
     @ResponseBody
-    public Set<String> deleteSecrets(@RequestBody String requestBody,
-                                     HttpServletResponse response) {
+    public Set<String> deleteSecrets(@PathVariable(name = "schemaName") String schemaName,
+                                     @RequestBody String requestBody) {
+        if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
+            throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+        }
         Set<String> secretsNames;
         try {
             ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
@@ -87,7 +100,7 @@ public class SecretsController {
 
         try {
             SecretsManager secretsManager = new SecretsManager();
-            return secretsManager.deleteSecrets(secretsNames);
+            return secretsManager.deleteSecrets(schemaName, secretsNames);
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
