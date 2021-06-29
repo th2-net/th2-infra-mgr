@@ -29,15 +29,15 @@ Response body is empty, with `204 No Content` response code.
 
 
 ### Secrets API
-#### GET/secrets
+#### GET/secrets/{schema}
 
 __Returns:__
 
-Set containing names of keys  in `schema-custom-secrets` file.
+Set containing names of keys of custom secrets in specified schema.
 
 #### Response body example
 
-__case 1:__ there are two keys in `schema-custom-secrets` namespace
+If there are two keys in custom secrets file of this schema
 ```json
 [
     "key1",
@@ -46,7 +46,7 @@ __case 1:__ there are two keys in `schema-custom-secrets` namespace
 
 ```
  
-#### POST/secrets
+#### PUT/secrets/{schema}
 __Request Body:__
 ```json
 [
@@ -71,14 +71,14 @@ Set containing names of created/updated keys.
 ]
 ```
  
-### DELETE/secrets
+### DELETE/secrets/{schema}
 __RequestBody:__
 ```json
 [
     "key1"
 ]
 ```
-Deletes key from `schema-custom-secrets` file
+Deletes key from custom secrets file of specified namespace
 ### Returns
 List containing names of deleted keys.
 

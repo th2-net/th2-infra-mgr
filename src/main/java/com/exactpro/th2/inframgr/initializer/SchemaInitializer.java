@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -110,6 +111,7 @@ public class SchemaInitializer {
 
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
         ensureKeyspace(config, schemaName, kube, forceUpdate);
+        ensureCustomSecrets(kube);
     }
 
     static void createRabbitMQSecret(Config config, Kubernetes kube, String username, boolean forceUpdate) {
@@ -279,7 +281,7 @@ public class SchemaInitializer {
             } finally {
                 gitter.unlock();
             }
-        }catch (Exception e){
+        } catch (Exception e) {
             logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
         }
     }
@@ -323,6 +325,24 @@ public class SchemaInitializer {
             kube.createOrRepaceIngress(newIngress);
         } catch (Exception e) {
             logger.error("Exception creating ingress \"{}\"", resourceLabel, e);
+        }
+    }
+
+    private static void ensureCustomSecrets(Kubernetes kube) {
+        String secretName = SecretsManager.DEFAULT_SECRET_NAME;
+        String resourceLabel = ResourcePath.annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+
+        Secret secret = new Secret();
+        secret.setApiVersion(Kubernetes.API_VERSION_V1);
+        secret.setKind(Kubernetes.KIND_SECRET);
+        secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
+        secret.setMetadata(Kubernetes.createMetadataWithAnnotation(secretName, resourceLabel));
+
+        try {
+            kube.createOrReplaceSecret(secret);
+            logger.info("Created \"{}\"", resourceLabel);
+        } catch (Exception e) {
+            logger.error("Exception creating \"{}\"", resourceLabel, e);
         }
     }
 
