@@ -45,7 +45,7 @@ public class FreeMarkerTemplate {
                     "The file " + templateName + " does not exist").getFile()).getParentFile());
 
             Template temp = cfg.getTemplate(templateName);
-            temp.process(new HrConfigForTemplate(hrName, schemaName), stringWriter);
+            temp.process(new HrConfigForTemplate(hrName), stringWriter);
 
         } catch (TemplateException te) {
             logger.error("Exception processing the template \"{}\"", templateName);

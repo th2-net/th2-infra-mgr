@@ -35,7 +35,7 @@ import java.util.Objects;
 
 public class Config {
     private static final String CONFIG_FILE = "config.yml";
-    private static final String CONFIG_DIR_SYSTEM_PROPERTY = "inframgr.config.dir";
+    static final String CONFIG_DIR_SYSTEM_PROPERTY = "inframgr.config.dir";
     private static volatile Config instance;
     private Logger logger;
     private String configDir;
