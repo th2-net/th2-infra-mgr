@@ -14,32 +14,22 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.util.cfg;
+package com.exactpro.th2.inframgr.helmRelease;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
-public class _CassandraConfig {
+public class Cassandra {
 
     private String keyspacePrefix;
-
-    private String secret;
-
     private String username;
-
     private String password;
-
     private String host;
-
     private int port;
 
     private String datacenter;
-
     private int timeout;
-
     private String instanceName;
-
     private Map<String, String> schemaNetworkTopology;
 
     public String getKeyspacePrefix() {
@@ -49,15 +39,6 @@ public class _CassandraConfig {
     public void setKeyspacePrefix(String keyspacePrefix) {
         this.keyspacePrefix = keyspacePrefix;
     }
-
-    public void setSecret(String secret) {
-        this.secret = secret;
-    }
-
-    public String getSecret() {
-        return secret == null ? "" : secret;
-    }
-
 
     public String getUsername() {
         return username == null ? "" : username;
@@ -121,21 +102,5 @@ public class _CassandraConfig {
 
     public void setSchemaNetworkTopology(Map<String, String> schemaNetworkTopology) {
         this.schemaNetworkTopology = schemaNetworkTopology;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof _CassandraConfig)) return false;
-        _CassandraConfig that = (_CassandraConfig) o;
-        return getPort() == that.getPort() && getTimeout() == that.getTimeout()
-                && Objects.equals(getKeyspacePrefix(), that.getKeyspacePrefix())
-                && Objects.equals(getSecret(), that.getSecret())
-                && Objects.equals(getUsername(), that.getUsername())
-                && Objects.equals(getPassword(), that.getPassword())
-                && Objects.equals(getHost(), that.getHost())
-                && Objects.equals(getDatacenter(), that.getDatacenter())
-                && Objects.equals(getInstanceName(), that.getInstanceName())
-                && Objects.equals(getSchemaNetworkTopology(), that.getSchemaNetworkTopology());
     }
 }

@@ -112,6 +112,7 @@ public class SchemaInitializer {
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
         ensureKeyspace(config, schemaName, kube, forceUpdate);
         ensureCustomSecrets(kube);
+        HelmRelease.createOrReplaceHelmRelease(schemaName, kube, forceUpdate);
     }
 
     static void createRabbitMQSecret(Config config, Kubernetes kube, String username, boolean forceUpdate) {

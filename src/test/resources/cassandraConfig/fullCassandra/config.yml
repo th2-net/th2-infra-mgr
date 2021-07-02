@@ -1,0 +1,11 @@
+cassandra:
+  keyspacePrefix: prefix
+  username: user
+  password: passwd
+  host: host
+  port: 8081
+  datacenter: datacenter
+  timeout: 5
+  instanceName: name
+  schemaNetworkTopology:
+    datacenter1: Dcenter

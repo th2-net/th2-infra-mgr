@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Objects;
 
 public class Config {
     private static final String CONFIG_FILE = "config.yml";
@@ -39,7 +40,7 @@ public class Config {
     private Logger logger;
     private String configDir;
 
-    private Config() {
+    Config() {
         logger = LoggerFactory.getLogger(Config.class);
         configDir = System.getProperty(CONFIG_DIR_SYSTEM_PROPERTY, ".");
         configDir += "/";
@@ -53,7 +54,7 @@ public class Config {
         mapper.readerForUpdating(object).readValue(enrichedContent);
     }
 
-    private void readConfiguration() throws IOException {
+    void readConfiguration() throws IOException {
 
         try {
             File file = new File(configDir + CONFIG_FILE);
@@ -157,5 +158,17 @@ public class Config {
     }
 
     public static class PrometheusConfiguration extends _PrometheusConfig {
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Config config = (Config) o;
+        return Objects.equals(getGit(), config.getGit())
+                && Objects.equals(getKubernetes(), config.getKubernetes())
+                && Objects.equals(rabbitmq, config.rabbitmq)
+                && Objects.equals(getPrometheusConfiguration(), config.getPrometheusConfiguration())
+                && Objects.equals(getCassandra(), config.getCassandra());
     }
 }

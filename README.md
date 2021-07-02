@@ -69,6 +69,36 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       keyspacePrefix: schema_
       # this parameter will be prepended to schema name and will be used as a 
       # keyspace name in cassandra for the schema
+
+      secret: cassandra
+      # Name of cassandra secret in service namespace
+      
+      username: username
+      # Cassandra username
+      
+      password: password
+      # password for Cassandra user
+      
+      host: host
+      # Cassandra host
+      
+      port: 8080
+      # Cassandra port
+      
+      datacenter: datacenter
+      # datacenter to connect to
+
+      timeout: 10
+      # timeout duration for operations in Cassandra
+      
+      instanceName: instanceName
+      # is used to separate data within one keyspace
+      
+      schemaNetworkTopology: 
+        datacenter1: replicationFactor
+        datacenter2: replicationFactor
+      # defines datacenters and replication factors.
+      # applicable only for multi-node Cassandra cluster.
       
     kubernetes:
       namespacePrefix: schema-

@@ -1,0 +1,10 @@
+cassandra:
+  keyspacePrefix:
+  username:
+  password:
+  host:
+  port:
+  datacenter:
+  timeout:
+  instanceName:
+  schemaNetworkTopology:

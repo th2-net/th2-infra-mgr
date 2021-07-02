@@ -40,6 +40,8 @@ dependencies {
 	implementation 'io.prometheus:simpleclient_httpserver:0.5.0'
 	implementation 'io.prometheus:simpleclient_hotspot:0.5.0'
 
+	implementation 'org.freemarker:freemarker:2.3.30'
+
 	testImplementation('org.springframework.boot:spring-boot-starter-test') {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
 	}
