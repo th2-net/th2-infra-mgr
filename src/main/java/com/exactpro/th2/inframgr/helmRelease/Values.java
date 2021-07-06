@@ -16,10 +16,12 @@
 
 package com.exactpro.th2.inframgr.helmRelease;
 
+import com.exactpro.th2.infrarepo.KeyspaceConfig;
+
 public class Values {
 
     private Cassandra cassandra;
-    private Keyspace keyspace;
+    private KeyspaceConfig keyspaceConfig;
 
     public Cassandra getCassandra() {
         return cassandra == null ? new Cassandra() : cassandra;
@@ -29,11 +31,11 @@ public class Values {
         this.cassandra = cassandra;
     }
 
-    public Keyspace getKeyspace() {
-        return keyspace == null ? new Keyspace() : keyspace;
+    public KeyspaceConfig getKeyspaceConfig() {
+        return keyspaceConfig == null ? new KeyspaceConfig() : keyspaceConfig;
     }
 
-    public void setKeyspace(Keyspace keyspace) {
-        this.keyspace = keyspace;
+    public void setKeyspaceConfig(KeyspaceConfig keyspaceConfig) {
+        this.keyspaceConfig = keyspaceConfig;
     }
 }

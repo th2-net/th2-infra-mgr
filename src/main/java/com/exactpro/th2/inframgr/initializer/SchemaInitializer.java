@@ -69,6 +69,8 @@ public class SchemaInitializer {
             "nginx.ingress.kubernetes.io/"
     };
 
+    private static final Map<String, String> keyspaceMap = new HashMap<>();
+
     public enum SchemaSyncMode {
         CHECK_NAMESPACE,
         CHECK_RESOURCES,
@@ -273,12 +275,14 @@ public class SchemaInitializer {
                 RepositorySettings repositorySettings = snapshot.getRepositorySettings();
 
                 Config.CassandraConfig cassandraConfig = config.getCassandra();
-                String keyspace = repositorySettings.getKeyspace() != null ? repositorySettings.getKeyspace() : schemaName;
+                String keyspace = repositorySettings.getKeyspaceConfig().getKeyspace().isEmpty() ? schemaName
+                        : repositorySettings.getKeyspaceConfig().getKeyspace();
                 String keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+                keyspaceMap.put(schemaName, keyspaceName);
             } finally {
                 gitter.unlock();
             }

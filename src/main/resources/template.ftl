@@ -21,6 +21,7 @@ spec:
         <#list cassandra.schemaNetworkTopology as key, value>
         ${key}: ${value}
         </#list>
-    keyspace:
-      schemaVersion: ${keyspace.schemaVersion}
-      initializer: ${keyspace.initializer}
+    keyspaceConfig:
+        keyspace: ${keyspaceConfig.keyspace}
+        schemaVersion: ${keyspaceConfig.schemaVersion}
+

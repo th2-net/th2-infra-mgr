@@ -47,8 +47,8 @@ public class HelmRelease {
             try {
                 Spec currSpec = mapper.convertValue(hr.getSpec(), Spec.class);
 
-                if (newHelm.getSpec().getValues().getKeyspace().getSchemaVersion()
-                        .equals(currSpec.getValues().getKeyspace().getSchemaVersion()) && !forceUpdate) {
+                if (newHelm.getSpec().getValues().getKeyspaceConfig().getSchemaVersion()
+                        .equals(currSpec.getValues().getKeyspaceConfig().getSchemaVersion()) && !forceUpdate) {
                     logger.info("Helm release \"{}\" Not updated", HELM_RELEASE_NAME);
                     return;
                 }
