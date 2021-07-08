@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.helmRelease;
+package com.exactpro.th2.inframgr.cassandra.template.helmrelease;
 
 public class Chart {
 

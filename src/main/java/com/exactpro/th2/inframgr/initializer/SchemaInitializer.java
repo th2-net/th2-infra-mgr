@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.cassandra.template.helmrelease.Keyspace;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
@@ -69,7 +70,7 @@ public class SchemaInitializer {
             "nginx.ingress.kubernetes.io/"
     };
 
-    private static final Map<String, String> keyspaceMap = new HashMap<>();
+    private static final Map<String, Keyspace> keyspaceMap = new HashMap<>();
 
     public enum SchemaSyncMode {
         CHECK_NAMESPACE,
@@ -82,6 +83,7 @@ public class SchemaInitializer {
     }
 
     public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
+        mapKeyspace(schemaName);
         switch (syncMode) {
             case CHECK_NAMESPACE:
                 if (kube.existsNamespace())
@@ -93,6 +95,10 @@ public class SchemaInitializer {
                 ensureNameSpace(schemaName, kube, true);
                 break;
         }
+    }
+
+    public static Map<String, Keyspace> getKeyspaceMap() {
+        return keyspaceMap;
     }
 
     private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
@@ -114,7 +120,6 @@ public class SchemaInitializer {
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
         ensureKeyspace(config, schemaName, kube, forceUpdate);
         ensureCustomSecrets(kube);
-        HelmRelease.createOrReplaceHelmRelease(schemaName, kube, forceUpdate);
     }
 
     static void createRabbitMQSecret(Config config, Kubernetes kube, String username, boolean forceUpdate) {
@@ -264,31 +269,10 @@ public class SchemaInitializer {
     }
 
     static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
-
-        try {
-            GitterContext ctx = GitterContext.getContext(config.getGit());
-            Gitter gitter = ctx.getGitter(schemaName);
-            RepositorySnapshot snapshot;
-            try {
-                gitter.lock();
-                snapshot = Repository.getSnapshot(gitter);
-                RepositorySettings repositorySettings = snapshot.getRepositorySettings();
-
-                Config.CassandraConfig cassandraConfig = config.getCassandra();
-                String keyspace = repositorySettings.getKeyspaceConfig().getKeyspace().isEmpty() ? schemaName
-                        : repositorySettings.getKeyspaceConfig().getKeyspace();
-                String keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
-
-                Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-                keyspaceMap.put(schemaName, keyspaceName);
-            } finally {
-                gitter.unlock();
-            }
-        } catch (Exception e) {
-            logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
-        }
+        Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String keyspaceName = keyspaceMap.get(schemaName).getKeyspaceName();
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+        copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
     }
 
     private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
@@ -434,5 +418,31 @@ public class SchemaInitializer {
 
     private static String base64Encode(String s) {
         return new String(Base64.getEncoder().encode(s.getBytes()));
+    }
+
+    private static void mapKeyspace(String schemaName) {
+        try {
+            Config config = Config.getInstance();
+            GitterContext ctx = GitterContext.getContext(config.getGit());
+            Gitter gitter = ctx.getGitter(schemaName);
+            RepositorySnapshot snapshot;
+            try {
+                gitter.lock();
+                snapshot = Repository.getSnapshot(gitter);
+                RepositorySettings repositorySettings = snapshot.getRepositorySettings();
+
+                Config.CassandraConfig cassandraConfig = config.getCassandra();
+
+                KeyspaceConfig keyspaceConfig = repositorySettings.getKeyspaceConfig();
+                String keyspace = keyspaceConfig.getKeyspace().isEmpty() ? schemaName : repositorySettings.getKeyspaceConfig().getKeyspace();
+                String keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
+                keyspaceMap.put(schemaName, new Keyspace(keyspaceName, keyspaceConfig.getSchemaVersion()));
+            } finally {
+                gitter.unlock();
+            }
+        } catch (Exception e) {
+            keyspaceMap.put(schemaName, new Keyspace());
+            logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
+        }
     }
 }

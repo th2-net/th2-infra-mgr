@@ -14,28 +14,26 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.helmRelease;
+package com.exactpro.th2.inframgr.cassandra.template.helmrelease;
 
-import com.exactpro.th2.infrarepo.KeyspaceConfig;
+public class Spec {
 
-public class Values {
+    private Chart chart;
+    private Values values;
 
-    private Cassandra cassandra;
-    private KeyspaceConfig keyspaceConfig;
-
-    public Cassandra getCassandra() {
-        return cassandra == null ? new Cassandra() : cassandra;
+    public Chart getChart() {
+        return chart == null ? new Chart() : chart;
     }
 
-    public void setCassandra(Cassandra cassandra) {
-        this.cassandra = cassandra;
+    public void setChart(Chart chart) {
+        this.chart = chart;
     }
 
-    public KeyspaceConfig getKeyspaceConfig() {
-        return keyspaceConfig == null ? new KeyspaceConfig() : keyspaceConfig;
+    public Values getValues() {
+        return values == null ? new Values() : values;
     }
 
-    public void setKeyspaceConfig(KeyspaceConfig keyspaceConfig) {
-        this.keyspaceConfig = keyspaceConfig;
+    public void setValues(Values values) {
+        this.values = values;
     }
 }

@@ -23,6 +23,8 @@ import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentList;
+import io.fabric8.kubernetes.api.model.batch.CronJob;
+import io.fabric8.kubernetes.api.model.batch.Job;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -321,6 +323,10 @@ public class Kubernetes implements Closeable {
 
     public Secret getSecret(String secretName) {
         return client.secrets().inNamespace(namespace).withName(secretName).get();
+    }
+
+    public CronJob getJob(String jobName) {
+        return client.batch().cronjobs().inNamespace(namespace).withName(jobName).get();
     }
 
     public List<Secret> getDockerRegistrySecrets() {

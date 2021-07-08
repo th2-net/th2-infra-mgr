@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr;
+package com.exactpro.th2.inframgr.cassandra.template;
 
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -30,7 +30,7 @@ import java.util.Objects;
 
 public class FreeMarkerTemplate {
 
-    public static String getHrTemplate(String templateName, String hrName, String schemaName) {
+    public static String getHrTemplate(String templateName, String hrName, String schemaName, String imageName, String imageVersion) {
         Logger logger = LoggerFactory.getLogger(FreeMarkerTemplate.class);
 
         Configuration cfg = new Configuration(Configuration.VERSION_2_3_30);
@@ -45,7 +45,7 @@ public class FreeMarkerTemplate {
                     "The file " + templateName + " does not exist").getFile()).getParentFile());
 
             Template temp = cfg.getTemplate(templateName);
-            temp.process(new HrConfigForTemplate(hrName, schemaName), stringWriter);
+            temp.process(new HrConfigForTemplate(hrName, schemaName, imageName, imageVersion), stringWriter);
 
         } catch (TemplateException te) {
             logger.error("Exception processing the template \"{}\"", templateName);

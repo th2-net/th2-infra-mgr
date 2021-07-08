@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.helmRelease;
+package com.exactpro.th2.inframgr.cassandra.template.helmrelease;
 
 import com.exactpro.th2.infrarepo.RepositoryResource;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class HrResource extends RepositoryResource {
 

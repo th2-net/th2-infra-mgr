@@ -23,23 +23,53 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.util.Map;
+
 @SpringBootApplication
 @EnableScheduling
 public class InfraManagerApplication {
 
-	public static void main(String[] args) {
+    public static final Map<String, Object> CASSANDRA = Map.of(
+    		"poc", new CassandraSchema(KeyspaceStatus.IN_PROGRESS, "1.0.0.")
+	);
 
-		try {
-			// preload configuration
-			Config.getInstance();
+    public static final class CassandraSchema {
+        private KeyspaceStatus keyspaceStatus;
+        private String schemaVersion;
 
-			PrometheusServer.start();
-			SpringApplication application = new SpringApplication(InfraManagerApplication.class);
-			application.run(args);
+        public CassandraSchema(KeyspaceStatus keyspaceStatus, String schemaVersion) {
+            this.keyspaceStatus = keyspaceStatus;
+            this.schemaVersion = schemaVersion;
+        }
 
-		} catch (Exception e) {
-			Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
-			logger.error("Exiting with exception", e);
+		public KeyspaceStatus getKeyspaceStatus() {
+			return keyspaceStatus;
+		}
+
+		public String getSchemaVersion() {
+			return schemaVersion;
 		}
 	}
+
+    public enum KeyspaceStatus {
+        IN_PROGRESS,
+        FINISHED,
+        FAILED
+    }
+
+    public static void main(String[] args) {
+
+        try {
+            // preload configuration
+            Config.getInstance();
+
+            PrometheusServer.start();
+            SpringApplication application = new SpringApplication(InfraManagerApplication.class);
+            application.run(args);
+
+        } catch (Exception e) {
+            Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
+            logger.error("Exiting with exception", e);
+        }
+    }
 }

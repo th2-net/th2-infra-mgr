@@ -8,6 +8,9 @@ spec:
     path: chart
     ref: main
   values:
+    component:
+      imageName: ${component.imageName}
+      imageVersion: ${component.imageVersion}
     cassandra:
       keyspacePrefix: ${cassandra.keyspacePrefix}
       username: ${cassandra.username}
@@ -21,7 +24,7 @@ spec:
         <#list cassandra.schemaNetworkTopology as key, value>
         ${key}: ${value}
         </#list>
-    keyspaceConfig:
-        keyspace: ${keyspaceConfig.keyspace}
-        schemaVersion: ${keyspaceConfig.schemaVersion}
+    keyspace:
+      keyspace: ${keyspace.keyspaceName}
+      schemaVersion: ${keyspace.schemaVersion}
 
