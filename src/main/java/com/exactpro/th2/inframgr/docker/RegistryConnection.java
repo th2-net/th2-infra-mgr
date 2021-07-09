@@ -87,8 +87,12 @@ public class RegistryConnection {
     private List<String> requestTags(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         TagResponseBody tagResponseBody = null;
         RestTemplate restTemplate = buildRest(authenticationDetails);
+        HttpEntity<String> entity = null;
+        if (authenticationDetails == null) {
+            entity = new HttpEntity<>(createHeaders());
+        }
         try {
-            tagResponseBody = restTemplate.getForObject(url, TagResponseBody.class);
+            tagResponseBody = restTemplate.exchange(url, HttpMethod.GET, entity, TagResponseBody.class).getBody();
         } catch (Exception e) {
             logger.error("Exception executing request: {}", url, e);
         }
@@ -98,6 +102,9 @@ public class RegistryConnection {
     private ImageManifestV2 requestImageManifest(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplate restTemplate = buildRest(authenticationDetails);
         HttpHeaders headers = new HttpHeaders();
+        if (authenticationDetails == null) {
+            headers = createHeaders();
+        }
         headers.add("Accept", "application/vnd.docker.distribution.manifest.v2+json");
         HttpEntity<String> entity = new HttpEntity<>(headers);
         try {
@@ -111,19 +118,16 @@ public class RegistryConnection {
     private Blob requestBlobs(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplate restTemplate = buildRest(authenticationDetails);
         //dummy header for github
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Authorization" , "Bearer null" );
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        HttpEntity<String> entity = null;
+        if (authenticationDetails == null) {
+            entity = new HttpEntity<>(createHeaders());
+        }
 
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
         converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));
         restTemplate.setMessageConverters(Arrays.asList(converter, new FormHttpMessageConverter()));
         try {
-            if(authenticationDetails == null) {
-                return restTemplate.exchange(url, HttpMethod.GET, entity, Blob.class).getBody();
-            }else {
-                return restTemplate.getForObject(url, Blob.class);
-            }
+            return restTemplate.exchange(url, HttpMethod.GET, entity, Blob.class).getBody();
         } catch (Exception e) {
             logger.error("Exception executing request: {}", url, e);
             throw new RegistryRequestException(e);
@@ -132,14 +136,13 @@ public class RegistryConnection {
 
     private RestTemplate buildRest(RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplateBuilder builder = new RestTemplateBuilder();
-        if (authenticationDetails == null) {
-            return builder.basicAuthentication("USER", "PASSWORD").build();
-        } else {
+        if (authenticationDetails != null) {
             return builder.basicAuthentication(
                     authenticationDetails.getUser(),
                     authenticationDetails.getPassword()
             ).build();
         }
+        return builder.build();
     }
 
     private RegistryCredentialLookup.RegistryCredentials getAuthenticationDetails(String imageName) {
@@ -159,5 +162,11 @@ public class RegistryConnection {
                 .insert(position, API_SUFFIX)
                 .append(request)
                 .toString();
+    }
+
+    private HttpHeaders createHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Authorization", "Bearer null");
+        return headers;
     }
 }
