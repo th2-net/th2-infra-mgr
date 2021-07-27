@@ -125,7 +125,7 @@ public class K8sOperator {
                 // action is needed as optimistic check did not draw enough conclusions
                 GitterContext ctx = GitterContext.getContext(config.getGit());
                 Gitter gitter = ctx.getGitter(kube.extractSchemaName(namespace));
-                logger.info("Checking out branch \"{}\" from repository", gitter.getBranch()) ;
+                logger.info("Checking out branch \"{}\" from repository", gitter.getBranch());
 
                 RepositoryResource resource = null;
                 try {
@@ -138,7 +138,7 @@ public class K8sOperator {
                         return;
 
                     // refresh cache for this namespace
-                    for (RepositoryResource r :snapshot.getResources()) {
+                    for (RepositoryResource r : snapshot.getResources()) {
                         cache.add(namespace, r);
                         if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name)) {
                             resource = r;
@@ -156,34 +156,35 @@ public class K8sOperator {
                 cacheEntry = cache.get(namespace, kind, name);
                 cachedHash = cacheEntry == null ? null : cacheEntry.getHash();
 
-                boolean actionReplace = false, actionDelete = false;
+                if (resource == null) {
+                    resource = new RepositoryResource();
+                    resource.setKind(kind);
+                    resource.setMetadata(new RepositoryResource.Metadata(name));
+                }
+                boolean actionReplace = false;
+                boolean actionDelete = false;
                 if (action.equals(Watcher.Action.DELETED)) {
-                    if (cacheEntry == null || cacheEntry.isMarkedAsDeleted())
+                    if (cacheEntry == null || cacheEntry.isMarkedAsDeleted()) {
                         return; // no action is required as item does not exist in repository
+                    }
                     actionReplace = true;
                 } else {
-                    if (cacheEntry != null && !cacheEntry.isMarkedAsDeleted() && Objects.equals(cachedHash, hash))
+                    if (cacheEntry != null && !cacheEntry.isMarkedAsDeleted() && Objects.equals(cachedHash, hash)) {
                         return; // no action is needed as item's hash matches
-
-                    if (cachedHash != null)
+                    }
+                    if (cachedHash != null && !cacheEntry.isMarkedAsDeleted()) {
                         actionReplace = true;
-                    else {
+                    } else {
                         actionDelete = true;
-
-                        resource = new RepositoryResource();
-                        resource.setKind(kind);
-                        resource.setMetadata(new RepositoryResource.Metadata(name));
                     }
                 }
 
-                hash = null;
-                if (resource != null)
-                    hash = resource.getSourceHash();
+                hash = resource.getSourceHash();
                 hashTag = Strings.formatHash(hash);
 
                 Strings.stringify(resource.getSpec());
                 if (actionReplace) {
-                    logger.info("Detected external manipulation on {}, recreating resource {}", resourceLabel, hashTag) ;
+                    logger.info("Detected external manipulation on {}, recreating resource {}", resourceLabel, hashTag);
 
                     // check current status of namespace
                     Namespace n = kube.getNamespace(namespace);
@@ -191,11 +192,11 @@ public class K8sOperator {
                         logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. Scheduled full schema synchronization"
                                 , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
                         taskQueue.add(new SchemaRecoveryTask(kube.extractSchemaName(namespace)), true);
-                    } else
+                    } else {
                         kube.createOrReplaceCustomResource(resource, namespace);
-                } else
-                if (actionDelete) {
-                    logger.info("Detected external manipulation on {}, deleting resource {}", resourceLabel, hashTag) ;
+                    }
+                } else if (actionDelete) {
+                    logger.info("Detected external manipulation on {}, deleting resource {}", resourceLabel, hashTag);
                     kube.deleteCustomResource(resource, namespace);
                 }
 
