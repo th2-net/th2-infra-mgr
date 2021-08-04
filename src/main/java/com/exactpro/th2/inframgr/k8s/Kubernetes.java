@@ -22,7 +22,6 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.apps.DeploymentList;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -365,13 +364,9 @@ public class Kubernetes implements Closeable {
     }
 
     private SharedIndexInformer<K8sCustomResource> registerSharedInformerForCustomResource(ResourceEventHandler<K8sCustomResource> eventHandler,
-                                                                                           SharedInformerFactory factory,
                                                                                            Class type,
                                                                                            Class list) {
-        CustomResourceDefinitionContext crdContext = CustomResourceDefinitionContext.fromCustomResourceType(type);
-
         SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
-                crdContext,
                 type,
                 list,
                 0);
@@ -393,12 +388,12 @@ public class Kubernetes implements Closeable {
         KubernetesDeserializer.registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
 
         //Register informers for custom resources
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Box.Type.class, Th2Box.List.class);
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2CoreBox.Type.class, Th2CoreBox.List.class);
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Dictionary.Type.class, Th2Dictionary.List.class);
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Estore.Type.class, Th2Estore.List.class);
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Mstore.Type.class, Th2Mstore.List.class);
-        registerSharedInformerForCustomResource(eventHandler, informerFactory, Th2Link.Type.class, Th2Link.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Box.Type.class, Th2Box.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2CoreBox.Type.class, Th2CoreBox.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Dictionary.Type.class, Th2Dictionary.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Estore.Type.class, Th2Estore.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Mstore.Type.class, Th2Mstore.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Link.Type.class, Th2Link.List.class);
     }
 
     public void registerSharedInformersAll(ResourceEventHandler eventHandler) {
@@ -406,16 +401,16 @@ public class Kubernetes implements Closeable {
         SharedInformerFactory factory = getInformerFactory();
 
         var filteringEventHanled = new FilteringResourceEventHandler().wrap(eventHandler);
-        factory.sharedIndexInformerFor(Deployment.class, DeploymentList.class, 0)
+        factory.sharedIndexInformerFor(Deployment.class, 0)
                 .addEventHandler(filteringEventHanled);
 
-        factory.sharedIndexInformerFor(Pod.class, PodList.class, 0)
+        factory.sharedIndexInformerFor(Pod.class, 0)
                 .addEventHandler(filteringEventHanled);
 
-        factory.sharedIndexInformerFor(Service.class, ServiceList.class, 0)
+        factory.sharedIndexInformerFor(Service.class, 0)
                 .addEventHandler(filteringEventHanled);
 
-        factory.sharedIndexInformerFor(ConfigMap.class, ConfigMapList.class, 0)
+        factory.sharedIndexInformerFor(ConfigMap.class, 0)
                 .addEventHandler(filteringEventHanled);
     }
 
