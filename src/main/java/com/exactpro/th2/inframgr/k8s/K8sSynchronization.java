@@ -155,7 +155,7 @@ public class K8sSynchronization {
         }
     }
 
-    public void synchronizeBranch(String branch) {
+    public void synchronizeBranch(String branch, long detectionTime) {
 
         if (!K8sCustomResource.isSchemaNameValid(branch)) {
             logger.error("Schema name \"{}\" is invalid. Name length must less than {} characters and match pattern: \"{}\"",
@@ -216,7 +216,7 @@ public class K8sSynchronization {
                 logger.info("Commit \"{}\" validated.", snapshot.getCommitRef());
             }
             // add commit reference in annotations to every resource
-            setCommitHashes(repositoryMap, snapshot.getCommitRef());
+            setCommitHashes(repositoryMap, snapshot.getCommitRef(), detectionTime);
             // synchronize entries
             synchronizeNamespace(branch, repositoryMap, repositorySettings);
 
@@ -237,7 +237,7 @@ public class K8sSynchronization {
             ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
             for (String branch : branches.keySet())
                 if (!branch.equals("master"))
-                    executor.execute(() -> synchronizeBranch(branch));
+                    executor.execute(() -> synchronizeBranch(branch, System.currentTimeMillis()));
 
             executor.shutdown();
             try {
@@ -285,7 +285,7 @@ public class K8sSynchronization {
                     continue;
                 }
 
-                synchronizeBranch(job.getSchema());
+                synchronizeBranch(job.getSchema(), job.getCreationTime());
                 jobQueue.completeJob(job);
 
             } catch (InterruptedException e) {
@@ -300,10 +300,10 @@ public class K8sSynchronization {
         return startupSynchronizationComplete;
     }
 
-    private void setCommitHashes(Map<String, Map<String, RepositoryResource>> repositoryMap, String commitHash) {
+    private void setCommitHashes(Map<String, Map<String, RepositoryResource>> repositoryMap, String commitHash, long detectionTime) {
         repositoryMap.values()
                 .forEach(repoResources -> repoResources.values()
-                        .forEach(resource -> resource.setCommitHash(commitHash))
+                        .forEach(resource -> resource.stamp(commitHash, detectionTime))
                 );
     }
 }

@@ -121,6 +121,7 @@ public class Kubernetes implements Closeable {
                 k8sResource.setMetadata(metaData);
                 k8sResource.setSourceHash(repoResource.getSourceHash());
                 k8sResource.setCommitHash(repoResource.getCommitHash());
+                k8sResource.setDetectionTime(repoResource.getDetectionTime());
                 k8sResource.setKind(repoResource.getKind());
                 k8sResource.setSpec(repoResource.getSpec());
                 mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -156,6 +157,7 @@ public class Kubernetes implements Closeable {
             k8sResource.setMetadata(metaData);
             k8sResource.setSourceHash(repoResource.getSourceHash());
             k8sResource.setCommitHash(repoResource.getCommitHash());
+            k8sResource.setDetectionTime(repoResource.getDetectionTime());
             k8sResource.setKind(repoResource.getKind());
             k8sResource.setSpec(repoResource.getSpec());
             mixedOperation.inNamespace(namespace).create(k8sResource);
@@ -193,6 +195,7 @@ public class Kubernetes implements Closeable {
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.setCommitHash(repoResource.getCommitHash());
+                        k8sResource.setDetectionTime(repoResource.getDetectionTime());
                         mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);

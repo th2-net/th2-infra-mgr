@@ -36,6 +36,10 @@ public class K8sSynchronizationJobQueue {
         public String getSchema() {
             return schema;
         }
+
+        public long getCreationTime() {
+            return creationTime;
+        }
     }
 
 

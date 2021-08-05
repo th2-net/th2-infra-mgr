@@ -33,6 +33,7 @@ public class K8sCustomResource extends CustomResource {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
     public static final String KEY_COMMIT_HASH = "th2.exactpro.com/git-commit-hash";
+    public static final String KEY_DETECTION_TIME = "th2.exactpro.com/detection-time";
     public static final String RESOURCE_NAME_REGEXP = "[a-z0-9]([-a-z0-9]*[a-z0-9])?";
     public static final int RESOURCE_NAME_MAX_LENGTH = 64;
     public static final int SCHEMA_NAME_MAX_LENGTH = 21;
@@ -113,6 +114,13 @@ public class K8sCustomResource extends CustomResource {
         } else {
             annotations.remove(KEY_COMMIT_HASH);
         }
+    }
+
+    @JsonIgnore
+    public void setDetectionTime(long detectionTime) {
+        // Metadata object should already be present!!!
+        Map<String, String> annotations = getMetadata().getAnnotations();
+        annotations.put(KEY_DETECTION_TIME, Long.toString(detectionTime));
     }
 
     @JsonIgnore
