@@ -18,8 +18,8 @@ public class ValidationObject {
         this.status = status;
     }
 
-    public void addErrorMessage(String message) {
-        this.errorMessages.add(message);
+    public void addErrorMessage(String message, String commitRef) {
+        this.errorMessages.add(String.format("%s [commit: %s]", message, commitRef));
     }
 
     public void addValidMqLink(MessageLink link) {

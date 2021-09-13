@@ -57,14 +57,14 @@ abstract class BoxesLinkValidator {
                     link.getName(), linkResName, link.getFrom().getBox(), fromResValidationStatus);
             //Mark "th2link" resource as invalid, since it contains invalid link
             schemaValidationTable.setInvalid(linkResName);
-            schemaValidationTable.addErrorMessage(linkResName, message);
+            schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
         }
         if (!toResValidationStatus.equals(VALID)) {
             String message = String.format("link: \"%s\" from: \"%s\" is invalid. Resource: \"%s[%s]\"",
                     link.getName(), linkResName, link.getTo().getBox(), toResValidationStatus);
             //Mark "th2link" resource as invalid, since it contains invalid link
             schemaValidationTable.setInvalid(linkResName);
-            schemaValidationTable.addErrorMessage(linkResName, message);
+            schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
         }
     }
 }

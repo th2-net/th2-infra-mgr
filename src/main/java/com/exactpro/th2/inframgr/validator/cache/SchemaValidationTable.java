@@ -24,8 +24,8 @@ public class SchemaValidationTable {
         this.valid = false;
     }
 
-    public void addErrorMessage(String resourceName, String message) {
-        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addErrorMessage(message);
+    public void addErrorMessage(String resourceName, String message, String commitRef) {
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addErrorMessage(message, commitRef);
     }
 
     public void addValidMqLink(String resourceName, MessageLink link) {
