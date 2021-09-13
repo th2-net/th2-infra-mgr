@@ -45,7 +45,7 @@ public class DictionaryLinkValidator {
             String message = String.format("link: \"%s\" from: \"%s\" is invalid. Resource: \"%s:[%s]\"",
                     link.getName(), linkResName, link.getDictionary().getName(), ValidationStatus.RESOURCE_NOT_EXIST);
             schemaValidationTable.setInvalid(linkResName);
-            schemaValidationTable.addErrorMessage(linkResName, message);
+            schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
         }
     }
 }

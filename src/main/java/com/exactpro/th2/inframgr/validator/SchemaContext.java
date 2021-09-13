@@ -9,16 +9,18 @@ import java.util.Map;
 
 public class SchemaContext {
     private final String schemaName;
+    private String commitRef;
     private final Map<String, RepositoryResource> allBoxes;
     private final Map<String, RepositoryResource> dictionaries;
     private SchemaValidationTable schemaValidationTable;
 
 
-    public SchemaContext(String schemaName,
+    public SchemaContext(String schemaName, String commitRef,
                          Map<String, RepositoryResource> allBoxes,
                          Map<String, RepositoryResource> dictionaries,
                          SchemaValidationTable schemaValidationTable) {
         this.schemaName = schemaName;
+        this.commitRef = commitRef;
         this.allBoxes = allBoxes;
         this.dictionaries = dictionaries;
         this.schemaValidationTable = schemaValidationTable;
@@ -26,6 +28,10 @@ public class SchemaContext {
 
     public String getSchemaName() {
         return schemaName;
+    }
+
+    public String getCommitRef() {
+        return commitRef;
     }
 
     public RepositoryResource getBox(String boxName) {

@@ -44,12 +44,12 @@ public class SchemaValidator {
 
     protected static final Logger logger = LoggerFactory.getLogger(SchemaValidator.class);
 
-    public static boolean validate(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryMap) {
+    public static boolean validate(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryMap, String commitRef) {
         SchemaValidationTable schemaValidationTable = ValidationCache.getSchemaTable(schemaName);
         schemaValidationTable.reset();
         try {
-            validateLinks(schemaName, schemaValidationTable, repositoryMap);
-            validateSecrets(schemaName, schemaValidationTable, repositoryMap);
+            validateLinks(schemaName, commitRef, schemaValidationTable, repositoryMap);
+            validateSecrets(schemaName, commitRef, schemaValidationTable, repositoryMap);
         } catch (IOException e) {
             logger.error("Exception while validating \"{}\"", schemaName, e);
             return false;
@@ -57,7 +57,7 @@ public class SchemaValidator {
         return schemaValidationTable.isValid();
     }
 
-    private static void validateSecrets(String schemaName,
+    private static void validateSecrets(String schemaName, String commitRef,
                                         SchemaValidationTable schemaValidationTable,
                                         Map<String, Map<String, RepositoryResource>> repositoryMap) throws IOException {
         Map<String, RepositoryResource> boxes = repositoryMap.get(ResourceType.Th2Box.kind());
@@ -77,14 +77,14 @@ public class SchemaValidator {
                         String errorMessage = String.format("Resource \"%s\" is invalid, value \"%s\" from " +
                                 "\"secret-custom-config\" is not present in Kubernetes", resName, secretKey);
                         schemaValidationTable.setInvalid(resName);
-                        schemaValidationTable.addErrorMessage(resName, errorMessage);
+                        schemaValidationTable.addErrorMessage(resName, errorMessage, commitRef);
                     }
                 }
             }
         }
     }
 
-    private static void validateLinks(String schemaName,
+    private static void validateLinks(String schemaName, String commitRef,
                                       SchemaValidationTable schemaValidationTable,
                                       Map<String, Map<String, RepositoryResource>> repositoryMap) {
         Collection<RepositoryResource> links = repositoryMap.get(ResourceType.Th2Link.kind()).values();
@@ -95,7 +95,7 @@ public class SchemaValidator {
         Map<String, RepositoryResource> allBoxes = new HashMap<>(boxes);
         allBoxes.putAll(coreBoxes);
 
-        SchemaContext schemaContext = new SchemaContext(schemaName, allBoxes, dictionaries, schemaValidationTable);
+        SchemaContext schemaContext = new SchemaContext(schemaName, commitRef, allBoxes, dictionaries, schemaValidationTable);
 
         MqLinkValidator mqLinkValidator = new MqLinkValidator(schemaContext);
         GrpcLinkValidator grpcLinkValidator = new GrpcLinkValidator(schemaContext);

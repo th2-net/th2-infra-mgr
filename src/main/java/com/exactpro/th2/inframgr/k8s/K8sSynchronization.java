@@ -65,7 +65,7 @@ public class K8sSynchronization {
     }
 
     private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                      RepositorySettings repositorySettings) throws Exception {
+                                      RepositorySettings repositorySettings, String commitRef) throws Exception {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
@@ -75,7 +75,7 @@ public class K8sSynchronization {
             SchemaInitializer.ensureSchema(schemaName, kube);
             // validate schema links, remove invalid ones
             // validate secret custom config
-            if (!SchemaValidator.validate(schemaName, repositoryResources)) {
+            if (!SchemaValidator.validate(schemaName, repositoryResources, commitRef)) {
                 logger.warn("Schema \"{}\" contains errors.",
                         schemaName);
                 ValidationCache.getSchemaTable(schemaName).printErrors();
@@ -120,12 +120,12 @@ public class K8sSynchronization {
                         // check repository items against k8s
                         if (!customResources.containsKey(resourceName)) {
                             // create custom resources that do not exist in k8s
-                            logger.info("Creating resource {} {}", resourceLabel, hashTag);
+                            logger.info("Creating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef);
                             try {
                                 Strings.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception creating resource {} {}", resourceLabel, hashTag, e);
+                                logger.error("Exception creating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef, e);
                             }
                         } else {
                             // compare object's hashes and update custom resources who's hash labels do not match
@@ -133,12 +133,12 @@ public class K8sSynchronization {
 
                             if (!(resource.getSourceHash() == null || resource.getSourceHash().equals(cr.getSourceHash()))) {
                                 // update custom resource
-                                logger.info("Updating resource {} {}", resourceLabel, hashTag);
+                                logger.info("Updating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef);
                                 try {
                                     Strings.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating resource {} {}", resourceLabel, hashTag, e);
+                                    logger.error("Exception updating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef, e);
                                 }
                             }
                         }
@@ -149,14 +149,14 @@ public class K8sSynchronization {
                         if (!resources.containsKey(resourceName)) {
                             String resourceLabel = ResourcePath.annotationFor(namespace, type.kind(), resourceName);
                             try {
-                                logger.info("Deleting resource {}", resourceLabel);
+                                logger.info("Deleting resource {}. [commit: {}]", resourceLabel, commitRef);
                                 RepositoryResource resource = new RepositoryResource();
                                 resource.setKind(type.kind());
                                 resource.setMetadata(new RepositoryResource.Metadata(resourceName));
                                 DynamicResourceProcessor.checkResource(resource, schemaName, true);
                                 kube.deleteCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception deleting resource {}", resourceLabel, e);
+                                logger.error("Exception deleting resource {}. [commit: {}]", resourceLabel, commitRef, e);
                             }
                         }
                 }
@@ -190,17 +190,19 @@ public class K8sSynchronization {
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
             repositoryResources = UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
+            String commitRef = getShortCommitRe(snapshot.getCommitRef());
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
                 deleteNamespace(branch);
                 return;
             }
             if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
-                logger.info("Ignoring schema \"{}\" as it is not configured for synchronization", branch);
+                logger.info("Ignoring schema \"{}\" as it is not configured for synchronization [{}]",
+                        branch, commitRef);
                 return;
             }
 
-            logger.info("Proceeding with schema \"{}\"", branch);
+            logger.info("Proceeding with schema \"{}\" [{}]", branch, commitRef);
 
             // convert to map
             Map<String, Map<String, RepositoryResource>> repositoryMap = new HashMap<>();
@@ -220,7 +222,7 @@ public class K8sSynchronization {
             // add commit reference in annotations to every resource
             stampResources(repositoryMap, snapshot.getCommitRef(), detectionTime);
             // synchronize entries
-            synchronizeNamespace(branch, repositoryMap, repositorySettings);
+            synchronizeNamespace(branch, repositoryMap, repositorySettings, commitRef);
 
         } catch (Exception e) {
             logger.error("Exception synchronizing schema \"{}\"", branch, e);
@@ -307,5 +309,10 @@ public class K8sSynchronization {
                 .forEach(repoResources -> repoResources.values()
                         .forEach(resource -> resource.stamp(commitHash, detectionTime))
                 );
+    }
+
+    private String getShortCommitRe(String commitRef) {
+        int length = 8;
+        return commitRef.substring(0, length);
     }
 }
