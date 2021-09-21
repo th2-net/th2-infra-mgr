@@ -9,20 +9,17 @@ import java.util.Map;
 
 public class SchemaContext {
     private final String schemaName;
-    private final Map<String, RepositoryResource> boxes;
-    private final Map<String, RepositoryResource> coreBoxes;
+    private final Map<String, RepositoryResource> allBoxes;
     private final Map<String, RepositoryResource> dictionaries;
     private SchemaValidationTable schemaValidationTable;
 
 
     public SchemaContext(String schemaName,
-                         Map<String, RepositoryResource> boxes,
-                         Map<String, RepositoryResource> coreBoxes,
+                         Map<String, RepositoryResource> allBoxes,
                          Map<String, RepositoryResource> dictionaries,
                          SchemaValidationTable schemaValidationTable) {
         this.schemaName = schemaName;
-        this.boxes = boxes;
-        this.coreBoxes = coreBoxes;
+        this.allBoxes = allBoxes;
         this.dictionaries = dictionaries;
         this.schemaValidationTable = schemaValidationTable;
     }
@@ -32,10 +29,7 @@ public class SchemaContext {
     }
 
     public RepositoryResource getBox(String boxName) {
-        if (this.boxes.containsKey(boxName)) {
-            return this.boxes.get(boxName);
-        }
-        return coreBoxes.get(boxName);
+        return allBoxes.get(boxName);
     }
 
     public RepositoryResource getDictionary(String dictionaryName) {
