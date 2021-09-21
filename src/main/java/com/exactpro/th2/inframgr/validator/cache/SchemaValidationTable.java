@@ -17,39 +17,36 @@ public class SchemaValidationTable {
     protected static final Logger logger = LoggerFactory.getLogger(SchemaValidationTable.class);
 
     private boolean valid = true;
-    private Map<String, ValidationObject> linkResources = new HashMap<>();
+    private Map<String, ValidationObject> resources = new HashMap<>();
 
     public void setInvalid(String resourceName) {
-        this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject()).setStatus(ValidationStatus.INVALID);
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).setStatus(ValidationStatus.INVALID);
         this.valid = false;
     }
 
     public void addErrorMessage(String resourceName, String message) {
-        this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject()).addErrorMessage(message);
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addErrorMessage(message);
     }
 
     public void addValidMqLink(String resourceName, MessageLink link) {
-        this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidMqLink(link);
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidMqLink(link);
     }
 
     public void addValidGrpcLink(String resourceName, MessageLink link) {
-        this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidGrpcLink(link);
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidGrpcLink(link);
     }
 
     public void addValidDictionaryLink(String resourceName, DictionaryLink dictionaryLink) {
-        this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidDictionaryLink(dictionaryLink);
-    }
-
-    public ValidationObject getValidationObject(String resourceName) {
-        return this.linkResources.computeIfAbsent(resourceName, k -> new ValidationObject());
+        this.resources.computeIfAbsent(resourceName, k -> new ValidationObject()).addValidDictionaryLink(dictionaryLink);
     }
 
     public void reset() {
-        this.linkResources = new HashMap<>();
+        this.valid = true;
+        this.resources = new HashMap<>();
     }
 
     public void printErrors() {
-        this.linkResources.values().forEach(invalidResource -> invalidResource.getErrorMessages().forEach(logger::error));
+        this.resources.values().forEach(res -> res.getErrorMessages().forEach(logger::error));
     }
 
     public boolean isValid() {
@@ -57,7 +54,7 @@ public class SchemaValidationTable {
     }
 
     public void removeInvalidLinks(String linkResName, Th2LinkSpec spec) {
-        ValidationObject validationObject = linkResources.get(linkResName);
+        ValidationObject validationObject = resources.get(linkResName);
         if (validationObject != null && !validationObject.getStatus().equals(VALID)) {
             BoxesRelation boxesRelation = spec.getBoxesRelation();
             boxesRelation.setMqLinks(validationObject.getValidMqLinks());
