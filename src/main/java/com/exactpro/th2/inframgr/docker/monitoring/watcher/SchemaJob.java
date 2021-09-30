@@ -56,7 +56,7 @@ public class SchemaJob implements Runnable {
     public void run() {
         logger.info("Checking for new versions of resources in schema: \"{}\"", schema);
         for (DynamicResource resource : dynamicResources) {
-            TagUpdater.getLatestTags(resource, updatedResources, connection);
+            TagUpdater.checkLatestTags(resource, updatedResources, connection);
         }
         try {
             commitAndPush();
