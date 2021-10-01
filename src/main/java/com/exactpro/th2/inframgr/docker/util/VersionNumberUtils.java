@@ -38,7 +38,7 @@ public class VersionNumberUtils {
                 .collect(Collectors.toList());
     }
 
-    public static String chooseLatestVersion(List<String> tags) {
+    public static String chooseLatest(List<String> tags) {
         if (tags.size() < 1) {
             return null;
         }
