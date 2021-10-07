@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.validator.enums;
+package com.exactpro.th2.inframgr.validator.chain.impl;
 
-public enum PinAttribute {
-    publish,
-    subscribe,
+import com.exactpro.th2.inframgr.validator.model.BoxLinkContext;
+
+public final class ExpectedParsedMessageAttr extends ExpectedMessageFormatAttr {
+    public ExpectedParsedMessageAttr(BoxLinkContext context) {
+        super(context, "parsed");
+    }
 }
