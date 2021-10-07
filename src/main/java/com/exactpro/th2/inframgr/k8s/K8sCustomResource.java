@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import io.fabric8.kubernetes.api.model.Namespaced;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Version;
@@ -29,7 +30,7 @@ import java.util.regex.Pattern;
 @Group("")
 @Version("")
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class K8sCustomResource extends CustomResource {
+public class K8sCustomResource extends CustomResource implements Namespaced {
 
     public static final String KEY_SOURCE_HASH = "th2.exactpro.com/source-hash";
     public static final String KEY_COMMIT_HASH = "th2.exactpro.com/git-commit-hash";

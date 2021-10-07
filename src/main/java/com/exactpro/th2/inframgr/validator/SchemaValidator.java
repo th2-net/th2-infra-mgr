@@ -142,6 +142,9 @@ public class SchemaValidator {
                                 "secret_path", customLookup
                         ), null, false
                 ));
+        if(customConfig == null){
+            return Collections.emptySet();
+        }
         for (var entry : customConfig.entrySet()) {
             var value = entry.getValue();
             if (value instanceof String) {
