@@ -23,22 +23,17 @@ import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
+import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.ConfigBuilder;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.ResourceNotFoundException;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
-import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
 import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 
 import java.io.Closeable;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.locks.Lock;
 
 public class Kubernetes implements Closeable {
@@ -80,10 +75,34 @@ public class Kubernetes implements Closeable {
     }
 
     public void createOrReplaceCustomResource(RepositoryResource repoResource) {
-        createOrReplaceCustomResource(repoResource, namespace);
+        createOrReplaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
     }
 
     public void createOrReplaceCustomResource(RepositoryResource repoResource, String namespace) {
+        createOrReplaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
+    }
+
+    private MixedOperation getOperation(String kind) {
+        if (kind.equals(ResourceType.Th2Box.kind())) {
+            return client.customResources(Th2Box.Type.class, Th2Box.List.class);
+        } else if (kind.equals(ResourceType.Th2CoreBox.kind())) {
+            return client.customResources(Th2CoreBox.Type.class, Th2CoreBox.List.class);
+        } else if (kind.equals(ResourceType.Th2Estore.kind())) {
+            return client.customResources(Th2Estore.Type.class, Th2Estore.List.class);
+        } else if (kind.equals(ResourceType.Th2Mstore.kind())) {
+            return client.customResources(Th2Mstore.Type.class, Th2Mstore.List.class);
+        } else if (kind.equals(ResourceType.Th2Dictionary.kind())) {
+            return client.customResources(Th2Dictionary.Type.class, Th2Dictionary.List.class);
+        } else if (kind.equals(ResourceType.Th2Link.kind())) {
+            return client.customResources(Th2Link.Type.class, Th2Link.List.class);
+        }
+        return client.customResources(Th2Link.Type.class, Th2Link.List.class);
+    }
+
+    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createOrReplaceCustomResource(
+            MixedOperation<T, L, Resource<T>> operation,
+            RepositoryResource repoResource,
+            String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -91,20 +110,17 @@ public class Kubernetes implements Closeable {
         try {
             lock.lock();
 
-            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
-            K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
-            List<K8sCustomResource> customResources = customResourceList.getItems();
+            var customResourceList = operation.inNamespace(namespace).list();
+            List<T> customResources = customResourceList.getItems();
             boolean resourceUpdated = false;
 
             if (customResources.size() > 0)
-                for (K8sCustomResource k8sResource : customResources)
+                for (T k8sResource : customResources)
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
-                        mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+                        operation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);
                         resourceUpdated = true;
@@ -124,7 +140,7 @@ public class Kubernetes implements Closeable {
                 k8sResource.setDetectionTime(repoResource.getDetectionTime());
                 k8sResource.setKind(repoResource.getKind());
                 k8sResource.setSpec(repoResource.getSpec());
-                mixedOperation.inNamespace(namespace).create(k8sResource);
+                operation.inNamespace(namespace).create((T) k8sResource);
 
                 cache.add(namespace, k8sResource);
             }
@@ -135,19 +151,19 @@ public class Kubernetes implements Closeable {
     }
 
     public void createCustomResource(RepositoryResource repoResource) {
-        createCustomResource(repoResource, namespace);
+        createCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
     }
 
-    public void createCustomResource(RepositoryResource repoResource, String namespace) {
+    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createCustomResource(
+            MixedOperation<T, L, Resource<T>> operation,
+            RepositoryResource repoResource,
+            String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
 
         try {
             lock.lock();
-
-            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
 
             K8sCustomResource k8sResource = new K8sCustomResource();
             ObjectMeta metaData = new ObjectMetaBuilder()
@@ -160,7 +176,7 @@ public class Kubernetes implements Closeable {
             k8sResource.setDetectionTime(repoResource.getDetectionTime());
             k8sResource.setKind(repoResource.getKind());
             k8sResource.setSpec(repoResource.getSpec());
-            mixedOperation.inNamespace(namespace).create(k8sResource);
+            operation.inNamespace(namespace).create((T) k8sResource);
 
             cache.add(namespace, k8sResource);
 
@@ -171,32 +187,32 @@ public class Kubernetes implements Closeable {
 
 
     public void replaceCustomResource(RepositoryResource repoResource) throws ResourceNotFoundException {
-        replaceCustomResource(repoResource, namespace);
+        replaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
     }
 
 
-    public void replaceCustomResource(RepositoryResource repoResource, String namespace) throws ResourceNotFoundException {
+    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void replaceCustomResource(
+            MixedOperation<T, L, Resource<T>> operation,
+            RepositoryResource repoResource,
+            String namespace) throws ResourceNotFoundException {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
 
         try {
             lock.lock();
-            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
-            K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
-            List<K8sCustomResource> customResources = customResourceList.getItems();
+            var customResourceList = operation.inNamespace(namespace).list();
+            List<T> customResources = customResourceList.getItems();
 
             if (customResources.size() > 0)
-                for (K8sCustomResource k8sResource : customResources)
+                for (T k8sResource : customResources)
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.setCommitHash(repoResource.getCommitHash());
                         k8sResource.setDetectionTime(repoResource.getDetectionTime());
-                        mixedOperation.inNamespace(namespace).createOrReplace(k8sResource);
+                        operation.inNamespace(namespace).createOrReplace(k8sResource);
 
                         cache.add(namespace, k8sResource);
                         return;
@@ -209,15 +225,9 @@ public class Kubernetes implements Closeable {
     }
 
 
-    private K8sCustomResource loadCustomResource(String namespace, ResourceType type, String name) {
-        CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
-                .withGroup(RepositoryResource.getApiGroup(type.k8sApiVersion()))
-                .withVersion(RepositoryResource.getVersion(type.k8sApiVersion()))
-                .withScope("Namespaced")
-                .withPlural(type.k8sName())
-                .build();
-
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
+    private <T extends K8sCustomResource, L extends CustomResourceList<T>> K8sCustomResource loadCustomResource(
+            String namespace, ResourceType type, String name) {
+        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = getOperation(type.kind());
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
@@ -227,18 +237,11 @@ public class Kubernetes implements Closeable {
     }
 
 
-    public Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
+    public <T extends K8sCustomResource, L extends CustomResourceList<T>> Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
 
-        CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
-                .withGroup(RepositoryResource.getApiGroup(type.k8sApiVersion()))
-                .withVersion(RepositoryResource.getVersion(type.k8sApiVersion()))
-                .withScope("Namespaced")
-                .withPlural(type.k8sName())
-                .build();
-
-        var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
-        K8sCustomResourceList customResourceList = mixedOperation.inNamespace(namespace).list();
-        List<K8sCustomResource> customResources = customResourceList.getItems();
+        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = getOperation(type.kind());
+        var customResourceList = mixedOperation.inNamespace(namespace).list();
+        List<T> customResources = customResourceList.getItems();
 
         Map<String, K8sCustomResource> resources = new HashMap<>();
         for (K8sCustomResource k8sResource : customResources)
@@ -248,11 +251,17 @@ public class Kubernetes implements Closeable {
 
 
     public boolean deleteCustomResource(RepositoryResource repoResource) {
-        return deleteCustomResource(repoResource, namespace);
+        return deleteCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
+    }
+
+    public boolean deleteCustomResource(RepositoryResource repoResource, String namespace) {
+        return deleteCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
     }
 
 
-    public boolean deleteCustomResource(RepositoryResource repoResource, String namespace) {
+    public <T extends K8sCustomResource, L extends CustomResourceList<T>> boolean deleteCustomResource(
+            MixedOperation<T, L, Resource<T>> operation,
+            RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -260,10 +269,7 @@ public class Kubernetes implements Closeable {
         try {
             lock.lock();
 
-            CustomResourceDefinitionContext crdContext = getCrdContext(repoResource);
-
-            var mixedOperation = client.customResources(crdContext, K8sCustomResource.class, K8sCustomResourceList.class);
-            Resource<K8sCustomResource> r = mixedOperation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
+            Resource<T> r = operation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
             boolean result = r.delete();
 
             cache.remove(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -274,20 +280,6 @@ public class Kubernetes implements Closeable {
         }
 
     }
-
-
-    private CustomResourceDefinitionContext getCrdContext(RepositoryResource resource) {
-
-        CustomResourceDefinitionContext crdContext = new CustomResourceDefinitionContext.Builder()
-                .withGroup(resource.getApiGroup())
-                .withVersion(resource.getVersion())
-                .withScope("Namespaced")
-                .withPlural(ResourceType.forKind(resource.getKind()).k8sName())
-                .build();
-
-        return crdContext;
-    }
-
 
     public boolean existsNamespace() {
 
@@ -380,8 +372,7 @@ public class Kubernetes implements Closeable {
     }
 
     public void registerCustomResourceSharedInformers(ResourceEventHandler eventHandler) {
-        SharedInformerFactory informerFactory = getInformerFactory();
-
+        getInformerFactory();
 
         KubernetesDeserializer.registerCustomKind(ResourceType.Th2Box.k8sApiVersion(), ResourceType.Th2Box.kind(), Th2Box.Type.class);
         KubernetesDeserializer.registerCustomKind(ResourceType.Th2CoreBox.k8sApiVersion(), ResourceType.Th2CoreBox.kind(), Th2CoreBox.Type.class);
