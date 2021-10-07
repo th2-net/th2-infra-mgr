@@ -17,10 +17,7 @@
 package com.exactpro.th2.inframgr.validator;
 
 import com.exactpro.th2.inframgr.validator.cache.SchemaValidationTable;
-import com.exactpro.th2.inframgr.validator.chain.impl.ExpectedPinAttr;
-import com.exactpro.th2.inframgr.validator.chain.impl.ExpectedConnectionType;
-import com.exactpro.th2.inframgr.validator.chain.impl.PinExist;
-import com.exactpro.th2.inframgr.validator.chain.impl.ResourceExists;
+import com.exactpro.th2.inframgr.validator.chain.impl.*;
 import com.exactpro.th2.inframgr.validator.enums.BoxDirection;
 import com.exactpro.th2.inframgr.validator.enums.SchemaConnectionType;
 import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
@@ -38,15 +35,18 @@ class MqLinkValidator extends BoxesLinkValidator {
     void validateLink(RepositoryResource linkRes, MessageLink link) {
 
         var fromBoxSpec = link.getFrom();
+        var toBoxSpec = link.getTo();
+
+        RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
 
         var fromContext = BoxLinkContext.builder()
                 .boxName(fromBoxSpec.getBox())
                 .boxPinName(fromBoxSpec.getPin())
                 .boxDirection(BoxDirection.from)
                 .connectionType(SchemaConnectionType.mq)
+                .linkedResource(toRes)
+                .linkedPinName(toBoxSpec.getPin())
                 .build();
-
-        var toBoxSpec = link.getTo();
 
         var toContext = BoxLinkContext.builder()
                 .boxName(toBoxSpec.getBox())
@@ -70,11 +70,15 @@ class MqLinkValidator extends BoxesLinkValidator {
         var resValidator = new ResourceExists();
         var pinExist = new PinExist(context);
         var expectedPinType = new ExpectedConnectionType(context);
-        var expectedPinAttr = new ExpectedPinAttr(context);
+        var expectedPinAttr = new ExpectedDirectionalAttr(context);
+        var expectedRawAttr = new ExpectedRawMessageAttr(context);
+        var expectedParsedAttr = new ExpectedParsedMessageAttr(context);
 
         resValidator.setNext(pinExist);
         pinExist.setNext(expectedPinType);
         expectedPinType.setNext(expectedPinAttr);
+        expectedPinAttr.setNext(expectedRawAttr);
+        expectedRawAttr.setNext(expectedParsedAttr);
 
         return resValidator.validate(resource);
     }

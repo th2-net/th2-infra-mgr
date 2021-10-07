@@ -17,17 +17,17 @@
 package com.exactpro.th2.inframgr.validator.chain.impl;
 
 import com.exactpro.th2.inframgr.validator.enums.BoxDirection;
-import com.exactpro.th2.inframgr.validator.enums.PinAttribute;
+import com.exactpro.th2.inframgr.validator.enums.DirectionAttribute;
 import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 import com.exactpro.th2.inframgr.validator.model.PinSpec;
 import com.exactpro.th2.inframgr.validator.chain.AbstractValidator;
 import com.exactpro.th2.inframgr.validator.model.BoxLinkContext;
 
-public final class ExpectedPinAttr extends AbstractValidator {
+public final class ExpectedDirectionalAttr extends AbstractValidator {
 
     private final BoxDirection boxDirection;
 
-    public ExpectedPinAttr(BoxLinkContext context) {
+    public ExpectedDirectionalAttr(BoxLinkContext context) {
         this.boxDirection = context.getBoxDirection();
     }
 
@@ -39,14 +39,14 @@ public final class ExpectedPinAttr extends AbstractValidator {
         var pin = (PinSpec) object;
         switch (boxDirection) {
             case to:
-                if (pin.getAttributes().contains(PinAttribute.publish.name())) {
+                if (pin.getAttributes().contains(DirectionAttribute.publish.name())) {
                     return ValidationStatus.INVALID_PIN_DIRECTION_ATTR;
                 }
                 break;
 
             case from:
-                if (!pin.getAttributes().contains(PinAttribute.publish.name())
-                        || pin.getAttributes().contains(PinAttribute.subscribe.name())) {
+                if (!pin.getAttributes().contains(DirectionAttribute.publish.name())
+                        || pin.getAttributes().contains(DirectionAttribute.subscribe.name())) {
                     return ValidationStatus.INVALID_PIN_DIRECTION_ATTR;
                 }
                 break;
