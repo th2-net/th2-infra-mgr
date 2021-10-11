@@ -41,12 +41,16 @@ public enum DynamicResourcesCache {
         return cache.get(schema).put(resource.getName(), resource);
     }
 
-    public synchronized DynamicResource remove(String schema, String name) {
+    public synchronized DynamicResource removeResource(String schema, String name) {
         var schemaCache = cache.get(schema);
         if (schemaCache == null || schemaCache.isEmpty()) {
             return null;
         } else {
             return schemaCache.remove(name);
         }
+    }
+
+    public synchronized void removeSchema(String schema) {
+        cache.remove(schema);
     }
 }

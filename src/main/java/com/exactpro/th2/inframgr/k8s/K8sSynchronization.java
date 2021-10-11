@@ -193,6 +193,7 @@ public class K8sSynchronization {
             String commitRef = getShortCommitRe(snapshot.getCommitRef());
 
             if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
+                DynamicResourceProcessor.schemaDeleted(branch);
                 deleteNamespace(branch);
                 return;
             }

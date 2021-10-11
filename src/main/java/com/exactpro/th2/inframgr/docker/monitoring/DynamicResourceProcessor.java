@@ -83,8 +83,13 @@ public class DynamicResourceProcessor {
         updateTrackedResources(schema, name, versionRange, resource);
     }
 
+    public static void schemaDeleted(String schema) {
+        DYNAMIC_RESOURCES_CACHE.removeSchema(schema);
+        logger.info("Removing resources associated with schema: \"{}\"", schema );
+    }
+
     private static void removeFromTrackedResources(String schema, String name, String resourceLabel, String cause) {
-        var removedResource = DYNAMIC_RESOURCES_CACHE.remove(schema, name);
+        var removedResource = DYNAMIC_RESOURCES_CACHE.removeResource(schema, name);
         if (removedResource != null) {
             logger.info("Removing resource: \"{}\" from dynamic version tracking. {}", resourceLabel, cause);
         }
