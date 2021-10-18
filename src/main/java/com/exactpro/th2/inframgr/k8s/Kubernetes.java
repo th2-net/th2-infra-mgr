@@ -75,32 +75,10 @@ public class Kubernetes implements Closeable {
     }
 
     public void createOrReplaceCustomResource(RepositoryResource repoResource) {
-        createOrReplaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
-    }
-
-    public void createOrReplaceCustomResource(RepositoryResource repoResource, String namespace) {
-        createOrReplaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
-    }
-
-    private MixedOperation getOperation(String kind) {
-        if (kind.equals(ResourceType.Th2Box.kind())) {
-            return client.customResources(Th2Box.Type.class, Th2Box.List.class);
-        } else if (kind.equals(ResourceType.Th2CoreBox.kind())) {
-            return client.customResources(Th2CoreBox.Type.class, Th2CoreBox.List.class);
-        } else if (kind.equals(ResourceType.Th2Estore.kind())) {
-            return client.customResources(Th2Estore.Type.class, Th2Estore.List.class);
-        } else if (kind.equals(ResourceType.Th2Mstore.kind())) {
-            return client.customResources(Th2Mstore.Type.class, Th2Mstore.List.class);
-        } else if (kind.equals(ResourceType.Th2Dictionary.kind())) {
-            return client.customResources(Th2Dictionary.Type.class, Th2Dictionary.List.class);
-        } else if (kind.equals(ResourceType.Th2Link.kind())) {
-            return client.customResources(Th2Link.Type.class, Th2Link.List.class);
-        }
-        return client.customResources(Th2Link.Type.class, Th2Link.List.class);
+        createOrReplaceCustomResource(repoResource, namespace);
     }
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createOrReplaceCustomResource(
-            MixedOperation<T, L, Resource<T>> operation,
             RepositoryResource repoResource,
             String namespace) {
 
@@ -110,6 +88,7 @@ public class Kubernetes implements Closeable {
         try {
             lock.lock();
 
+            MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             var customResourceList = operation.inNamespace(namespace).list();
             List<T> customResources = customResourceList.getItems();
             boolean resourceUpdated = false;
@@ -151,11 +130,10 @@ public class Kubernetes implements Closeable {
     }
 
     public void createCustomResource(RepositoryResource repoResource) {
-        createCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
+        createCustomResource(repoResource, namespace);
     }
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createCustomResource(
-            MixedOperation<T, L, Resource<T>> operation,
             RepositoryResource repoResource,
             String namespace) {
 
@@ -165,6 +143,7 @@ public class Kubernetes implements Closeable {
         try {
             lock.lock();
 
+            MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             K8sCustomResource k8sResource = new K8sCustomResource();
             ObjectMeta metaData = new ObjectMetaBuilder()
                     .withName(repoResource.getMetadata().getName())
@@ -187,12 +166,11 @@ public class Kubernetes implements Closeable {
 
 
     public void replaceCustomResource(RepositoryResource repoResource) throws ResourceNotFoundException {
-        replaceCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
+        replaceCustomResource(repoResource, namespace);
     }
 
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> void replaceCustomResource(
-            MixedOperation<T, L, Resource<T>> operation,
             RepositoryResource repoResource,
             String namespace) throws ResourceNotFoundException {
 
@@ -201,6 +179,8 @@ public class Kubernetes implements Closeable {
 
         try {
             lock.lock();
+
+            MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             var customResourceList = operation.inNamespace(namespace).list();
             List<T> customResources = customResourceList.getItems();
 
@@ -227,7 +207,7 @@ public class Kubernetes implements Closeable {
 
     private <T extends K8sCustomResource, L extends CustomResourceList<T>> K8sCustomResource loadCustomResource(
             String namespace, ResourceType type, String name) {
-        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = getOperation(type.kind());
+        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
@@ -239,7 +219,7 @@ public class Kubernetes implements Closeable {
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
 
-        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = getOperation(type.kind());
+        MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         var customResourceList = mixedOperation.inNamespace(namespace).list();
         List<T> customResources = customResourceList.getItems();
 
@@ -251,16 +231,11 @@ public class Kubernetes implements Closeable {
 
 
     public boolean deleteCustomResource(RepositoryResource repoResource) {
-        return deleteCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
-    }
-
-    public boolean deleteCustomResource(RepositoryResource repoResource, String namespace) {
-        return deleteCustomResource(getOperation(repoResource.getKind()), repoResource, namespace);
+        return deleteCustomResource(repoResource, namespace);
     }
 
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> boolean deleteCustomResource(
-            MixedOperation<T, L, Resource<T>> operation,
             RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
@@ -269,6 +244,7 @@ public class Kubernetes implements Closeable {
         try {
             lock.lock();
 
+            MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             Resource<T> r = operation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
             boolean result = r.delete();
 
@@ -359,12 +335,9 @@ public class Kubernetes implements Closeable {
     }
 
     private SharedIndexInformer<K8sCustomResource> registerSharedInformerForCustomResource(ResourceEventHandler<K8sCustomResource> eventHandler,
-                                                                                           Class type,
-                                                                                           Class list) {
-        SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerForCustomResource(
-                type,
-                list,
-                0);
+                                                                                           Class type) {
+
+        SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerFor(type, 0);
 
         customResourceInformer.addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
 
@@ -382,12 +355,12 @@ public class Kubernetes implements Closeable {
         KubernetesDeserializer.registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
 
         //Register informers for custom resources
-        registerSharedInformerForCustomResource(eventHandler, Th2Box.Type.class, Th2Box.List.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2CoreBox.Type.class, Th2CoreBox.List.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2Dictionary.Type.class, Th2Dictionary.List.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2Estore.Type.class, Th2Estore.List.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2Mstore.Type.class, Th2Mstore.List.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2Link.Type.class, Th2Link.List.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Box.Type.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2CoreBox.Type.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Dictionary.Type.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Estore.Type.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Mstore.Type.class);
+        registerSharedInformerForCustomResource(eventHandler, Th2Link.Type.class);
     }
 
     public void registerSharedInformersAll(ResourceEventHandler eventHandler) {
@@ -430,6 +403,7 @@ public class Kubernetes implements Closeable {
     }
 
     private KubernetesClient client;
+    private Map<String, MixedOperation> operations;
     private String namespace;
 
     public Kubernetes(Config.K8sConfig config, String schemaName) {
@@ -441,6 +415,7 @@ public class Kubernetes implements Closeable {
 
         if (!config.useCustomConfig()) {
             client = new DefaultKubernetesClient();
+            generateMixedOperations();
             return;
         }
 
@@ -468,8 +443,19 @@ public class Kubernetes implements Closeable {
             configBuilder.withClientKeyFile(config.getClientKeyFile());
 
         client = new DefaultKubernetesClient(configBuilder.build());
+        generateMixedOperations();
     }
 
+    private void generateMixedOperations() {
+        operations = Map.of(
+                ResourceType.Th2Box.kind(), client.resources(Th2Box.Type.class),
+                ResourceType.Th2CoreBox.kind(), client.resources(Th2CoreBox.Type.class),
+                ResourceType.Th2Estore.kind(), client.resources(Th2Estore.Type.class),
+                ResourceType.Th2Mstore.kind(), client.resources(Th2Mstore.Type.class),
+                ResourceType.Th2Dictionary.kind(), client.resources(Th2Dictionary.Type.class),
+                ResourceType.Th2Link.kind(), client.resources(Th2Link.Type.class)
+        );
+    }
 
     public Map<String, Secret> getSecrets() {
         return mapOf(client.secrets().inNamespace(namespace).list().getItems());
