@@ -25,22 +25,35 @@ import com.exactpro.th2.inframgr.validator.model.Th2Spec;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class ExpectedMessageFormatAttr extends AbstractValidator {
-    private final String attributePrefix;
-    private final String[] excludedAttributePrefixes;
+
     private final RepositoryResource linkedResource;
     private final String linkedPinName;
     private final BoxDirection boxDirection;
 
-    public ExpectedMessageFormatAttr(BoxLinkContext context, String attributePrefix, String... excludedAttributePrefixes) {
-        this.attributePrefix = attributePrefix;
-        this.excludedAttributePrefixes = excludedAttributePrefixes;
+    private String mainAttributePrefix;
+
+    private List<String> otherMatchingAttributePrefixes;
+    private List<String> contradictingAttributePrefixes;
+
+    public ExpectedMessageFormatAttr(
+            BoxLinkContext context,
+            String mainAttributePrefix,
+            List<String> contradictingAttributePrefixes,
+            List<String> otherMatchingAttributePrefixes
+    ) {
         this.linkedResource = context.getLinkedResource();
         this.linkedPinName = context.getLinkedPinName();
         this.boxDirection = context.getBoxDirection();
+
+        this.mainAttributePrefix = mainAttributePrefix;
+
+        this.otherMatchingAttributePrefixes = otherMatchingAttributePrefixes;
+        this.contradictingAttributePrefixes = contradictingAttributePrefixes;
     }
 
     @Override
@@ -51,57 +64,71 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
         var pin = (PinSpec) object;
         List<String> attributesFilteredList = pin.getAttributes()
                 .stream()
-                .filter(attribute -> attribute.startsWith(attributePrefix))
+                .filter(attribute -> attribute.startsWith(mainAttributePrefix))
                 .collect(Collectors.toList());
-        //step 1: if attribute is present check that there are no contradicting attributes on the same pin.
-        ValidationStatus uniquenessStatus = attributeUnique(pin, attributesFilteredList);
-        if (uniquenessStatus == null) {
+
+        if (attributesFilteredList.isEmpty()) {
             // attribute no present, no need for further checks
             return super.validate(pin, additional);
-        } else if (!uniquenessStatus.equals(ValidationStatus.VALID)) {
-            // contradicting attribute has been detected.
-            return uniquenessStatus;
         }
+
+        if (attributesFilteredList.size() > 1) {
+            // error. more then 1 attribute with the same prefix.
+            return ValidationStatus.DUPLICATED_ATTRIBUTE;
+        }
+
+        String exactAttribute = attributesFilteredList.get(0);
+
+        //check that there are no contradicting attributes on the same pin.
+        ValidationStatus contradictingAttributesStatus = checkContradictingAttributes(pin, contradictingAttributePrefixes);
+        if (!contradictingAttributesStatus.equals(ValidationStatus.VALID)) {
+            // contradicting attribute has been detected.
+            return contradictingAttributesStatus;
+        }
+
         if (boxDirection == BoxDirection.to) {
             return super.validate(object, additional);
         }
         if (linkedResource == null) {
             return ValidationStatus.LINKED_RESOURCE_NOT_EXIST;
         }
-        ValidationStatus oppositePinStatus = oppositePinAttributeMatch(attributesFilteredList.get(0));
+        //step 2: check if linked pin contains matching attributes
+        ObjectMapper mapper = new ObjectMapper();
+        Th2Spec linkedResSpec = mapper.convertValue(linkedResource.getSpec(), Th2Spec.class);
+        PinSpec linkedPin = linkedResSpec.getPin(linkedPinName);
+        ValidationStatus oppositePinStatus = oppositePinAttributeMatch(linkedPin, exactAttribute, otherMatchingAttributePrefixes);
         if (!oppositePinStatus.equals(ValidationStatus.VALID)) {
             return oppositePinStatus;
         }
         return super.validate(pin, additional);
     }
 
-    private ValidationStatus attributeUnique(PinSpec pin, List<String> attributesList) {
-        if (attributesList.isEmpty()) {
-            return null;
-        }
-        if (attributesList.size() > 1) {
-            return ValidationStatus.INVALID_PIN_FORMAT_ATTR_COUNT;
-        }
+    protected ValidationStatus checkContradictingAttributes(PinSpec pin, List<String> excludedAttributePrefixes) {
         for (String excludedPrefix : excludedAttributePrefixes) {
-            var attrFilter = pin.getAttributes().stream().filter(attribute -> attribute.startsWith(excludedPrefix)).collect(Collectors.toList());
-            if (attrFilter.size() > 0) {
+            var contradictingAttributes = pin.getAttributes()
+                    .stream()
+                    .filter(attribute -> attribute.startsWith(excludedPrefix)).collect(Collectors.toList());
+            if (contradictingAttributes.size() > 0) {
                 return ValidationStatus.CONTRADICTING_ATTRIBUTES;
             }
         }
         return ValidationStatus.VALID;
     }
 
-    private ValidationStatus oppositePinAttributeMatch(String attribute) {
-        ObjectMapper mapper = new ObjectMapper();
-        Th2Spec linkedResSpec = mapper.convertValue(linkedResource.getSpec(), Th2Spec.class);
-        PinSpec linkedPin = linkedResSpec.getPin(linkedPinName);
-
+    protected ValidationStatus oppositePinAttributeMatch(PinSpec linkedPin, String exactAttribute, List<String> otherMatchingAttributePrefixes) {
         if (linkedPin == null) {
             return ValidationStatus.LINKED_PIN_NOT_EXIST;
         }
-        if (!linkedPin.getAttributes().contains(attribute)) {
-            return ValidationStatus.MESSAGE_FORMAT_ATTR_MISMATCH;
+
+        List<String> otherMatchingAttributes = new ArrayList<>();
+        for (String matchingPrefix : otherMatchingAttributePrefixes) {
+            var attrFilter = linkedPin.getAttributes().stream().filter(attr -> attr.startsWith(matchingPrefix)).collect(Collectors.toList());
+            otherMatchingAttributes.addAll(attrFilter);
         }
-        return ValidationStatus.VALID;
+        if (linkedPin.getAttributes().contains(exactAttribute) || otherMatchingAttributes.size() > 0) {
+            return ValidationStatus.VALID;
+        }
+        return ValidationStatus.MESSAGE_FORMAT_ATTR_MISMATCH;
+
     }
 }

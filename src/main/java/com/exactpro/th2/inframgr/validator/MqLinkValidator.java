@@ -73,12 +73,15 @@ class MqLinkValidator extends BoxesLinkValidator {
         var expectedPinAttr = new ExpectedDirectionalAttr(context);
         var expectedRawAttr = new ExpectedRawMessageAttr(context);
         var expectedParsedAttr = new ExpectedParsedMessageAttr(context);
+        var expectedGroupAttr = new ExpectedGroupMessageAttr(context);
+
 
         resValidator.setNext(pinExist);
         pinExist.setNext(expectedPinType);
         expectedPinType.setNext(expectedPinAttr);
         expectedPinAttr.setNext(expectedRawAttr);
         expectedRawAttr.setNext(expectedParsedAttr);
+        expectedParsedAttr.setNext(expectedGroupAttr);
 
         return resValidator.validate(resource);
     }
