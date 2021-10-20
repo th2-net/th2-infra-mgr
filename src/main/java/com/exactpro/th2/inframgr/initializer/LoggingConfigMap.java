@@ -45,6 +45,17 @@ public class LoggingConfigMap {
     private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
     private static final String LOGGING_ROOT_PATH_SUBSTRING = "${LOGLEVEL_ROOT}";
 
+    private static final Map<String, String> pythonMap = Map.of(
+            "TRACE", "TRACE",
+            "DEBUG", "DEBUG",
+            "INFO", "INFO",
+            "WARNING", "WARNING",
+            "ERROR", "ERROR",
+            "FATAL", "CRITICAL",
+            "ALL", "NOTSET",
+            "OFF", "CRITICAL"
+    );
+
     public static void checkLoggingConfigMap(RepositoryResource resource, String logLevelRoot, String logLevelTh2, Kubernetes kube) throws IOException {
         if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
             copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, true);
@@ -101,7 +112,7 @@ public class LoggingConfigMap {
                     data = data.replace(LOGGING_CXX_PATH_SUBSTRING, logLevelTh2);
 
                 if (data.contains(LOGGING_PYTHON_PATH_SUBSTRING))
-                    data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, logLevelTh2);
+                    data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, pythonMap.get(logLevelTh2));
 
                 if (data.contains(LOGGING_JAVA_PATH_SUBSTRING))
                     data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevelTh2);
