@@ -16,10 +16,23 @@
 
 package com.exactpro.th2.inframgr.validator.chain.impl;
 
+import com.exactpro.th2.inframgr.validator.enums.MessageFormatAttribute;
 import com.exactpro.th2.inframgr.validator.model.BoxLinkContext;
+
+import java.util.List;
 
 public final class ExpectedParsedMessageAttr extends ExpectedMessageFormatAttr {
     public ExpectedParsedMessageAttr(BoxLinkContext context) {
-        super(context, "parsed");
+        super(
+                context,
+                MessageFormatAttribute.parsed.getPrefix(),
+                //contradictingAttributePrefixes
+                List.of(
+                        MessageFormatAttribute.raw.getPrefix(),
+                        MessageFormatAttribute.event.getPrefix()
+                ),
+                //otherMatchingAttributePrefixes
+                List.of(MessageFormatAttribute.group.getPrefix())
+        );
     }
 }
