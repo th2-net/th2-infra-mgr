@@ -69,7 +69,7 @@ public class SubscriptionController {
                     , Thread.currentThread().getName()
             );
         } catch (Exception e) {
-            logger.error("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
+            logger.warn("Subscription \"{}\": exception sending event on thread \"{}\" ({})"
                     , subscriptionId
                     , Thread.currentThread().getName()
                     , e.getMessage()
@@ -89,7 +89,7 @@ public class SubscriptionController {
                         .forEach(entry -> sendEvent(event, entry.getValue().emitter, entry.getKey()));
             }).get();
         } catch (Exception e) {
-            logger.error("Exception processing events", e);
+            logger.warn("Exception processing events", e);
         }
     }
 
@@ -169,7 +169,7 @@ public class SubscriptionController {
                             .id(event.getEventKey())
                     );
         } catch (IOException e) {
-            logger.error("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
+            logger.warn("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
                     , subscriptionId
                     , Thread.currentThread().getName()
                     , e.getMessage()
