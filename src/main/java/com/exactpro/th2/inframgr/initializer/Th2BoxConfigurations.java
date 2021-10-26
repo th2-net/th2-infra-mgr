@@ -12,17 +12,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 
+import static com.exactpro.th2.inframgr.initializer.SchemaInitializer.*;
 import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
 
 public class Th2BoxConfigurations {
 
     private static final Logger logger = LoggerFactory.getLogger(Th2BoxConfigurations.class);
-
-    private static final String MQ_ROUTER_CM_NAME = "mq-router";
-
-    private static final String GRPC_ROUTER_CM_NAME = "grpc-router";
-
-    private static final String CRADLE_MANAGER_CM_NAME = "cradle-manager";
 
     private static final String MQ_ROUTER_FILE_NAME = "mq_router.json";
 
