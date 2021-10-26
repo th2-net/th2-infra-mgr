@@ -49,6 +49,11 @@ public class SchemaInitializer {
     private static final String CASSANDRA_CONFIGMAP_PARAM = "cassandra";
     private static final String CASSANDRA_EXTERNAL_CONFIGMAP_PARAM = "cassandra-ext";
 
+    public static final String MQ_ROUTER_CM_NAME = "mq-router";
+    public static final String GRPC_ROUTER_CM_NAME = "grpc-router";
+    public static final String CRADLE_MANAGER_CM_NAME = "cradle-manager";
+    public static final String NAMESPACE_DEFAULTS_CONFIGMAP = "namespace-defaults";
+
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
     private static final String RABBITMQ_JSON_USERNAME_KEY = "username";
@@ -104,7 +109,12 @@ public class SchemaInitializer {
         }
 
         copySecrets(config, kube, forceUpdate);
-        copyTh2BoxConfigMaps(kube);
+
+        copyConfigMap(kube, MQ_ROUTER_CM_NAME);
+        copyConfigMap(kube, GRPC_ROUTER_CM_NAME);
+        copyConfigMap(kube, CRADLE_MANAGER_CM_NAME);
+        copyConfigMap(kube, NAMESPACE_DEFAULTS_CONFIGMAP);
+
         copyCassandraSecret(config, kube, forceUpdate);
 
         copyIngress(config, kube, forceUpdate);
@@ -396,14 +406,6 @@ public class SchemaInitializer {
             }
     }
 
-    private static void copyTh2BoxConfigMaps(Kubernetes kube) {
-        String mqRouter = "mq-router";
-        String grpcRouter = "grpc-router";
-        String cradleManager = "cradle-manager";
-        copyConfigMap(kube, mqRouter);
-        copyConfigMap(kube, grpcRouter);
-        copyConfigMap(kube, cradleManager);
-    }
 
     private static void copyConfigMap(Kubernetes kube, String configMapName) {
         String namespace = kube.getNamespaceName();

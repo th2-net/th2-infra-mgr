@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
+import com.exactpro.th2.inframgr.initializer.NamespaceDefaultConfigurations;
 import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
@@ -88,6 +89,11 @@ public class K8sSynchronization {
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
+
+            NamespaceDefaultConfigurations.synchronizeNamespaceDefaultsMap(
+                    repositorySettings.getNamespaceDefaults(),
+                    kube
+            );
 
             Th2BoxConfigurations.synchronizeBoxConfigMaps(
                     repositorySettings.getMqRouter(),
