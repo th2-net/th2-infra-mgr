@@ -20,7 +20,9 @@ import com.exactpro.th2.inframgr.validator.enums.SchemaConnectionType;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -31,7 +33,7 @@ public final class PinSpec {
     @JsonProperty("connection-type")
     private SchemaConnectionType connectionType;
 
-    private Set<String> attributes = new HashSet<>();
+    private List<String> attributes = new ArrayList<>();
 
     @JsonProperty("service-classes")
     private Set<String> serviceClasses = new HashSet<>();
@@ -47,7 +49,7 @@ public final class PinSpec {
         return connectionType;
     }
 
-    public Set<String> getAttributes() {
+    public List<String> getAttributes() {
         return attributes;
     }
 
