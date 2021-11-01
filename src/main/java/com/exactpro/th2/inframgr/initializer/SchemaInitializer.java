@@ -16,6 +16,11 @@
 
 package com.exactpro.th2.inframgr.initializer;
 
+import com.exactpro.cradle.cassandra.CassandraCradleManager;
+import com.exactpro.cradle.cassandra.connection.CassandraConnection;
+import com.exactpro.cradle.cassandra.connection.CassandraConnectionSettings;
+import com.exactpro.cradle.cassandra.connection.NetworkTopologyStrategy;
+import com.exactpro.cradle.utils.CradleStorageException;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
@@ -35,7 +40,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.*;
 
+import static com.exactpro.cradle.cassandra.CassandraStorageSettings.DEFAULT_MAX_EVENT_BATCH_SIZE;
+import static com.exactpro.cradle.cassandra.CassandraStorageSettings.DEFAULT_MAX_MESSAGE_BATCH_SIZE;
 import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 
 public class SchemaInitializer {
 
@@ -64,6 +73,11 @@ public class SchemaInitializer {
     private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
 
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
+
+    private static final String DEFAULT_CRADLE_INSTANCE_NAME = "th2-infra";
+
+    private static final ObjectMapper mapper = new ObjectMapper();
+
 
     /*
         Ingress annotation values with following key prefixes should be
@@ -201,8 +215,6 @@ public class SchemaInitializer {
         try {
             logger.info("Creating \"{}\"", resourceLabel);
 
-            ObjectMapper mapper = new ObjectMapper();
-
             var rabbitMQJson = mapper.readValue(cmData.get(RABBITMQ_JSON_KEY), Map.class);
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
@@ -234,6 +246,55 @@ public class SchemaInitializer {
         }
     }
 
+    private static void initializeKeyspace(Config.CassandraConfig cassandraConfig, String keyspaceName) {
+        CassandraCradleManager manager = null;
+        try {
+            CassandraConnectionSettings cassandraConnectionSettings = new CassandraConnectionSettings(
+                    cassandraConfig.getDataCenter(),
+                    cassandraConfig.getHost(),
+                    cassandraConfig.getPort(),
+                    keyspaceName
+            );
+
+            String username = cassandraConfig.getUsername();
+            String password = cassandraConfig.getPassword();
+            int timeout = cassandraConfig.getTimeout();
+            int pageSize = cassandraConfig.getPageSize();
+            var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
+
+            if (isNotEmpty(username)) {
+                cassandraConnectionSettings.setUsername(username);
+            }
+            if (isNotEmpty(password)) {
+                cassandraConnectionSettings.setPassword(password);
+            }
+            if (timeout > 0) {
+                cassandraConnectionSettings.setTimeout(timeout);
+            }
+            if (pageSize > 0) {
+                cassandraConnectionSettings.setResultPageSize(pageSize);
+            }
+            if (!networkTopologyStrategy.isEmpty()) {
+                cassandraConnectionSettings.setNetworkTopologyStrategy(new NetworkTopologyStrategy(networkTopologyStrategy));
+            }
+
+            manager = new CassandraCradleManager(new CassandraConnection(cassandraConnectionSettings));
+            manager.init(defaultIfBlank(cassandraConfig.getInstanceName(), DEFAULT_CRADLE_INSTANCE_NAME), true,
+                    cassandraConfig.getCradleMaxMessageBatchSize() > 0 ? cassandraConfig.getCradleMaxMessageBatchSize() : DEFAULT_MAX_MESSAGE_BATCH_SIZE,
+                    cassandraConfig.getCradleMaxEventBatchSize() > 0 ? cassandraConfig.getCradleMaxEventBatchSize() : DEFAULT_MAX_EVENT_BATCH_SIZE);
+        } catch (CradleStorageException | RuntimeException e) {
+            throw new RuntimeException("Cannot create Cradle manager", e);
+        } finally {
+            if (manager != null) {
+                try {
+                    manager.dispose();
+                } catch (Exception e) {
+                    logger.error("Failed to dispose Cradle manager", e);
+                }
+            }
+        }
+    }
+
     private static void copyCassandraConfigMap(String configMapName, String keyspaceName, Kubernetes kube, boolean forceUpdate) {
 
         if (configMapName == null || configMapName.isEmpty())
@@ -258,7 +319,6 @@ public class SchemaInitializer {
         try {
             logger.info("Creating \"{}\"", resourceLabel);
 
-            ObjectMapper mapper = new ObjectMapper();
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
@@ -286,6 +346,7 @@ public class SchemaInitializer {
                 String keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+                initializeKeyspace(cassandraConfig, keyspaceName);
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_EXTERNAL_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
             } finally {
@@ -310,7 +371,6 @@ public class SchemaInitializer {
 
             logger.info("Creating \"{}\"", resourceLabel);
 
-            ObjectMapper mapper = new ObjectMapper();
             String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
             IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
