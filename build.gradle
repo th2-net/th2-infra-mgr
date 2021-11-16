@@ -2,6 +2,7 @@ plugins {
     id 'org.springframework.boot' version '2.3.2.RELEASE'
     id 'io.spring.dependency-management' version '1.0.9.RELEASE'
     id 'java'
+    id 'checkstyle'
 }
 
 group = 'com.exactpro.th2'
@@ -34,6 +35,10 @@ repositories {
         name 'Sonatype_releases'
         url 'https://s01.oss.sonatype.org/content/repositories/releases/'
     }
+}
+
+checkstyle {
+    toolVersion = "8.26"
 }
 
 dependencies {

@@ -25,7 +25,9 @@ import java.util.concurrent.TimeUnit;
 public class RetryableTaskQueue {
 
     private class SingleTask implements Runnable {
+
         RetryableTask retryableTask;
+
         private SingleTask(RetryableTask retryableTask) {
             this.retryableTask = retryableTask;
         }
@@ -42,36 +44,34 @@ public class RetryableTaskQueue {
     }
 
     private final Set<String> tasks;
-    private final ScheduledExecutorService taskScheduler;
 
+    private final ScheduledExecutorService taskScheduler;
 
     public RetryableTaskQueue(int threads) {
         tasks = new HashSet<>();
         taskScheduler = new ScheduledThreadPoolExecutor(threads);
     }
 
-
     private synchronized void addTask(SingleTask task, boolean startDelayed) {
         tasks.add(task.retryableTask.getUniqueKey());
         taskScheduler.schedule(task, startDelayed ? task.retryableTask.getRetryDelay() : 0, TimeUnit.SECONDS);
     }
-
 
     public synchronized void add(RetryableTask retryableTask) {
         add(retryableTask, false);
     }
 
     public synchronized void add(RetryableTask retryableTask, boolean startDelayed) {
-        if (!tasks.contains(retryableTask.getUniqueKey()))
+        if (!tasks.contains(retryableTask.getUniqueKey())) {
             addTask(new SingleTask(retryableTask), startDelayed);
+        }
     }
-
 
     private synchronized void completeTask(RetryableTask retryableTask) throws IllegalStateException {
         String taskKey = retryableTask.getUniqueKey();
-        if (!tasks.contains(taskKey))
+        if (!tasks.contains(taskKey)) {
             throw new IllegalStateException("Task \"" + taskKey + "\" was not found in active task list");
-
+        }
         tasks.remove(taskKey);
     }
 

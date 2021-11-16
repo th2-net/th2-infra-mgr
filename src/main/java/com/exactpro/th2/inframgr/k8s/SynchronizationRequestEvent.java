@@ -22,9 +22,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class SynchronizationRequestEvent extends SchemaEvent {
 
-    public static final String EVENT_TYPE="synchronizationRequest";
+    public static final String EVENT_TYPE = "synchronizationRequest";
 
     private static final AtomicLong eventCounter = new AtomicLong();
+
     private final long eventId;
 
     public SynchronizationRequestEvent(String schema) {

@@ -17,24 +17,27 @@
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.models.RequestEntry;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
+
 public class UrlPathConflicts {
 
     private static final Logger logger = LoggerFactory.getLogger(UrlPathConflicts.class);
 
-    public static Set<RepositoryResource> detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources, String branch) {
+    public static Set<RepositoryResource> detectUrlPathsConflicts(Set<RepositoryResource> repositoryResources,
+                                                                  String branch) {
 
         // get map of resource label and url paths pairs
         Map<String, Set<String>> repositoryUrlPaths = getRepositoryUrlPaths(repositoryResources, branch);
         // if no resource or just one resource contains url paths then there can't be conflicts
-        if (repositoryUrlPaths.size() < 2)
+        if (repositoryUrlPaths.size() < 2) {
             return repositoryResources;
+        }
 
         Set<String> conflictedResourceLabels = new HashSet<>();
         Set<String> entries = new HashSet<>();
@@ -45,33 +48,39 @@ public class UrlPathConflicts {
 
             for (var entry2 : repositoryUrlPaths.entrySet()) {
                 // avoid comparing resource with itself and comparing the same resources twice
-                if (entries.contains(entry2.getKey()))
+                if (entries.contains(entry2.getKey())) {
                     continue;
+                }
 
                 List<String> duplicated = new ArrayList<>();
                 Set<String> checker = new HashSet<>(entry1.getValue());
                 // use the set 'checker' to detect url duplications between resources
-                for (String url : entry2.getValue())
-                    if (checker.contains(url))
+                for (String url : entry2.getValue()) {
+                    if (checker.contains(url)) {
                         duplicated.add(url);
+                    }
+                }
 
                 if (!duplicated.isEmpty()) {
                     logger.error("Conflicts of url paths {} between resources \"{}\" and \"{}\"",
-                        duplicated, entry1.getKey(), entry2.getKey());
+                            duplicated, entry1.getKey(), entry2.getKey());
                     conflictedResourceLabels.add(entry1.getKey());
                     conflictedResourceLabels.add(entry2.getKey());
                 }
             }
         }
-        if (conflictedResourceLabels.isEmpty())
+        if (conflictedResourceLabels.isEmpty()) {
             return repositoryResources;
+        }
 
         Set<RepositoryResource> validResources = new HashSet<>();
-        for (RepositoryResource resource : repositoryResources)
+        for (RepositoryResource resource : repositoryResources) {
             // add resources with no url path conflicts to valid resources
             if (!conflictedResourceLabels.contains(
-                ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName())))
+                    annotationFor(branch, resource.getKind(), resource.getMetadata().getName()))) {
                 validResources.add(resource);
+            }
+        }
 
         return validResources;
     }
@@ -80,23 +89,28 @@ public class UrlPathConflicts {
 
         Set<RepositoryResource> repositoryResources = new HashSet<>();
         // extract repository resources from the operations
-        for (RequestEntry entry : operations)
+        for (RequestEntry entry : operations) {
             repositoryResources.add(entry.getPayload().toRepositoryResource());
+        }
 
         int initialSize = repositoryResources.size();
         repositoryResources = detectUrlPathsConflicts(repositoryResources, branch);
         // in case of conflicts the size of 'repositoryResources' would be reduced
-        if (initialSize == repositoryResources.size())
+        if (initialSize == repositoryResources.size()) {
             return operations;
+        }
 
         Set<String> namesOfValidResources = new HashSet<>();
-        for (RepositoryResource resource : repositoryResources)
+        for (RepositoryResource resource : repositoryResources) {
             namesOfValidResources.add(resource.getMetadata().getName());
+        }
 
         List<RequestEntry> validOperations = new ArrayList<>();
-        for (RequestEntry entry : operations)
-            if (namesOfValidResources.contains(entry.getPayload().toRepositoryResource().getMetadata().getName()))
+        for (RequestEntry entry : operations) {
+            if (namesOfValidResources.contains(entry.getPayload().toRepositoryResource().getMetadata().getName())) {
                 validOperations.add(entry);
+            }
+        }
 
         return validOperations;
     }
@@ -106,34 +120,41 @@ public class UrlPathConflicts {
         Map<String, Set<String>> map = new HashMap<>();
         for (RepositoryResource resource : resources) {
 
-            String resourceLabel = ResourcePath.annotationFor(branch, resource.getKind(), resource.getMetadata().getName());
+            String resourceLabel = annotationFor(branch, resource.getKind(), resource.getMetadata().getName());
             try {
                 var spec = (Map<String, Object>) resource.getSpec();
-                if (spec == null)
+                if (spec == null) {
                     continue;
+                }
 
                 var settings = (Map<String, Object>) spec.get("extended-settings");
-                if (settings == null)
+                if (settings == null) {
                     continue;
+                }
 
                 var service = (Map<String, Object>) settings.get("service");
-                if (service == null)
+                if (service == null) {
                     continue;
+                }
 
                 var ingress = (Map<String, Object>) service.get("ingress");
-                if (ingress == null)
+                if (ingress == null) {
                     continue;
+                }
 
                 List<String> urls = (List<String>) ingress.get("urlPaths");
-                if (urls == null || urls.isEmpty())
+                if (urls == null || urls.isEmpty()) {
                     continue;
+                }
 
                 Set<String> urlPaths = new HashSet<>();
                 Set<String> duplicated = new HashSet<>();
                 // use the set 'urlPaths' to detect url duplication in a resource
-                for (String url : urls)
-                    if (!urlPaths.add(url))
+                for (String url : urls) {
+                    if (!urlPaths.add(url)) {
                         duplicated.add(url);
+                    }
+                }
 
                 if (!duplicated.isEmpty()) {
                     logger.warn("Resource \"{}\" contains duplicate urlPath entries {}", resourceLabel, duplicated);

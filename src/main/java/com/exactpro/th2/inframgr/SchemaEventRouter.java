@@ -25,7 +25,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class SchemaEventRouter {
     private static class EventCache extends LinkedHashMap<String, SchemaEvent> {
+
         private static final int CACHE_CAPACITY = 1024;
+
         @Override
         public boolean removeEldestEntry(Map.Entry<String, SchemaEvent> eldest) {
             return this.size() >= CACHE_CAPACITY;
@@ -33,7 +35,9 @@ public class SchemaEventRouter {
     }
 
     private static volatile SchemaEventRouter instance;
+
     private PublishSubject<SchemaEvent> subject;
+
     private Map<String, EventCache> acceptedEvents;
 
     private SchemaEventRouter() {
@@ -43,14 +47,14 @@ public class SchemaEventRouter {
 
     public static SchemaEventRouter getInstance() {
         if (instance == null) {
-            synchronized(SchemaEventRouter.class) {
-                if (instance == null)
+            synchronized (SchemaEventRouter.class) {
+                if (instance == null) {
                     instance = new SchemaEventRouter();
+                }
             }
         }
         return instance;
     }
-
 
     private EventCache getEventCache(String eventType) {
 
@@ -72,8 +76,9 @@ public class SchemaEventRouter {
                 doSend = true;
             }
         }
-        if (doSend)
+        if (doSend) {
             subject.onNext(event);
+        }
         return doSend;
     }
 

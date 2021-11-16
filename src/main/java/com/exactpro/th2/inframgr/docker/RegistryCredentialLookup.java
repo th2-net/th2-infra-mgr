@@ -28,17 +28,23 @@ import java.util.List;
 import java.util.Map;
 
 public class RegistryCredentialLookup {
+
     private static final Logger logger = LoggerFactory.getLogger(RegistryCredentialLookup.class);
 
     private static final String SECRET_DATA_ALIAS = ".dockerconfigjson";
+
     private static final String AUTHS_ALIAS = "auths";
+
     private static final String USER_ALIAS = "username";
+
     private static final String PASSWORD_ALIAS = "password";
+
     private static final String AUTHENTICATION_STRING_ALIAS = "auth";
+
     private static final String SEPARATOR = ":";
 
-
     private final Kubernetes kube;
+
     private final ObjectMapper mapper;
 
     public RegistryCredentialLookup(Kubernetes kube) {
@@ -86,11 +92,15 @@ public class RegistryCredentialLookup {
                     authStrDecoded.substring(0, authStrDecoded.indexOf(SEPARATOR)),
                     authStrDecoded.substring(authStrDecoded.indexOf(SEPARATOR) + 1)
             );
-        } else return null;
+        } else {
+            return null;
+        }
     }
 
     public static class RegistryCredentials {
+
         private final String user;
+
         private final String password;
 
         public RegistryCredentials(String user, String password) {

@@ -25,9 +25,7 @@ public class Strings {
         if (o instanceof Map) {
             stringify((Map) o);
             return true;
-        }
-        else
-        if (o instanceof List) {
+        } else if (o instanceof List) {
             stringify((List) o);
             return true;
         }
@@ -37,18 +35,21 @@ public class Strings {
     public static void stringify(List<Object> list) {
         for (int i = 0; i < list.size(); i++) {
             Object value = list.get(i);
-            if (!stringify(value))
+            if (!stringify(value)) {
                 list.set(i, value.toString());
+            }
         }
     }
 
     public static void stringify(Map<String, Object> map) {
         for (Map.Entry<String, Object> e : map.entrySet()) {
             Object value = e.getValue();
-            if (!stringify(value) && value != null)
+            if (!stringify(value) && value != null) {
                 e.setValue(value.toString());
+            }
         }
     }
+
     public static String formatHash(String hash) {
         return "[" + (hash == null ? "no-hash" : hash.substring(0, 8)) + "]";
     }

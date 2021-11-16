@@ -23,9 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class K8sSynchronizationQueueTests {
 
-
     @Test
-    void TestOrder() {
+    void testOrder() {
         K8sSynchronizationJobQueue queue = new K8sSynchronizationJobQueue();
         K8sSynchronizationJobQueue.Job job;
 
@@ -43,9 +42,8 @@ class K8sSynchronizationQueueTests {
         assertTrue(job == null);
     }
 
-
     @Test
-    void TestLoop1() {
+    void testLoop1() {
         K8sSynchronizationJobQueue queue = new K8sSynchronizationJobQueue();
 
         queue.addJob(new K8sSynchronizationJobQueue.Job("schema1"));
@@ -64,9 +62,8 @@ class K8sSynchronizationQueueTests {
         assertTrue(job3.getSchema().equals("schema1"));
     }
 
-
     @Test
-    void TestLoop2() {
+    void testLoop2() {
         K8sSynchronizationJobQueue queue = new K8sSynchronizationJobQueue();
 
         queue.addJob(new K8sSynchronizationJobQueue.Job("schema1"));
@@ -104,5 +101,4 @@ class K8sSynchronizationQueueTests {
         assertTrue(job7 == null);
 
     }
-
 }

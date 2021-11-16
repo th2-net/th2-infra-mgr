@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class _CassandraConfig {
+public class CassandraConfig {
 
     private String keyspacePrefix;
 
@@ -55,7 +55,6 @@ public class _CassandraConfig {
     public String getSecret() {
         return secret == null ? "" : secret;
     }
-
 
     public String getUsername() {
         return username == null ? "" : username;
@@ -103,9 +102,13 @@ public class _CassandraConfig {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof _CassandraConfig)) return false;
-        _CassandraConfig that = (_CassandraConfig) o;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CassandraConfig)) {
+            return false;
+        }
+        CassandraConfig that = (CassandraConfig) o;
         return getPort() == that.getPort() && getTimeout() == that.getTimeout()
                 && Objects.equals(getKeyspacePrefix(), that.getKeyspacePrefix())
                 && Objects.equals(getSecret(), that.getSecret())

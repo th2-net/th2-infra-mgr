@@ -35,8 +35,11 @@ import java.util.List;
 
 @Controller
 public class DeploymentController {
+
     private static final Logger logger = LoggerFactory.getLogger(DeploymentController.class);
+
     public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     @Autowired
@@ -45,18 +48,20 @@ public class DeploymentController {
     @GetMapping("/deployment/{schema}/{kind}/{resource}/status")
     @ResponseBody
     public List<ResponseEntry> getResourceDeploymentStatuses(
-            @PathVariable(name="schema") String schemaName,
-            @PathVariable(name="kind") String kind,
-            @PathVariable(name="resource") String resourceName) {
+            @PathVariable(name = "schema") String schemaName,
+            @PathVariable(name = "kind") String kind,
+            @PathVariable(name = "resource") String resourceName) {
 
         try {
             // check schema name against valid pattern
-            if (!K8sCustomResource.isSchemaNameValid(schemaName))
+            if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+            }
 
             List<ResponseEntry> response = new ArrayList<>();
-            for (ResourceCondition resource: statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName))
+            for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 response.add(new ResponseEntry(resource));
+            }
 
             return response;
 
@@ -69,12 +74,16 @@ public class DeploymentController {
     }
 
     public static class ResponseEntry {
+
         @JsonProperty("kind")
         public String kind;
+
         @JsonProperty("name")
         public String name;
+
         @JsonProperty("conditions")
         public List<Condition> conditions;
+
         @JsonProperty("status")
         public String status;
 
@@ -82,8 +91,9 @@ public class DeploymentController {
             kind = resource.getKind();
             name = resource.getName();
             status = resource.getStatus().toString();
-            if (resource.getConditions() != null)
+            if (resource.getConditions() != null) {
                 conditions = new ArrayList<>(resource.getConditions().values());
+            }
         }
     }
 }

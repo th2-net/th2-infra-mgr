@@ -27,19 +27,19 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class InfraManagerApplication {
 
-	public static void main(String[] args) {
+    public static void main(String[] args) {
 
-		try {
-			// preload configuration
-			Config.getInstance();
+        try {
+            // preload configuration
+            Config.getInstance();
 
-			PrometheusServer.start();
-			SpringApplication application = new SpringApplication(InfraManagerApplication.class);
-			application.run(args);
+            PrometheusServer.start();
+            SpringApplication application = new SpringApplication(InfraManagerApplication.class);
+            application.run(args);
 
-		} catch (Exception e) {
-			Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
-			logger.error("Exiting with exception", e);
-		}
-	}
+        } catch (Exception e) {
+            Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
+            logger.error("Exiting with exception", e);
+        }
+    }
 }

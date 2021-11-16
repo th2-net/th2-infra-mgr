@@ -42,10 +42,13 @@ import java.util.concurrent.locks.Lock;
 public class K8sOperator {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sOperator.class);
+
     private static final int RECOVERY_THREAD_POOL_SIZE = 3;
 
     private Config config;
+
     private K8sResourceCache cache;
+
     private RetryableTaskQueue taskQueue;
 
     private void startInformers() {
@@ -134,16 +137,18 @@ public class K8sOperator {
 
                     // check if we need to re-synchronize k8s at all
                     RepositorySettings rs = snapshot.getRepositorySettings();
-                    if (rs == null || !rs.isK8sGovernanceRequired())
+                    if (rs == null || !rs.isK8sGovernanceRequired()) {
                         return;
+                    }
 
                     // refresh cache for this namespace
                     for (RepositoryResource r : snapshot.getResources()) {
                         cache.add(namespace, r);
                         if (r.getKind().equals(kind) && r.getMetadata().getName().equals(name)) {
                             resource = r;
-                            if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary)
+                            if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary) {
                                 Th2DictionaryProcessor.compressData(resource);
+                            }
                         }
                     }
 
@@ -189,7 +194,8 @@ public class K8sOperator {
                     // check current status of namespace
                     Namespace n = kube.getNamespace(namespace);
                     if (n == null || !n.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {
-                        logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. Scheduled full schema synchronization"
+                        logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. " +
+                                        "Scheduled full schema synchronization"
                                 , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
                         taskQueue.add(new SchemaRecoveryTask(kube.extractSchemaName(namespace)), true);
                     } else {
@@ -208,7 +214,6 @@ public class K8sOperator {
             logger.error("exception processing event", e);
         }
     }
-
 
     @PostConstruct
     public void start() throws IOException {

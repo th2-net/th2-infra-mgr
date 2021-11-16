@@ -24,24 +24,21 @@ import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.fabric8.kubernetes.api.model.Secret;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-
 @Controller
 public class SecretsController {
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
-    private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
+    private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     @GetMapping("/secrets/{schemaName}")
     @ResponseBody
@@ -107,7 +104,9 @@ public class SecretsController {
     }
 
     public static class SecretsRequestEntry {
+
         private String key;
+
         private String data;
 
         public String getKey() {

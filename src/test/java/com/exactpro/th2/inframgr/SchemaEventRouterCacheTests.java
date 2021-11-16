@@ -23,29 +23,28 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SchemaEventRouterCacheTests {
 
-
     static SchemaEventRouter router;
+
     @BeforeAll
     static void createRouter() {
-         router = SchemaEventRouter.getInstance();
-
+        router = SchemaEventRouter.getInstance();
     }
 
     @Test
-    void TestEmpty() {
+    void testEmpty() {
         EventType1 t1e1 = new EventType1("abc");
         assertTrue(router.isEventCached(t1e1));
     }
 
     @Test
-    void TestExists() {
+    void testExists() {
         EventType1 t1e1 = new EventType1("abc");
         router.addEvent(t1e1);
         assertTrue(router.isEventCached(t1e1));
     }
 
     @Test
-    void TestCrossTypeConflicts() {
+    void testCrossTypeConflicts() {
         EventType1 t1e1 = new EventType1("abc");
         EventType2 t2e1 = new EventType2("abc");
 
@@ -59,7 +58,7 @@ class SchemaEventRouterCacheTests {
     }
 
     @Test
-    void TestCacheExpiration() {
+    void testCacheExpiration() {
 
         // add type1 event
         EventType1 t1e1 = new EventType1("abc");
@@ -97,10 +96,10 @@ class SchemaEventRouterCacheTests {
         }
     }
 
-
     private abstract class BaseEvent extends SchemaEvent {
 
         private String key;
+
         private BaseEvent(String key) {
             super(key);
             this.key = key;
@@ -121,6 +120,7 @@ class SchemaEventRouterCacheTests {
         private EventType1(String key) {
             super(key);
         }
+
         @Override
         public String getEventType() {
             return "type1";
@@ -131,10 +131,10 @@ class SchemaEventRouterCacheTests {
         private EventType2(String key) {
             super(key);
         }
+
         @Override
         public String getEventType() {
             return "type2";
         }
     }
-
 }

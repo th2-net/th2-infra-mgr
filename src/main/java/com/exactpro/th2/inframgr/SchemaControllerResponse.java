@@ -23,7 +23,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SchemaControllerResponse {
+
     private String commitRef;
+
     private Set<ResourceEntry> resources;
 
     public SchemaControllerResponse(RepositorySnapshot snapshot) {

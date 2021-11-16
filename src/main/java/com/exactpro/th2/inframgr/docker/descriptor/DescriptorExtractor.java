@@ -50,7 +50,8 @@ public class DescriptorExtractor {
             String version = SpecUtils.getImageVersion(spec);
             return getDescriptor(imageName, version, descriptor);
         }
-        String errorMessage = String.format("Couldn't find resource: \"%s\" on cluster", ResourcePath.annotationFor(kube.getNamespaceName(), kind, box));
+        String errorMessage = String.format("Couldn't find resource: \"%s\" on cluster",
+                ResourcePath.annotationFor(kube.getNamespaceName(), kind, box));
         logger.error(errorMessage);
         throw new ResourceNotFoundException(errorMessage);
     }

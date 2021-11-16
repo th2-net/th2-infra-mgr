@@ -21,12 +21,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.http.HttpStatus;
 
 public class ErrorResponse {
+
     public static final String STATUS_CODE = "status_code";
+
     public static final String ERROR_CODE = "error_code";
+
     public static final String MESSAGE = "message";
 
     private HttpStatus httpStatus;
+
     private String errorCode;
+
     private String message;
 
     public ErrorResponse(HttpStatus httpStatus, String errorCode) {

@@ -37,10 +37,13 @@ import java.util.List;
 import java.util.Map;
 
 public class RegistryConnection {
+
     private static final Logger logger = LoggerFactory.getLogger(RegistryConnection.class);
 
     private static final String URL_PREFIX = "https://";
+
     private static final String API_SUFFIX = "/v2";
+
     private static final char SLASH_CHAR = '/';
 
     private final Map<String, RegistryCredentialLookup.RegistryCredentials> secrets;
@@ -99,7 +102,8 @@ public class RegistryConnection {
         return tagResponseBody == null ? Collections.EMPTY_LIST : tagResponseBody.getTags();
     }
 
-    private ImageManifestV2 requestImageManifest(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
+    private ImageManifestV2 requestImageManifest(String url,
+                                                 RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
         RestTemplate restTemplate = buildRest(authenticationDetails);
         HttpHeaders headers = new HttpHeaders();
         if (authenticationDetails == null) {

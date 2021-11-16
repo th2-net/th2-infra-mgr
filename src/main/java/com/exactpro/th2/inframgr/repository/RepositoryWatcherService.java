@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.repository;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.GitterContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,8 +32,11 @@ import java.util.Map;
 public class RepositoryWatcherService {
 
     private Map<String, String> commitHistory;
-    private Config.GitConfig config;
+
+    private GitCfg config;
+
     private SchemaEventRouter eventRouter;
+
     private Logger logger;
 
     public RepositoryWatcherService() throws Exception {
@@ -43,20 +47,23 @@ public class RepositoryWatcherService {
     }
 
     @Scheduled(fixedDelay = 30000)
-    public void scheduledJob(){
+    public void scheduledJob() {
 
         try {
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
             commits.forEach((branch, commitRef) -> {
 
-                if (!(branch.equals("master") || commitHistory.isEmpty() || commitHistory.getOrDefault(branch, "").equals(commitRef))) {
+                if (!(branch.equals("master")
+                        || commitHistory.isEmpty()
+                        || commitHistory.getOrDefault(branch, "").equals(commitRef))) {
                     logger.info("New commit \"{}\" detected for branch \"{}\"", commitRef, branch);
 
                     RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
                     boolean sent = eventRouter.addEventIfNotCached(event);
-                    if (!sent)
+                    if (!sent) {
                         logger.info("Event is recently processed, ignoring");
+                    }
                 }
             });
 

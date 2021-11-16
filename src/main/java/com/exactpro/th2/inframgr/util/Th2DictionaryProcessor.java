@@ -32,9 +32,11 @@ import java.util.zip.GZIPOutputStream;
  */
 
 public final class Th2DictionaryProcessor {
+
     private static final Logger logger = LoggerFactory.getLogger(Th2DictionaryProcessor.class);
 
     private static final String COMPRESSED_KEY = "compressed";
+
     private static final String DATA_KEY = "data";
 
     private static String encodeString(String value) throws IOException {

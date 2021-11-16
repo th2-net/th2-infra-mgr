@@ -17,10 +17,12 @@
 package com.exactpro.th2.inframgr;
 
 public abstract class SchemaEvent {
-    public abstract String getEventType();
-    public abstract String getEventBody();
-    public abstract String getEventKey();
 
+    public abstract String getEventType();
+
+    public abstract String getEventBody();
+
+    public abstract String getEventKey();
 
     private String schema;
 

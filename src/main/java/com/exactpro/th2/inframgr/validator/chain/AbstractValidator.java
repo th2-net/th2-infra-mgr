@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.validator.chain;
 
-
 import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 
 import java.util.Objects;

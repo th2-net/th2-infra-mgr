@@ -26,7 +26,6 @@ import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.inframgr.validator.SchemaValidator;
@@ -46,12 +45,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
+
 @Component
 public class K8sSynchronization {
 
     private static final int SYNC_PARALLELIZATION_THREADS = 3;
+
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
+
     private Config config;
+
     private static volatile boolean startupSynchronizationComplete;
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
@@ -65,8 +69,10 @@ public class K8sSynchronization {
         }
     }
 
-    private void synchronizeNamespace(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                      RepositorySettings repositorySettings, String commitRef) throws Exception {
+    private void synchronizeNamespace(String schemaName,
+                                      Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                      RepositorySettings repositorySettings,
+                                      String commitRef) throws Exception {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
@@ -85,7 +91,11 @@ public class K8sSynchronization {
             }
 
             try {
-                LoggingConfigMap.copyLoggingConfigMap(repositorySettings.getLogLevelRoot(), repositorySettings.getLogLevelTh2(), kube);
+                LoggingConfigMap.copyLoggingConfigMap(
+                        repositorySettings.getLogLevelRoot(),
+                        repositorySettings.getLogLevelTh2(),
+                        kube
+                );
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
@@ -110,14 +120,14 @@ public class K8sSynchronization {
                 }
             }
             // synchronize by resource type
-            for (ResourceType type : ResourceType.values())
+            for (ResourceType type : ResourceType.values()) {
                 if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
                     Map<String, RepositoryResource> resources = repositoryResources.get(type.kind());
                     Map<String, K8sCustomResource> customResources = k8sResources.get(type.kind());
 
                     for (RepositoryResource resource : resources.values()) {
                         String resourceName = resource.getMetadata().getName();
-                        String resourceLabel = "\"" + ResourcePath.annotationFor(namespace, type.kind(), resourceName) + "\"";
+                        String resourceLabel = "\"" + annotationFor(namespace, type.kind(), resourceName) + "\"";
                         String hashTag = Strings.formatHash(resource.getSourceHash());
                         // add resource to cache
                         cache.add(namespace, resource);
@@ -131,29 +141,32 @@ public class K8sSynchronization {
                                 Strings.stringify(resource.getSpec());
                                 kube.createCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception creating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef, e);
+                                logger.error("Exception creating resource {} {}. [commit: {}]",
+                                        resourceLabel, hashTag, commitRef, e);
                             }
                         } else {
                             // compare object's hashes and update custom resources who's hash labels do not match
                             K8sCustomResource cr = customResources.get(resourceName);
 
-                            if (!(resource.getSourceHash() == null || resource.getSourceHash().equals(cr.getSourceHash()))) {
+                            if (!(resource.getSourceHash() == null
+                                    || resource.getSourceHash().equals(cr.getSourceHash()))) {
                                 // update custom resource
                                 logger.info("Updating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef);
                                 try {
                                     Strings.stringify(resource.getSpec());
                                     kube.replaceCustomResource(resource);
                                 } catch (Exception e) {
-                                    logger.error("Exception updating resource {} {}. [commit: {}]", resourceLabel, hashTag, commitRef, e);
+                                    logger.error("Exception updating resource {} {}. [commit: {}]",
+                                            resourceLabel, hashTag, commitRef, e);
                                 }
                             }
                         }
                     }
 
                     // delete k8s resources that do not exist in repository
-                    for (String resourceName : customResources.keySet())
+                    for (String resourceName : customResources.keySet()) {
                         if (!resources.containsKey(resourceName)) {
-                            String resourceLabel = ResourcePath.annotationFor(namespace, type.kind(), resourceName);
+                            String resourceLabel = annotationFor(namespace, type.kind(), resourceName);
                             try {
                                 logger.info("Deleting resource {}. [commit: {}]", resourceLabel, commitRef);
                                 RepositoryResource resource = new RepositoryResource();
@@ -162,10 +175,13 @@ public class K8sSynchronization {
                                 DynamicResourceProcessor.checkResource(resource, schemaName, true);
                                 kube.deleteCustomResource(resource);
                             } catch (Exception e) {
-                                logger.error("Exception deleting resource {}. [commit: {}]", resourceLabel, commitRef, e);
+                                logger.error("Exception deleting resource {}. [commit: {}]",
+                                        resourceLabel, commitRef, e);
                             }
                         }
+                    }
                 }
+            }
         } finally {
             timer.observeDuration();
         }
@@ -174,7 +190,8 @@ public class K8sSynchronization {
     public void synchronizeBranch(String branch, long detectionTime) {
 
         if (!K8sCustomResource.isSchemaNameValid(branch)) {
-            logger.error("Schema name \"{}\" is invalid. Name length must less than {} characters and match pattern: \"{}\"",
+            logger.error("Schema name \"{}\" is invalid. " +
+                            "Name length must less than {} characters and match pattern: \"{}\"",
                     branch, K8sCustomResource.SCHEMA_NAME_MAX_LENGTH, K8sCustomResource.RESOURCE_NAME_REGEXP);
             return;
         }
@@ -213,18 +230,22 @@ public class K8sSynchronization {
 
             // convert to map
             Map<String, Map<String, RepositoryResource>> repositoryMap = new HashMap<>();
-            for (ResourceType t : ResourceType.values())
-                if (t.isK8sResource())
+            for (ResourceType t : ResourceType.values()) {
+                if (t.isK8sResource()) {
                     repositoryMap.put(t.kind(), new HashMap<>());
+                }
+            }
 
-            for (RepositoryResource resource : repositoryResources)
+            for (RepositoryResource resource : repositoryResources) {
                 if (ResourceType.forKind(resource.getKind()).isK8sResource()) {
-                    if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary)
+                    if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary) {
                         Th2DictionaryProcessor.compressData(resource);
+                    }
 
                     Map<String, RepositoryResource> typeMap = repositoryMap.get(resource.getKind());
                     typeMap.put(resource.getMetadata().getName(), resource);
                 }
+            }
 
             // add commit reference in annotations to every resource
             stampResources(repositoryMap, snapshot.getCommitRef(), detectionTime);
@@ -246,9 +267,11 @@ public class K8sSynchronization {
             Map<String, String> branches = ctx.getAllBranchesCommits();
 
             ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
-            for (String branch : branches.keySet())
-                if (!branch.equals("master"))
+            for (String branch : branches.keySet()) {
+                if (!branch.equals("master")) {
                     executor.execute(() -> synchronizeBranch(branch, System.currentTimeMillis()));
+                }
+            }
 
             executor.shutdown();
             try {
@@ -269,16 +292,16 @@ public class K8sSynchronization {
 
     private void subscribeToRepositoryEvents() {
         ExecutorService executor = Executors.newCachedThreadPool();
-        for (int i = 0; i < SYNC_PARALLELIZATION_THREADS; i++)
+        for (int i = 0; i < SYNC_PARALLELIZATION_THREADS; i++) {
             executor.execute(this::processRepositoryEvents);
+        }
 
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         router.getObservable()
                 .onBackpressureBuffer()
                 .observeOn(Schedulers.computation())
-                .filter(event -> (
-                        (event instanceof SynchronizationRequestEvent
-                                || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
+                .filter(event -> ((event instanceof SynchronizationRequestEvent
+                        || (event instanceof RepositoryUpdateEvent && !((RepositoryUpdateEvent) event).isSyncingK8s()))
                 ))
                 .subscribe(event -> jobQueue.addJob(new K8sSynchronizationJobQueue.Job(event.getSchema())));
 
@@ -311,7 +334,9 @@ public class K8sSynchronization {
         return startupSynchronizationComplete;
     }
 
-    private void stampResources(Map<String, Map<String, RepositoryResource>> repositoryMap, String commitHash, long detectionTime) {
+    private void stampResources(Map<String, Map<String, RepositoryResource>> repositoryMap,
+                                String commitHash,
+                                long detectionTime) {
         repositoryMap.values()
                 .forEach(repoResources -> repoResources.values()
                         .forEach(resource -> resource.stamp(commitHash, detectionTime))

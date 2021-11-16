@@ -25,11 +25,14 @@ import java.util.List;
 
 public class K8sProvisioningErrorResponse extends ErrorResponse {
     private class Item {
+
         @JsonProperty
         private String kind;
+
         @JsonProperty
         private String name;
     }
+
     @JsonProperty
     private List<Item> items;
 

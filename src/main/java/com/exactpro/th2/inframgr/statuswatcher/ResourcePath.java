@@ -19,8 +19,11 @@ package com.exactpro.th2.inframgr.statuswatcher;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 
 public class ResourcePath {
+
     private String namespace;
+
     private String kind;
+
     private String resourceName;
 
     public static String annotationFor(String namespace, String kind, String resourceName) {
@@ -40,25 +43,28 @@ public class ResourcePath {
         final String exceptionMessage = "Annotation decoding exception";
 
         String annotation = resource.getAntecedentAnnotation();
-        if (annotation == null)
+        if (annotation == null) {
             throw new IllegalArgumentException(exceptionMessage);
+        }
 
         String[] s1 = annotation.split(":");
-        if (s1.length != 2)
+        if (s1.length != 2) {
             throw new IllegalArgumentException(exceptionMessage);
+        }
         String[] s2 = s1[1].split("/");
-        if (s2.length != 2)
+        if (s2.length != 2) {
             throw new IllegalArgumentException(exceptionMessage);
+        }
 
         ResourcePath path = new ResourcePath();
         path.namespace = s1[0].trim();
         path.kind = s2[0].trim();
         path.resourceName = s2[1].trim();
-        if (path.namespace.length() == 0 || path.kind.length() == 0 || path.resourceName.length() == 0)
+        if (path.namespace.length() == 0 || path.kind.length() == 0 || path.resourceName.length() == 0) {
             throw new IllegalArgumentException(exceptionMessage);
+        }
         return path;
     }
-
 
     public static ResourcePath fromMetadata(ResourceCondition resource) {
 
@@ -69,24 +75,22 @@ public class ResourcePath {
         return path;
     }
 
-
     @Override
     public String toString() {
         return ResourcePath.annotationFor(namespace, kind, resourceName);
     }
 
-
     @Override
     public boolean equals(Object obj) {
         ResourcePath p = obj instanceof ResourcePath ? (ResourcePath) obj : null;
-        if (p == null)
+        if (p == null) {
             return false;
+        }
 
         return namespace != null && namespace.equals(p.namespace)
                 && kind != null && kind.equals(p.kind)
                 && resourceName != null && resourceName.equals(p.resourceName);
     }
-
 
     @Override
     public int hashCode() {

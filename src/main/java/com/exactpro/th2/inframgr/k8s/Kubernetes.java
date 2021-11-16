@@ -16,8 +16,8 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.cr.*;
+import com.exactpro.th2.inframgr.util.cfg.K8sConfig;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
@@ -30,24 +30,30 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
-import io.fabric8.kubernetes.internal.KubernetesDeserializer;
 
 import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 
+import static io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind;
+
 public class Kubernetes implements Closeable {
 
     public static final String KIND_SECRET = "Secret";
+
     public static final String KIND_CONFIGMAP = "ConfigMap";
+
     public static final String KIND_INGRESS = "Ingress";
+
     public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
-    public static final String SECRET_TYPE_OPAQUE = "Opaque";
-    public static final String API_VERSION_V1 = "v1";
-    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
 
+    public static final String SECRET_TYPE_OPAQUE = "Opaque";
+
+    public static final String API_VERSION_V1 = "v1";
+
+    private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
 
     private final String namespacePrefix;
 
@@ -66,11 +72,13 @@ public class Kubernetes implements Closeable {
     }
 
     public String extractSchemaName(String namespaceName) {
-        if (!namespaceName.startsWith(namespacePrefix))
+        if (!namespaceName.startsWith(namespacePrefix)) {
             throw new IllegalArgumentException("Malformed namespace name");
+        }
         String schemaName = namespaceName.substring(namespacePrefix.length());
-        if (schemaName.equals(""))
+        if (schemaName.equals("")) {
             throw new IllegalArgumentException("Malformed namespace name");
+        }
         return schemaName;
     }
 
@@ -93,8 +101,8 @@ public class Kubernetes implements Closeable {
             List<T> customResources = customResourceList.getItems();
             boolean resourceUpdated = false;
 
-            if (customResources.size() > 0)
-                for (T k8sResource : customResources)
+            if (customResources.size() > 0) {
+                for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
@@ -105,6 +113,8 @@ public class Kubernetes implements Closeable {
                         resourceUpdated = true;
                         break;
                     }
+                }
+            }
 
             if (!resourceUpdated) {
 
@@ -164,11 +174,9 @@ public class Kubernetes implements Closeable {
         }
     }
 
-
     public void replaceCustomResource(RepositoryResource repoResource) throws ResourceNotFoundException {
         replaceCustomResource(repoResource, namespace);
     }
-
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> void replaceCustomResource(
             RepositoryResource repoResource,
@@ -184,8 +192,8 @@ public class Kubernetes implements Closeable {
             var customResourceList = operation.inNamespace(namespace).list();
             List<T> customResources = customResourceList.getItems();
 
-            if (customResources.size() > 0)
-                for (T k8sResource : customResources)
+            if (customResources.size() > 0) {
+                for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
                         k8sResource.setSpec(repoResource.getSpec());
@@ -197,6 +205,8 @@ public class Kubernetes implements Closeable {
                         cache.add(namespace, k8sResource);
                         return;
                     }
+                }
+            }
             throw new ResourceNotFoundException("Resource to replace does not exists");
 
         } finally {
@@ -204,36 +214,34 @@ public class Kubernetes implements Closeable {
         }
     }
 
-
     private <T extends K8sCustomResource, L extends CustomResourceList<T>> K8sCustomResource loadCustomResource(
             String namespace, ResourceType type, String name) {
         MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
-
     public K8sCustomResource loadCustomResource(ResourceType type, String name) {
         return loadCustomResource(namespace, type, name);
     }
 
-
-    public <T extends K8sCustomResource, L extends CustomResourceList<T>> Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
+    public <T extends K8sCustomResource,
+            L extends CustomResourceList<T>> Map<String,
+            K8sCustomResource> loadCustomResources(ResourceType type) {
 
         MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         var customResourceList = mixedOperation.inNamespace(namespace).list();
         List<T> customResources = customResourceList.getItems();
 
         Map<String, K8sCustomResource> resources = new HashMap<>();
-        for (K8sCustomResource k8sResource : customResources)
+        for (K8sCustomResource k8sResource : customResources) {
             resources.put(k8sResource.getMetadata().getName(), k8sResource);
+        }
         return resources;
     }
-
 
     public boolean deleteCustomResource(RepositoryResource repoResource) {
         return deleteCustomResource(repoResource, namespace);
     }
-
 
     public <T extends K8sCustomResource, L extends CustomResourceList<T>> boolean deleteCustomResource(
             RepositoryResource repoResource, String namespace) {
@@ -260,9 +268,11 @@ public class Kubernetes implements Closeable {
     public boolean existsNamespace() {
 
         NamespaceList list = client.namespaces().list();
-        for (Namespace ns : list.getItems())
-            if (ns.getMetadata().getName().equals(namespace))
+        for (Namespace ns : list.getItems()) {
+            if (ns.getMetadata().getName().equals(namespace)) {
                 return true;
+            }
+        }
         return false;
     }
 
@@ -294,7 +304,11 @@ public class Kubernetes implements Closeable {
     }
 
     public List<Secret> getDockerRegistrySecrets() {
-        return client.secrets().inNamespace("service").withField("type", "kubernetes.io/dockerconfigjson").list().getItems();
+        return client.secrets()
+                .inNamespace("service")
+                .withField("type", "kubernetes.io/dockerconfigjson")
+                .list()
+                .getItems();
     }
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
@@ -334,10 +348,14 @@ public class Kubernetes implements Closeable {
         }
     }
 
-    private SharedIndexInformer<K8sCustomResource> registerSharedInformerForCustomResource(ResourceEventHandler<K8sCustomResource> eventHandler,
-                                                                                           Class type) {
+    private SharedIndexInformer<K8sCustomResource> registerSharedInformerForCustomResource(
+            ResourceEventHandler<K8sCustomResource> eventHandler,
+            Class type) {
 
-        SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerFor(type, 0);
+        SharedIndexInformer<K8sCustomResource> customResourceInformer = informerFactory.sharedIndexInformerFor(
+                type,
+                0
+        );
 
         customResourceInformer.addEventHandler(new FilteringResourceEventHandler().wrap(eventHandler));
 
@@ -347,12 +365,16 @@ public class Kubernetes implements Closeable {
     public void registerCustomResourceSharedInformers(ResourceEventHandler eventHandler) {
         getInformerFactory();
 
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Box.k8sApiVersion(), ResourceType.Th2Box.kind(), Th2Box.Type.class);
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2CoreBox.k8sApiVersion(), ResourceType.Th2CoreBox.kind(), Th2CoreBox.Type.class);
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Dictionary.k8sApiVersion(), ResourceType.Th2Dictionary.kind(), Th2Dictionary.Type.class);
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Estore.k8sApiVersion(), ResourceType.Th2Estore.kind(), Th2Estore.Type.class);
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Mstore.k8sApiVersion(), ResourceType.Th2Mstore.kind(), Th2Mstore.Type.class);
-        KubernetesDeserializer.registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
+        registerCustomKind(ResourceType.Th2Box.k8sApiVersion(), ResourceType.Th2Box.kind(), Th2Box.Type.class);
+        registerCustomKind(
+                ResourceType.Th2CoreBox.k8sApiVersion(), ResourceType.Th2CoreBox.kind(), Th2CoreBox.Type.class
+        );
+        registerCustomKind(
+                ResourceType.Th2Dictionary.k8sApiVersion(), ResourceType.Th2Dictionary.kind(), Th2Dictionary.Type.class
+        );
+        registerCustomKind(ResourceType.Th2Estore.k8sApiVersion(), ResourceType.Th2Estore.kind(), Th2Estore.Type.class);
+        registerCustomKind(ResourceType.Th2Mstore.k8sApiVersion(), ResourceType.Th2Mstore.kind(), Th2Mstore.Type.class);
+        registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
 
         //Register informers for custom resources
         registerSharedInformerForCustomResource(eventHandler, Th2Box.Type.class);
@@ -383,8 +405,9 @@ public class Kubernetes implements Closeable {
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
         Map<String, Secret> map = new HashMap<>();
-        if (secrets != null)
+        if (secrets != null) {
             secrets.forEach(secret -> map.put(secret.getMetadata().getName(), secret));
+        }
         return map;
     }
 
@@ -403,15 +426,17 @@ public class Kubernetes implements Closeable {
     }
 
     private KubernetesClient client;
+
     private Map<String, MixedOperation> operations;
+
     private String namespace;
 
-    public Kubernetes(Config.K8sConfig config, String schemaName) {
+    public Kubernetes(K8sConfig config, String schemaName) {
 
         // if we are not using custom configutation, let fabric8 handle initialization
         this.namespacePrefix = config.getNamespacePrefix();
         this.namespace = formatNamespaceName(schemaName);
-        this._currentNamespace = new CurrentNamespace();
+        this.currentNamespace = new CurrentNamespace();
 
         if (!config.useCustomConfig()) {
             client = new DefaultKubernetesClient();
@@ -428,19 +453,21 @@ public class Kubernetes implements Closeable {
                 .withTrustCerts(config.ignoreInsecureHosts());
 
         // prioritize key & certificate data over files
-        if (config.getClientCertificate() != null && config.getClientCertificate().length() > 0)
+        if (config.getClientCertificate() != null && config.getClientCertificate().length() > 0) {
             configBuilder.withClientCertData(new String(
                     Base64.getEncoder().encode(config.getClientCertificate().getBytes()))
             );
-        else
+        } else {
             configBuilder.withClientCertFile(config.getClientCertificateFile());
+        }
 
-        if (config.getClientKey() != null && config.getClientKey().length() > 0)
+        if (config.getClientKey() != null && config.getClientKey().length() > 0) {
             configBuilder.withClientKeyData(new String(
                     Base64.getEncoder().encode(config.getClientKey().getBytes()))
             );
-        else
+        } else {
             configBuilder.withClientKeyFile(config.getClientKeyFile());
+        }
 
         client = new DefaultKubernetesClient(configBuilder.build());
         generateMixedOperations();
@@ -461,12 +488,10 @@ public class Kubernetes implements Closeable {
         return mapOf(client.secrets().inNamespace(namespace).list().getItems());
     }
 
-
     public Secret createOrReplaceSecret(Secret secret) {
         secret.getMetadata().setNamespace(namespace);
         return client.secrets().inNamespace(namespace).createOrReplace(secret);
     }
-
 
     public String getNamespaceName() {
         return namespace;
@@ -477,10 +502,10 @@ public class Kubernetes implements Closeable {
         client.close();
     }
 
-    private CurrentNamespace _currentNamespace;
+    private CurrentNamespace currentNamespace;
 
     public CurrentNamespace currentNamespace() {
-        return _currentNamespace;
+        return currentNamespace;
     }
 
     public void createOrRepaceIngress(Ingress ingress) {

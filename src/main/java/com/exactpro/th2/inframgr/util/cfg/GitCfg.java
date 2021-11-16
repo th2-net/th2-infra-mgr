@@ -15,12 +15,15 @@
  */
 
 package com.exactpro.th2.inframgr.util.cfg;
+
 import com.exactpro.th2.infrarepo.GitConfig;
 
-public class _GitConfig implements GitConfig {
+public class GitCfg implements GitConfig {
+
     private String remoteRepository;
 
     private String httpAuthUsername;
+
     private String httpAuthPassword;
 
     private boolean ignoreInsecureHosts;
@@ -30,6 +33,7 @@ public class _GitConfig implements GitConfig {
     private String privateKeyFile;
 
     private String privateKey;
+
     private byte[] privateKeyBytes;
 
     @Override
