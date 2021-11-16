@@ -27,7 +27,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EnableAutoConfiguration(exclude={CassandraAutoConfiguration.class})
+@EnableAutoConfiguration(exclude = {CassandraAutoConfiguration.class})
 public class InfraManagerApplication {
 
     public static void main(String[] args) {

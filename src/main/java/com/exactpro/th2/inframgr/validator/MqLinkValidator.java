@@ -38,6 +38,8 @@ class MqLinkValidator extends BoxesLinkValidator {
         var toBoxSpec = link.getTo();
 
         RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
+        RepositoryResource fromRes = schemaContext.getBox(fromBoxSpec.getBox());
+
 
         var fromContext = BoxLinkContext.builder()
                 .boxName(fromBoxSpec.getBox())
@@ -53,6 +55,8 @@ class MqLinkValidator extends BoxesLinkValidator {
                 .boxPinName(toBoxSpec.getPin())
                 .boxDirection(BoxDirection.to)
                 .connectionType(SchemaConnectionType.mq)
+                .linkedResource(fromRes)
+                .linkedPinName(fromBoxSpec.getPin())
                 .build();
 
         validate(fromContext, toContext, linkRes, link);
