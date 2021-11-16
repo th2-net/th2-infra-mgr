@@ -17,13 +17,19 @@
 package com.exactpro.th2.inframgr.statuswatcher;
 
 public class Condition {
+
     public static final String STATUS_TRUE = "True";
+
     public static final String STATUS_FALSE = "False";
+
     public static final String STATUS_UNKNOWN = "Unknown";
 
     private String type;
+
     private String status;
+
     private String lastUpdateTime;
+
     private String message;
 
     public String getLastUpdateTime() {

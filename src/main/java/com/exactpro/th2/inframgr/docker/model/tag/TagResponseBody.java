@@ -22,7 +22,9 @@ import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TagResponseBody {
+
     private String name;
+
     private List<String> tags;
 
     public String getName() {

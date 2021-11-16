@@ -27,18 +27,24 @@ import java.util.List;
 import java.util.Map;
 
 public class ResourceCondition {
+
     private static final String ANNOTATION_KEY = "th2.exactpro.com/antecedent";
+
     public static final String CONDITIONS = "conditions";
+
     public static final String PHASE = "phase";
 
     private String namespace;
+
     private String kind;
+
     private String name;
 
     private Map<String, Condition> conditions;
-    private Map<String, String> annotations;
-    private Status status;
 
+    private Map<String, String> annotations;
+
+    private Status status;
 
     public String getNamespace() {
         return namespace;
@@ -65,11 +71,11 @@ public class ResourceCondition {
     }
 
     public String getAntecedentAnnotation() {
-        if (annotations != null && annotations.containsKey(ANNOTATION_KEY))
+        if (annotations != null && annotations.containsKey(ANNOTATION_KEY)) {
             return annotations.get(ANNOTATION_KEY);
-        return  null;
+        }
+        return null;
     }
-
 
     public static ResourceCondition extractFrom(HasMetadata source) {
 
@@ -80,24 +86,22 @@ public class ResourceCondition {
         resource.annotations = source.getMetadata().getAnnotations();
         resource.conditions = new HashMap<>();
 
-        if (source instanceof Pod)
+        if (source instanceof Pod) {
             processPod((Pod) source, resource);
-
-        else if (source instanceof Deployment)
+        } else if (source instanceof Deployment) {
             processDeployment((Deployment) source, resource);
-
-        else if (source instanceof K8sCustomResource) {
-            if (source.getKind().equals("HelmRelease"))
+        } else if (source instanceof K8sCustomResource) {
+            if (source.getKind().equals("HelmRelease")) {
                 processHelmRelease((K8sCustomResource) source, resource);
-            else
+            } else {
                 processCustomResource((K8sCustomResource) source, resource);
-        }
-        else
+            }
+        } else {
             processResourceWithoutStatuses(source, resource);
+        }
 
         return resource;
     }
-
 
     private static void processPod(Pod pod, ResourceCondition resource) {
         Map<String, Condition> conditions = resource.getConditions();
@@ -110,35 +114,40 @@ public class ResourceCondition {
                 break;
             }
 
-            if (state.getWaiting() != null)
+            if (state.getWaiting() != null) {
                 if (aggregatedStatus == null || aggregatedStatus.value > Status.PENDING.value) {
                     aggregatedStatus = Status.PENDING;
                     continue;
                 }
+            }
 
             if (state.getTerminated() != null) {
-                Status terminationStatus = Integer.valueOf(0).equals(state.getTerminated().getExitCode()) ? Status.COMPLETE : Status.FAILED;
-                if (aggregatedStatus == null || aggregatedStatus.value > terminationStatus.value)
+                Status terminationStatus = Integer.valueOf(0).equals(state.getTerminated().getExitCode())
+                        ? Status.COMPLETE : Status.FAILED;
+                if (aggregatedStatus == null || aggregatedStatus.value > terminationStatus.value) {
                     aggregatedStatus = terminationStatus;
+                }
                 break;
             }
 
-            if (state.getRunning() != null)
+            if (state.getRunning() != null) {
                 if (aggregatedStatus == null || aggregatedStatus.value > Status.RUNNING.value) {
                     aggregatedStatus = Status.RUNNING;
                     continue;
                 }
+            }
 
             aggregatedStatus = Status.UNKNOWN;
             break;
         }
 
-        if (aggregatedStatus == null)
+        if (aggregatedStatus == null) {
             aggregatedStatus = Status.UNKNOWN;
+        }
         resource.setStatus(aggregatedStatus);
 
         if (pod.getStatus() != null && pod.getStatus().getConditions() != null) {
-            for (PodCondition pc: pod.getStatus().getConditions())
+            for (PodCondition pc : pod.getStatus().getConditions()) {
                 if (pc != null) {
                     Condition c = new Condition();
                     c.setType(pc.getType());
@@ -146,14 +155,14 @@ public class ResourceCondition {
                     c.setMessage(pc.getMessage());
                     conditions.put(c.getType(), c);
                 }
+            }
         }
     }
-
 
     private static void processDeployment(Deployment deployment, ResourceCondition resource) {
         Map<String, Condition> conditions = resource.getConditions();
         if (deployment.getStatus() != null && deployment.getStatus().getConditions() != null) {
-            for (DeploymentCondition dc: deployment.getStatus().getConditions())
+            for (DeploymentCondition dc : deployment.getStatus().getConditions()) {
                 if (dc != null) {
                     Condition c = new Condition();
                     c.setType(dc.getType());
@@ -161,6 +170,7 @@ public class ResourceCondition {
                     c.setMessage(dc.getMessage());
                     conditions.put(c.getType(), c);
                 }
+            }
         }
 
         Condition available = conditions.get("Available");
@@ -171,22 +181,21 @@ public class ResourceCondition {
 
         Condition progressing = conditions.get("Progressing");
         if (progressing != null) {
-            if (Condition.STATUS_TRUE.equals(progressing.getStatus()))
+            if (Condition.STATUS_TRUE.equals(progressing.getStatus())) {
                 resource.setStatus(Status.PENDING);
-            else if (Condition.STATUS_FALSE.equals(progressing.getStatus()))
+            } else if (Condition.STATUS_FALSE.equals(progressing.getStatus())) {
                 resource.setStatus(Status.FAILED);
-            else
+            } else {
                 resource.setStatus(Status.UNKNOWN);
+            }
             return;
         }
         resource.setStatus(Status.UNKNOWN);
     }
 
-
     private static void processResourceWithoutStatuses(HasMetadata source, ResourceCondition resource) {
         resource.setStatus(Status.RUNNING);
     }
-
 
     private static void processHelmRelease(K8sCustomResource customResource, ResourceCondition resource) {
         Map<String, Condition> conditions = resource.getConditions();
@@ -197,7 +206,7 @@ public class ResourceCondition {
 
             if (status.containsKey(CONDITIONS)) {
                 List crConditions = (List) ((Map) customResource.getStatus()).get(CONDITIONS);
-                for (var crc : crConditions)
+                for (var crc : crConditions) {
                     if (crc instanceof Map) {
                         Condition c = new Condition();
                         c.setType(safeToString(((Map<String, ?>) crc).get("type")));
@@ -205,10 +214,11 @@ public class ResourceCondition {
                         c.setMessage(safeToString(((Map<String, ?>) crc).get("message")));
                         conditions.put(c.getType(), c);
                     }
+                }
             }
 
             Object phase = status.get(PHASE);
-            if ( phase != null)
+            if (phase != null) {
                 switch (phase.toString()) {
 
                     case "Succeeded":
@@ -233,9 +243,9 @@ public class ResourceCondition {
                         resource.setStatus(Status.FAILED);
                         break;
                 }
+            }
         }
     }
-
 
     private static void processCustomResource(K8sCustomResource customResource, ResourceCondition resource) {
 
@@ -252,7 +262,7 @@ public class ResourceCondition {
 
             if (status.containsKey(CONDITIONS)) {
                 List crConditions = (List) ((Map) customResource.getStatus()).get(CONDITIONS);
-                for (var crc : crConditions)
+                for (var crc : crConditions) {
                     if (crc instanceof Map) {
                         Condition c = new Condition();
                         c.setType(safeToString(((Map<String, ?>) crc).get("type")));
@@ -260,6 +270,7 @@ public class ResourceCondition {
                         c.setMessage(safeToString(((Map<String, ?>) crc).get("message")));
                         conditions.put(c.getType(), c);
                     }
+                }
             }
 
             Object phase = status.get(PHASE);
@@ -279,10 +290,10 @@ public class ResourceCondition {
                 }
             }
         }
-        if (resource.getStatus() == null)
+        if (resource.getStatus() == null) {
             resource.setStatus(Status.UNKNOWN);
+        }
     }
-
 
     private static String safeToString(Object o) {
         return o == null ? null : o.toString();
@@ -297,10 +308,12 @@ public class ResourceCondition {
 
         private int value;
         private String text;
+
         Status(int value, String text) {
             this.value = value;
             this.text = text;
         }
+
         public int value() {
             return value;
         }

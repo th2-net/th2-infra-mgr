@@ -19,8 +19,11 @@ package com.exactpro.th2.inframgr.repository;
 import com.exactpro.th2.inframgr.SchemaEvent;
 
 public class RepositoryUpdateEvent extends SchemaEvent {
-    public static final String EVENT_TYPE="repositoryUpdate";
+
+    public static final String EVENT_TYPE = "repositoryUpdate";
+
     private String commitRef;
+
     private boolean syncingK8s;
 
     public RepositoryUpdateEvent(String branch, String commitRef) {

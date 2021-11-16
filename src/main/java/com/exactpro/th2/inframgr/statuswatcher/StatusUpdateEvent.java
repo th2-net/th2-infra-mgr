@@ -21,13 +21,17 @@ import com.exactpro.th2.inframgr.SchemaEvent;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StatusUpdateEvent extends SchemaEvent {
-    public static final String EVENT_TYPE="statusUpdate";
+
+    public static final String EVENT_TYPE = "statusUpdate";
 
     private String kind;
+
     private String name;
+
     private String status;
 
     private static volatile AtomicInteger counter = new AtomicInteger();
+
     private int eventId;
 
     private StatusUpdateEvent(String schema) {
@@ -69,12 +73,16 @@ public class StatusUpdateEvent extends SchemaEvent {
         return status;
     }
 
-
     public static class Builder {
+
         String schema;
+
         String name;
+
         String kind;
+
         String status;
+
         public Builder(String schema) {
             this.schema = schema;
         }
@@ -95,8 +103,9 @@ public class StatusUpdateEvent extends SchemaEvent {
         }
 
         public StatusUpdateEvent build() {
-            if (schema == null || kind == null || name == null)
+            if (schema == null || kind == null || name == null) {
                 throw new IllegalStateException("Event is not full described");
+            }
 
             StatusUpdateEvent event = new StatusUpdateEvent(schema);
             event.kind = kind;

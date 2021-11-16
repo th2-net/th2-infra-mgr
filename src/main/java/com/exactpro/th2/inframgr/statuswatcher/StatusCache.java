@@ -33,9 +33,13 @@ import java.util.*;
 public class StatusCache {
 
     private NamespaceResources resources;
+
     private Map<ResourcePath, Set<ResourcePath>> dependencies;
+
     private Map<ResourcePath, ResourcePath> dependents;
+
     private SchemaEventRouter eventRouter;
+
     private Kubernetes kube;
 
     private static final Logger logger = LoggerFactory.getLogger(StatusCache.class);
@@ -47,7 +51,6 @@ public class StatusCache {
         eventRouter = SchemaEventRouter.getInstance();
     }
 
-
     private synchronized void update(ResourceCondition resource, String schema, Action action) {
 
         try {
@@ -55,8 +58,9 @@ public class StatusCache {
             ResourceType type = ResourceType.forKind(path.getKind());
 
             boolean isSchemaElement = false;
-            if (type!= null && type.isK8sResource() && !type.equals(ResourceType.HelmRelease))
+            if (type != null && type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
                 isSchemaElement = true;
+            }
 
             ResourcePath annotationPath = null;
             switch (action) {
@@ -76,10 +80,11 @@ public class StatusCache {
                     resources.remove(path);
             }
 
-            if (isSchemaElement)
+            if (isSchemaElement) {
                 sendUpdateEvent(path, schema);
-            else
+            } else {
                 sendUpdateEvent(annotationPath, schema);
+            }
 
         } catch (IllegalArgumentException ignored) {
             // ignoring resources whose annotations can not be properly decoded
@@ -87,34 +92,34 @@ public class StatusCache {
         }
     }
 
-
     public synchronized List<StatusUpdateEvent> getStatuses(String schema) {
 
         List<StatusUpdateEvent> events = new ArrayList<>();
 
         String namespace = kube.formatNamespaceName(schema);
         List<ResourceCondition> schemaElements = resources.getSchemaElements(namespace);
-        if (schemaElements == null)
+        if (schemaElements == null) {
             return null;
+        }
 
-        for (ResourceCondition resource: schemaElements)
-           events.add(new StatusUpdateEvent.Builder(schema)
-                       .withKind(resource.getKind())
-                       .withResourceName(resource.getName())
-                       .withStatus(calculateStatus(resource).toString())
-                       .build());
-
+        for (ResourceCondition resource : schemaElements) {
+            events.add(new StatusUpdateEvent.Builder(schema)
+                    .withKind(resource.getKind())
+                    .withResourceName(resource.getName())
+                    .withStatus(calculateStatus(resource).toString())
+                    .build());
+        }
         return events;
     }
 
-
-    public synchronized List<ResourceCondition> getResourceDependencyStatuses(String schema, String kind, String resourceName) {
+    public synchronized List<ResourceCondition> getResourceDependencyStatuses(String schema,
+                                                                              String kind,
+                                                                              String resourceName) {
 
         String namespace = kube.formatNamespaceName(schema);
         List<ResourceCondition> elements = resources.getResourceElements(namespace, kind, resourceName);
         return elements;
     }
-
 
     private ResourceCondition.Status calculateStatus(ResourceCondition resource) {
 
@@ -125,43 +130,46 @@ public class StatusCache {
 
         // if the resource does not have dependencies
         // return  resources status
-        if (components == null)
+        if (components == null) {
             return result;
+        }
 
         // find all pods for this component
         // and compute lowest status as a common status
         ResourceCondition.Status podsStatus = null;
-        for (ResourcePath p : components)
+        for (ResourcePath p : components) {
             if (p.getKind().equals("Pod")) {
                 ResourceCondition.Status status = resources.get(p).getStatus();
-                if (podsStatus == null || (podsStatus.value() > status.value()))
+                if (podsStatus == null || (podsStatus.value() > status.value())) {
                     podsStatus = status;
+                }
             }
-
+        }
         // assume pods status if pods were found
-        if (podsStatus != null)
+        if (podsStatus != null) {
             return podsStatus;
-
+        }
 
         // find helm release for this component
         ResourceCondition.Status helmStatus = null;
-        for (ResourcePath p : components)
+        for (ResourcePath p : components) {
             if (p.getKind().equals("HelmRelease")) {
                 helmStatus = resources.get(p).getStatus();
                 break;
             }
-        if (helmStatus != null)
+        }
+        if (helmStatus != null) {
             return helmStatus;
-
+        }
 
         return resource.getStatus();
     }
 
-
     private void sendUpdateEvent(ResourcePath path, String schema) {
         ResourceCondition resource = resources.get(path);
-        if (resource == null)
+        if (resource == null) {
             return;
+        }
 
         eventRouter.addEvent(new StatusUpdateEvent.Builder(schema)
                 .withKind(path.getKind())
@@ -170,24 +178,22 @@ public class StatusCache {
                 .build());
     }
 
-
     private void index(ResourcePath annotationPath, ResourcePath resourcePath) {
         Set<ResourcePath> bucket = dependencies.computeIfAbsent(annotationPath, k -> new HashSet<>());
         bucket.add(resourcePath);
         dependents.put(resourcePath, annotationPath);
     }
 
-
     private void unindex(ResourcePath resourcePath) {
         ResourcePath path = dependents.get(resourcePath);
         dependents.remove(resourcePath);
         if (path != null) {
             Set<ResourcePath> bucket = dependencies.get(path);
-            if (bucket != null)
+            if (bucket != null) {
                 bucket.remove(resourcePath);
+            }
         }
     }
-
 
     @PostConstruct
     public void start() throws Exception {

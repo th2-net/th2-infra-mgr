@@ -38,11 +38,10 @@ class NamespaceResources {
 
     void remove(ResourcePath path) {
         TypedResources resources = cache.get(path.getNamespace());
-        if (resources != null)
+        if (resources != null) {
             resources.remove(path);
+        }
     }
-
-
 
     public static class TypedResources {
         Map<String, Resources> cache = new HashMap<>();
@@ -59,12 +58,11 @@ class NamespaceResources {
 
         void remove(ResourcePath path) {
             Resources resources = cache.get(path.getKind());
-            if (resources != null)
+            if (resources != null) {
                 resources.remove(path);
+            }
         }
     }
-
-
 
     public static class Resources {
         Map<String, ResourceCondition> cache = new HashMap<>();
@@ -83,40 +81,46 @@ class NamespaceResources {
         }
     }
 
-
     public List<ResourceCondition> getSchemaElements(String namespace) {
 
         TypedResources typedResources = cache.get(namespace);
-        if (typedResources == null)
+        if (typedResources == null) {
             return null;
+        }
 
         List<ResourceCondition> elements = new ArrayList<>();
-        for (ResourceType type : ResourceType.values())
+        for (ResourceType type : ResourceType.values()) {
             if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
                 Resources resources = typedResources.cache.get(type.kind());
-                if (resources == null)
+                if (resources == null) {
                     continue;
-                for (ResourceCondition resource: resources.cache.values())
+                }
+                for (ResourceCondition resource : resources.cache.values()) {
                     elements.add(resource);
+                }
             }
+        }
         return elements;
     }
-
 
     public List<ResourceCondition> getResourceElements(String namespace, String kind, String resourceName) {
 
         TypedResources typedResources = cache.get(namespace);
-        if (typedResources == null)
+        if (typedResources == null) {
             return null;
+        }
 
         String annotation = ResourcePath.annotationFor(namespace, kind, resourceName);
         List<ResourceCondition> elements = new ArrayList<>();
 
-        for (Resources resources : typedResources.cache.values())
-            for (ResourceCondition resource: resources.cache.values())
+        for (Resources resources : typedResources.cache.values()) {
+            for (ResourceCondition resource : resources.cache.values()) {
                 if ((resource.getKind().equals(kind) && resource.getName().equals(resourceName))
-                        || annotation.equals(resource.getAntecedentAnnotation()))
-                elements.add(resource);
+                        || annotation.equals(resource.getAntecedentAnnotation())) {
+                    elements.add(resource);
+                }
+            }
+        }
 
         return elements;
     }

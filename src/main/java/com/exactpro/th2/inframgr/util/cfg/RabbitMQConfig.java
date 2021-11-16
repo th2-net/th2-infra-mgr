@@ -19,11 +19,16 @@ package com.exactpro.th2.inframgr.util.cfg;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class _RabbitMQConfig {
+public class RabbitMQConfig {
+
     private String secret = "rabbitmq";
+
     private String vhostPrefix;
+
     private String usernamePrefix;
+
     private Integer passwordLength = 16;
+
     private String passwordChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     public String getSecret() {
@@ -31,8 +36,9 @@ public class _RabbitMQConfig {
     }
 
     public void setSecret(String secret) {
-        if (secret != null)
+        if (secret != null) {
             this.secret = secret;
+        }
     }
 
     public String getVhostPrefix() {
@@ -56,8 +62,9 @@ public class _RabbitMQConfig {
     }
 
     public void setPasswordLength(Integer passwordLength) {
-        if (passwordLength != null)
+        if (passwordLength != null) {
             this.passwordLength = passwordLength;
+        }
     }
 
     public String getPasswordChars() {
@@ -65,7 +72,8 @@ public class _RabbitMQConfig {
     }
 
     public void setPasswordChars(String passwordChars) {
-        if (passwordChars != null)
+        if (passwordChars != null) {
             this.passwordChars = passwordChars.trim();
+        }
     }
 }

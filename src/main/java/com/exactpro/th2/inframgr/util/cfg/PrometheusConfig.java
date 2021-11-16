@@ -14,35 +14,25 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.models;
+package com.exactpro.th2.inframgr.util.cfg;
 
-import java.util.HashMap;
-import java.util.Map;
+public class PrometheusConfig {
 
-public enum RequestOperation {
-    add("add"),
-    update("update"),
-    remove("remove");
+    private String host;
 
-    private String type;
+    private int port;
 
-    RequestOperation(String type) {
-        this.type = type;
+    private boolean enabled;
+
+    public String getHost() {
+        return host;
     }
 
-    public String type() {
-        return type;
+    public int getPort() {
+        return port;
     }
 
-    public static RequestOperation forType(String type) {
-        return types.get(type);
-    }
-
-    private static Map<String, RequestOperation> types = new HashMap<>();
-
-    static {
-        for (RequestOperation t : RequestOperation.values()) {
-            types.put(t.type(), t);
-        }
+    public boolean isEnabled() {
+        return enabled;
     }
 }

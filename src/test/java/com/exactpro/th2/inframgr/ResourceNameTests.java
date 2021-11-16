@@ -28,7 +28,7 @@ class ResourceNameTests {
     }
 
     @Test
-    void TestValidNames() {
+    void testValidNames() {
         String[] names = new String[]{
                 "test-123-ds",
                 "test-123",
@@ -37,13 +37,13 @@ class ResourceNameTests {
                 "a-b-74-5",
                 "n"
         };
-        for (String name: names) {
-            assertTrue(K8sCustomResource.isNameValid(name),  name);
+        for (String name : names) {
+            assertTrue(K8sCustomResource.isNameValid(name), name);
         }
     }
 
     @Test
-    void TestInvalidValidNames() {
+    void testInvalidValidNames() {
         String[] names = new String[]{
                 "-test-123-ds",
                 "test-123-",
@@ -53,20 +53,21 @@ class ResourceNameTests {
                 "-",
                 ""
         };
-        for (String name: names) {
-            assertFalse(K8sCustomResource.isNameValid(name),  name);
+        for (String name : names) {
+            assertFalse(K8sCustomResource.isNameValid(name), name);
         }
     }
 
     @Test
-    void TestLongNames() {
+    void testLongNames() {
 
         String barelyLegal = "";
-        for (int i = 1; i < K8sCustomResource.RESOURCE_NAME_MAX_LENGTH ; i++)
+        for (int i = 1; i < K8sCustomResource.RESOURCE_NAME_MAX_LENGTH; i++) {
             barelyLegal += 'x';
+        }
         String illegal = barelyLegal + 'x';
 
-        assertTrue(K8sCustomResource.isNameValid(barelyLegal),  barelyLegal);
-        assertFalse(K8sCustomResource.isNameValid(illegal),  illegal);
+        assertTrue(K8sCustomResource.isNameValid(barelyLegal), barelyLegal);
+        assertFalse(K8sCustomResource.isNameValid(illegal), illegal);
     }
 }

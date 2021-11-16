@@ -34,13 +34,15 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
 
-
 @Controller
 public class DescriptorController {
+
     private static final String PROTOBUF_DESCRIPTOR = "protobuf-description-base64";
 
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+
     private static final String REGISTRY_ERROR = "DOCKER_REGISTRY_ERROR";
+
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
@@ -84,6 +86,7 @@ public class DescriptorController {
 
     private static class Response {
         private final String descriptor;
+
         private final String content;
 
         public Response(String descriptor, String content) {

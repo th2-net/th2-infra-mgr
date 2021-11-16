@@ -22,6 +22,7 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -42,8 +43,11 @@ import java.util.Set;
 public class SchemaController {
 
     public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
+
     public static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
+
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+
     private static final String SOURCE_BRANCH = "master";
 
     private final Logger logger = LoggerFactory.getLogger(SchemaController.class);
@@ -66,10 +70,11 @@ public class SchemaController {
     @ResponseBody
     public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) throws Exception {
 
-        if (schemaName.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
+        }
 
-        Config.GitConfig gitConfig = Config.getInstance().getGit();
+        GitCfg gitConfig = Config.getInstance().getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
         final Gitter gitter = ctx.getGitter(schemaName);
         try {
@@ -89,14 +94,16 @@ public class SchemaController {
     @ResponseBody
     public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) throws Exception {
 
-        if (schemaName.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
+        }
 
-        if (!K8sCustomResource.isSchemaNameValid(schemaName))
+        if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+        }
 
         Config config = Config.getInstance();
-        Config.GitConfig gitConfig = config.getGit();
+        GitCfg gitConfig = config.getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
 
         // check if the schema already exists
@@ -106,8 +113,9 @@ public class SchemaController {
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
-        if (branches.contains(schemaName))
+        if (branches.contains(schemaName)) {
             throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
+        }
 
         // create schema
         final Gitter gitter = ctx.getGitter(schemaName);
@@ -139,11 +147,13 @@ public class SchemaController {
 
     @PostMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName, @RequestBody String requestBody)
-        throws Exception {
+    public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName,
+                                                 @RequestBody String requestBody
+    ) throws Exception {
 
-        if (schemaName.equals(SOURCE_BRANCH))
+        if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
+        }
 
         // deserialize request body
         List<RequestEntry> operations;
@@ -158,7 +168,7 @@ public class SchemaController {
         validateResourceNames(operations);
 
         Config config = Config.getInstance();
-        Config.GitConfig gitConfig = config.getGit();
+        GitCfg gitConfig = config.getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
 
         // check if the schema exists
@@ -168,8 +178,9 @@ public class SchemaController {
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
-        if (!branches.contains(schemaName))
+        if (!branches.contains(schemaName)) {
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
+        }
 
         // apply updates
         try {
@@ -190,7 +201,8 @@ public class SchemaController {
                 SchemaEventRouter router = SchemaEventRouter.getInstance();
                 RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
                 RepositorySettings rs = snapshot.getRepositorySettings();
-                event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied() || rs.isK8sSynchronizationRequired())));
+                event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
+                        || rs.isK8sSynchronizationRequired())));
                 router.addEvent(event);
             }
             return new SchemaControllerResponse(snapshot);
@@ -206,7 +218,7 @@ public class SchemaController {
 
         String branchName = gitter.getBranch();
         try {
-            for (RequestEntry entry : operations)
+            for (RequestEntry entry : operations) {
                 switch (entry.getOperation()) {
                     case add:
                         Repository.add(gitter, entry.getPayload().toRepositoryResource());
@@ -218,6 +230,7 @@ public class SchemaController {
                         Repository.remove(gitter, entry.getPayload().toRepositoryResource());
                         break;
                 }
+            }
             return gitter.commitAndPush("schema update");
 
         } catch (InconsistentRepositoryStateException irse) {
@@ -225,7 +238,7 @@ public class SchemaController {
             // discard local cache and re-download repository
             logger.error("Inconsistent repository state exception for branch \"{}\"", branchName, irse);
 
-            ServiceException se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, irse.getMessage());
+            var se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, irse.getMessage());
             se.addSuppressed(irse);
 
             try {
@@ -253,9 +266,9 @@ public class SchemaController {
             if (!K8sCustomResource.isNameValid(resourceName)) {
                 logger.error("Invalid resource name: \"{}\"", resourceName);
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
-                    "Invalid resource name : \"%s\" (%s)"
-                    , entry.getPayload().getName()
-                    , entry.getPayload().getKind().kind()
+                        "Invalid resource name : \"%s\" (%s)"
+                        , entry.getPayload().getName()
+                        , entry.getPayload().getKind().kind()
                 ));
             }
 

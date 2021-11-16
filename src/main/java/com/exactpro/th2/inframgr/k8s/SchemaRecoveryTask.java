@@ -25,9 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SchemaRecoveryTask implements RetryableTask {
+
     private static final Logger logger = LoggerFactory.getLogger(SchemaRecoveryTask.class);
 
     private final String schema;
+
     private static final int RETRY_DELAY_SEC = 60;
 
     public SchemaRecoveryTask(String schema) {
@@ -52,7 +54,7 @@ public class SchemaRecoveryTask implements RetryableTask {
             Kubernetes kube = new Kubernetes(config.getKubernetes(), schema);
             Namespace namespace = kube.getNamespace(kube.getNamespaceName());
 
-            if (namespace != null && !namespace.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE))
+            if (namespace != null && !namespace.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {
                 // namespace is still unavailable for operations
                 // throw exception to trigger retry
                 throw new IllegalStateException(
@@ -62,7 +64,7 @@ public class SchemaRecoveryTask implements RetryableTask {
                                 , namespace.getStatus().getPhase()
                         )
                 );
-
+            }
 
             // namespace not found or is marked as active
             // send synchronization request

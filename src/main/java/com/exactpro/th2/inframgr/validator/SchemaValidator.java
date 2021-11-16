@@ -42,9 +42,11 @@ public class SchemaValidator {
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
-    protected static final Logger logger = LoggerFactory.getLogger(SchemaValidator.class);
+    private static final Logger logger = LoggerFactory.getLogger(SchemaValidator.class);
 
-    public static boolean validate(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryMap, String commitRef) {
+    public static boolean validate(String schemaName,
+                                   Map<String, Map<String, RepositoryResource>> repositoryMap,
+                                   String commitRef) {
         SchemaValidationTable schemaValidationTable = ValidationCache.getSchemaTable(schemaName);
         schemaValidationTable.reset();
         try {
@@ -95,7 +97,13 @@ public class SchemaValidator {
         Map<String, RepositoryResource> allBoxes = new HashMap<>(boxes);
         allBoxes.putAll(coreBoxes);
 
-        SchemaContext schemaContext = new SchemaContext(schemaName, commitRef, allBoxes, dictionaries, schemaValidationTable);
+        SchemaContext schemaContext = new SchemaContext(
+                schemaName,
+                commitRef,
+                allBoxes,
+                dictionaries,
+                schemaValidationTable
+        );
 
         MqLinkValidator mqLinkValidator = new MqLinkValidator(schemaContext);
         GrpcLinkValidator grpcLinkValidator = new GrpcLinkValidator(schemaContext);
@@ -132,7 +140,6 @@ public class SchemaValidator {
         return (Map<String, Object>) spec.get(customConfigAlias);
     }
 
-
     public static Set<String> generateSecretsConfig(Map<String, Object> customConfig) {
         Set<String> collector = new HashSet<>();
         CustomLookup customLookup = new CustomLookup(collector);
@@ -142,7 +149,7 @@ public class SchemaValidator {
                                 "secret_path", customLookup
                         ), null, false
                 ));
-        if(customConfig == null){
+        if (customConfig == null) {
             return Collections.emptySet();
         }
         for (var entry : customConfig.entrySet()) {
@@ -159,9 +166,9 @@ public class SchemaValidator {
 
     static class CustomLookup implements StringLookup {
 
-        private Set<String> collector ;
+        private Set<String> collector;
 
-        public CustomLookup(Set<String> collector ) {
+        public CustomLookup(Set<String> collector) {
             this.collector = collector;
         }
 

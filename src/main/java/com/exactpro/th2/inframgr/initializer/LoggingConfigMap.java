@@ -18,7 +18,6 @@ package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import org.slf4j.Logger;
@@ -27,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Map;
 
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
 
 public class LoggingConfigMap {
@@ -38,11 +38,15 @@ public class LoggingConfigMap {
     private static final String LOGGING_CONFIGMAP_NAME_IN_NAMESPACE = "logging-config";
 
     private static final String TH2_LOGGING_JSON_KEY = "logLevelTh2";
+
     private static final String ROOT_LOGGING_JSON_KEY = "logLevelRoot";
 
     private static final String LOGGING_CXX_PATH_SUBSTRING = "${LOGLEVEL_CXX}";
+
     private static final String LOGGING_JAVA_PATH_SUBSTRING = "${LOGLEVEL_JAVA}";
+
     private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
+
     private static final String LOGGING_ROOT_PATH_SUBSTRING = "${LOGLEVEL_ROOT}";
 
     private static final Map<String, String> pythonMap = Map.of(
@@ -56,21 +60,29 @@ public class LoggingConfigMap {
             "OFF", "CRITICAL"
     );
 
-    public static void checkLoggingConfigMap(RepositoryResource resource, String logLevelRoot, String logLevelTh2, Kubernetes kube) throws IOException {
+    public static void checkLoggingConfigMap(RepositoryResource resource,
+                                             String logLevelRoot,
+                                             String logLevelTh2,
+                                             Kubernetes kube) throws IOException {
         if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
             copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, true);
         }
     }
 
-    public static void copyLoggingConfigMap(String logLevelRoot, String logLevelTh2, Kubernetes kube) throws IOException {
+    public static void copyLoggingConfigMap(String logLevelRoot,
+                                            String logLevelTh2,
+                                            Kubernetes kube) throws IOException {
         copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, false);
     }
 
-    public static void copyLoggingConfigMap(String logLevelRoot, String logLevelTh2, Kubernetes kube, boolean forceUpdate) throws IOException {
-
+    public static void copyLoggingConfigMap(String logLevelRoot,
+                                            String logLevelTh2,
+                                            Kubernetes kube,
+                                            boolean forceUpdate) throws IOException {
         String configMapName = getLoggingConfigMapName();
-        if (configMapName == null || configMapName.isEmpty())
+        if (configMapName == null || configMapName.isEmpty()) {
             return;
+        }
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null) {
@@ -79,7 +91,7 @@ public class LoggingConfigMap {
         }
 
         String namespace = kube.getNamespaceName();
-        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, LOGGING_CONFIGMAP_NAME_IN_NAMESPACE);
+        String resourceLabel = annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, LOGGING_CONFIGMAP_NAME_IN_NAMESPACE);
 
         ConfigMap configMap = kube.getConfigMap(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE);
         if (configMap != null && !forceUpdate) {
@@ -105,18 +117,18 @@ public class LoggingConfigMap {
             for (String key : cmData.keySet()) {
                 String data = cmData.get(key);
 
-                if (data.contains(LOGGING_ROOT_PATH_SUBSTRING))
+                if (data.contains(LOGGING_ROOT_PATH_SUBSTRING)) {
                     data = data.replace(LOGGING_ROOT_PATH_SUBSTRING, logLevelRoot);
-
-                if (data.contains(LOGGING_CXX_PATH_SUBSTRING))
+                }
+                if (data.contains(LOGGING_CXX_PATH_SUBSTRING)) {
                     data = data.replace(LOGGING_CXX_PATH_SUBSTRING, logLevelTh2);
-
-                if (data.contains(LOGGING_PYTHON_PATH_SUBSTRING))
+                }
+                if (data.contains(LOGGING_PYTHON_PATH_SUBSTRING)) {
                     data = data.replace(LOGGING_PYTHON_PATH_SUBSTRING, pythonMap.get(logLevelTh2));
-
-                if (data.contains(LOGGING_JAVA_PATH_SUBSTRING))
+                }
+                if (data.contains(LOGGING_JAVA_PATH_SUBSTRING)) {
                     data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevelTh2);
-
+                }
                 cmData.put(key, data);
             }
             cmData.put(TH2_LOGGING_JSON_KEY, logLevelTh2 + "\n");

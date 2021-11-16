@@ -31,9 +31,13 @@ import java.util.Map;
 public class ExceptionHandlerConfiguration {
 
     private static final String DEFAULT_KEY_STATUS = "status";
+
     private static final String DEFAULT_KEY_ERROR = "error";
+
     private static final String DEFAULT_KEY_ERRORS = "errors";
+
     private static final String DEFAULT_KEY_MESSAGE = "message";
+
     private static final String DEFAULT_KEY_PATH = "path";
 
     @Bean
@@ -41,10 +45,10 @@ public class ExceptionHandlerConfiguration {
         return new DefaultErrorAttributes() {
 
             @Override
-            public Map<String ,Object> getErrorAttributes(WebRequest webRequest, ErrorAttributeOptions options) {
+            public Map<String, Object> getErrorAttributes(WebRequest webRequest, ErrorAttributeOptions options) {
 
-                Map<String ,Object> defaultMap = super.getErrorAttributes(webRequest, options);
-                Map<String ,Object> errorAttributes = new LinkedHashMap<>();
+                Map<String, Object> defaultMap = super.getErrorAttributes(webRequest, options);
+                Map<String, Object> errorAttributes = new LinkedHashMap<>();
 
                 int statusCode = Integer.valueOf(defaultMap.get(DEFAULT_KEY_STATUS).toString());
                 errorAttributes.put(ErrorResponse.STATUS_CODE, statusCode);

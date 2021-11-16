@@ -20,8 +20,6 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.statuswatcher.ResourceCondition;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,10 +31,15 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
+
 @Controller
 public class PodController {
+
     private static final Logger logger = LoggerFactory.getLogger(PodController.class);
+
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     @Autowired
@@ -51,16 +54,16 @@ public class PodController {
 
         try {
             // check schema name against valid pattern
-            if (!K8sCustomResource.isSchemaNameValid(schemaName))
+            if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
+            }
 
             Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
-            for (ResourceCondition resource: statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
-
+            for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 if (resource.getKind().equals(Kubernetes.KIND_POD)) {
                     if (!kubernetes.deletePodWithName(resource.getName(), force)) {
                         logger.error("Could not delete pod \"{}\"",
-                                ResourcePath.annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
+                                annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
                     }
                 }
             }

@@ -23,11 +23,17 @@ import java.util.Map;
 
 public class K8sSynchronizationJobQueue {
     public static class Job {
+
         private String schema;
+
         private long creationTime;
+
         private long processingTime;
+
         private long completionTime;
+
         private int callId;
+
         public Job(String schema) {
             this.schema = schema;
             this.creationTime = System.currentTimeMillis();
@@ -42,8 +48,8 @@ public class K8sSynchronizationJobQueue {
         }
     }
 
-
     private LinkedHashMap<String, Job> jobQueue;
+
     private Map<String, Job> jobsInProgress;
 
     public K8sSynchronizationJobQueue() {
@@ -53,19 +59,22 @@ public class K8sSynchronizationJobQueue {
 
     public synchronized void addJob(Job job) {
 
-        if (!jobQueue.containsKey(job.schema))
+        if (!jobQueue.containsKey(job.schema)) {
             jobQueue.put(job.schema, job);
+        }
     }
 
     private volatile int callId = 0;
+
     public synchronized Job takeJob() {
         return takeJob(++callId);
     }
 
     private synchronized Job takeJob(int callId) {
 
-        if (jobQueue.isEmpty())
+        if (jobQueue.isEmpty()) {
             return null;
+        }
 
         Iterator<Job> iterator = jobQueue.values().iterator();
         Job job = iterator.next();
@@ -83,9 +92,10 @@ public class K8sSynchronizationJobQueue {
         // return it and  take another
         addJob(job);
 
-        if (job.callId == callId)
+        if (job.callId == callId) {
             // we have completed circle, no jobs can be taken at this point
             return null;
+        }
 
         job.callId = callId;
         return takeJob(callId);
@@ -93,9 +103,9 @@ public class K8sSynchronizationJobQueue {
 
     public synchronized Job completeJob(Job job) throws IllegalStateException {
 
-        if (!jobsInProgress.containsKey(job.schema))
+        if (!jobsInProgress.containsKey(job.schema)) {
             throw new IllegalStateException("Job \"" + job.schema + "\" was not found in active job list");
-
+        }
         jobsInProgress.remove(job.schema);
 
         job.completionTime = System.currentTimeMillis();

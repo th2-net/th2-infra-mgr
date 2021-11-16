@@ -22,11 +22,15 @@ import com.exactpro.th2.infrarepo.ResourceType;
 public class ResourceEntry {
 
     private ResourceType kind;
+
     private String name;
+
     private Object spec;
+
     private String hash;
 
     public ResourceEntry() {}
+
     public ResourceEntry(RepositoryResource resource) {
         this.kind = ResourceType.forKind(resource.getKind());
         this.name = resource.getMetadata().getName();

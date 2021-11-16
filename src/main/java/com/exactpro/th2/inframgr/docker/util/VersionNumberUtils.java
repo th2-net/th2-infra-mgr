@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class VersionNumberUtils {
+
     private static final String SPLIT_CHAR = "\\.";
 
     private VersionNumberUtils() {
@@ -56,7 +57,6 @@ public class VersionNumberUtils {
         }
         return current.tag;
     }
-
 
     private static TagObject compare(TagObject current, TagObject other) {
         if (current.integerParts.size() <= other.integerParts.size()) {
@@ -100,7 +100,9 @@ public class VersionNumberUtils {
     }
 
     private static class TagObject {
+
         private final String tag;
+
         private final List<Integer> integerParts;
 
         public TagObject(String tag, List<Integer> integerParts) {

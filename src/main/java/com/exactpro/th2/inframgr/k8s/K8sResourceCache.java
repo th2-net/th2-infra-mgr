@@ -27,7 +27,9 @@ public enum K8sResourceCache {
     INSTANCE;
 
     public static class CacheEntry {
+
         private boolean markedDeleted;
+
         private String hash;
 
         public boolean isMarkedAsDeleted() {
@@ -48,6 +50,7 @@ public enum K8sResourceCache {
     }
 
     private final Map<String, CacheEntry> cache = new HashMap<>();
+
     private final Map<String, Lock> locks = new HashMap<>();
 
     private String keyFor(String namespace, String type, String resourceName) {
@@ -87,8 +90,9 @@ public enum K8sResourceCache {
     public synchronized void remove(String namespace, String resourceType, String resourceName) {
 
         CacheEntry entry = get(namespace, resourceType, resourceName);
-        if (entry != null)
+        if (entry != null) {
             entry.markAsDeleted();
+        }
     }
 
     public synchronized Lock lockFor(String namespace, String resourceType, String resourceName) {

@@ -42,19 +42,24 @@ import java.util.concurrent.ForkJoinPool;
 public class SubscriptionController {
 
     private static final long SESSION_TIMEOUT = 60 * 1000;
+
     private final Logger logger = LoggerFactory.getLogger(SubscriptionController.class);
+
     private ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Autowired
     private StatusCache statusCache;
+
     private static final Map<String, EventSubscription> subscriptions = new ConcurrentHashMap<>();
+
     private static final ForkJoinPool pool = new ForkJoinPool(8);
 
     private static class EventSubscription {
+
         String schema;
+
         SseEmitter emitter;
     }
-
 
     private void sendEvent(SchemaEvent event, SseEmitter emitter, String subscriptionId) {
         try {
@@ -77,7 +82,6 @@ public class SubscriptionController {
         }
     }
 
-
     private void processEvent(SchemaEvent event) {
 
         // filter out and send event to all subscriptions to this event schema
@@ -93,7 +97,6 @@ public class SubscriptionController {
         }
     }
 
-
     @PostConstruct
     public void startEventProcessor() {
 
@@ -107,7 +110,6 @@ public class SubscriptionController {
         });
     }
 
-
     private SseEmitter setupEmitter(String subscriptionId) {
         SseEmitter eventEmitter = new SseEmitter(SESSION_TIMEOUT);
 
@@ -118,12 +120,13 @@ public class SubscriptionController {
                 sub = subscriptions.remove(subscriptionId);
                 activeSubscriptions = subscriptions.size();
             }
-            if (sub != null)
+            if (sub != null) {
                 logger.info("Subscription \"{}\": Unsubscribed on thread \"{}\", {} active subscriptions left"
                         , subscriptionId
                         , Thread.currentThread().getName()
                         , activeSubscriptions
                 );
+            }
         });
         eventEmitter.onError(t -> {
             int activeSubscriptions;
@@ -132,21 +135,21 @@ public class SubscriptionController {
                 sub = subscriptions.remove(subscriptionId);
                 activeSubscriptions = subscriptions.size();
             }
-            if (sub != null)
+            if (sub != null) {
                 logger.error("Subscription \"{}\": Unsubscribed on thread \"{}\", {} active subscriptions left ({})"
                         , subscriptionId
                         , Thread.currentThread().getName()
                         , activeSubscriptions
                         , t.getMessage()
                 );
+            }
         });
 
         return eventEmitter;
     }
 
-
     @GetMapping("/subscriptions/schema/{name}")
-    public SseEmitter subscribe(@PathVariable(name="name") String schemaName) {
+    public SseEmitter subscribe(@PathVariable(name = "name") String schemaName) {
 
         // insert dummy subscription to generate unique subscription ID
         EventSubscription dummy = new EventSubscription();
@@ -161,13 +164,15 @@ public class SubscriptionController {
         // send current known deployment statuses
         try {
             List<StatusUpdateEvent> statusUpdateEvents = statusCache.getStatuses(schemaName);
-            if (statusUpdateEvents != null)
-                for (StatusUpdateEvent event : statusUpdateEvents)
+            if (statusUpdateEvents != null) {
+                for (StatusUpdateEvent event : statusUpdateEvents) {
                     eventEmitter.send(SseEmitter.event()
                             .name(event.getEventType())
                             .data(event.getEventBody())
                             .id(event.getEventKey())
                     );
+                }
+            }
         } catch (IOException e) {
             logger.warn("Subscription \"{}\": exception sending component statuses on thread \"{}\" ({})"
                     , subscriptionId

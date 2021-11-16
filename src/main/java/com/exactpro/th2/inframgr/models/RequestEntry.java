@@ -17,7 +17,9 @@
 package com.exactpro.th2.inframgr.models;
 
 public class RequestEntry {
+
     private RequestOperation operation;
+
     private ResourceEntry payload;
 
     public RequestOperation getOperation() {

@@ -19,19 +19,32 @@ package com.exactpro.th2.inframgr.util.cfg;
 import java.util.Map;
 import java.util.Set;
 
-public class _K8sConfig {
+public class K8sConfig {
+
     private boolean useCustomConfig;
+
     private String masterURL;
+
     private String defaultNamespace;
+
     private String apiVersion;
+
     private boolean ignoreInsecureHosts;
+
     private String clientCertificateFile;
+
     private String clientKeyFile;
+
     private String clientCertificate;
+
     private String clientKey;
+
     private String ingress;
+
     private Set<String> secretNames;
+
     private Map<String, String> configMaps;
+
     private String namespacePrefix;
 
     public boolean useCustomConfig() {

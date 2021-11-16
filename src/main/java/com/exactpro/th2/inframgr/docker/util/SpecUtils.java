@@ -21,7 +21,9 @@ import java.util.Map;
 public class SpecUtils {
 
     private static final String IMAGE_NAME_ALIAS = "image-name";
+
     private static final String IMAGE_VERSION_ALIAS = "image-version";
+
     private static final String VERSION_RANGE_ALIAS = "version-range";
 
     private SpecUtils() {

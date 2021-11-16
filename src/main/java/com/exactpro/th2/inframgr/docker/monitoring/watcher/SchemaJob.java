@@ -36,15 +36,23 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class SchemaJob implements Runnable {
+
     private static final Logger logger = LoggerFactory.getLogger(SchemaJob.class);
 
     private final Collection<DynamicResource> dynamicResources;
+
     private final List<UpdatedResource> updatedResources;
+
     private final RegistryConnection connection;
+
     private final Gitter gitter;
+
     private final String schema;
 
-    public SchemaJob(Collection<DynamicResource> dynamicResources, RegistryConnection connection, Gitter gitter, String schema) {
+    public SchemaJob(Collection<DynamicResource> dynamicResources,
+                     RegistryConnection connection,
+                     Gitter gitter,
+                     String schema) {
         this.dynamicResources = dynamicResources;
         this.updatedResources = new ArrayList<>();
         this.connection = connection;
@@ -117,7 +125,9 @@ public class SchemaJob implements Runnable {
     }
 
     static class UpdatedResource {
+
         private final String name;
+
         private final String latestVersion;
 
         public UpdatedResource(String name, String latestVersion) {
