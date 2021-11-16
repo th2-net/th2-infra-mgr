@@ -17,7 +17,6 @@
 package com.exactpro.th2.inframgr.validator.chain.impl;
 
 import com.exactpro.th2.inframgr.validator.chain.AbstractValidator;
-import com.exactpro.th2.inframgr.validator.enums.BoxDirection;
 import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 import com.exactpro.th2.inframgr.validator.model.BoxLinkContext;
 import com.exactpro.th2.inframgr.validator.model.PinSpec;
@@ -35,8 +34,6 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
 
     private final String linkedPinName;
 
-    private final BoxDirection boxDirection;
-
     private String mainAttributePrefix;
 
     private List<String> otherMatchingAttributePrefixes;
@@ -51,7 +48,6 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
     ) {
         this.linkedResource = context.getLinkedResource();
         this.linkedPinName = context.getLinkedPinName();
-        this.boxDirection = context.getBoxDirection();
 
         this.mainAttributePrefix = mainAttributePrefix;
 
@@ -89,9 +85,6 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
             return contradictingAttributesStatus;
         }
 
-        if (boxDirection == BoxDirection.to) {
-            return super.validate(object, additional);
-        }
         if (linkedResource == null) {
             return ValidationStatus.LINKED_RESOURCE_NOT_EXIST;
         }
