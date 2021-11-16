@@ -1,6 +1,5 @@
 plugins {
     id 'org.springframework.boot' version '2.3.2.RELEASE'
-    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
     id 'java'
     id 'checkstyle'
 }
@@ -9,7 +8,7 @@ group = 'com.exactpro.th2'
 version = release_version
 
 ext {
-    cradleVersion = '2.20.0'
+    cradleVersion = '2.19.3'
     fabricVersion = '5.9.0'
     infraRepoVersion = '1.1.0'
 }
@@ -42,6 +41,10 @@ checkstyle {
 }
 
 dependencies {
+    implementation platform('org.springframework.boot:spring-boot-dependencies:2.3.2.RELEASE') {
+        exclude group: 'com.datastax.oss'
+    }
+
     implementation "com.exactpro.th2:cradle-cassandra:${cradleVersion}"
     implementation "com.exactpro.th2:infra-repo:${infraRepoVersion}"
 

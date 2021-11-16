@@ -20,11 +20,14 @@ import com.exactpro.th2.inframgr.metrics.PrometheusServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableAutoConfiguration(exclude={CassandraAutoConfiguration.class})
 public class InfraManagerApplication {
 
     public static void main(String[] args) {
