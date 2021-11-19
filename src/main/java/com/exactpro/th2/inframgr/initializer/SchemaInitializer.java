@@ -16,11 +16,10 @@
 
 package com.exactpro.th2.inframgr.initializer;
 
-import com.exactpro.cradle.cassandra.CassandraCradleManager;
-import com.exactpro.cradle.cassandra.connection.CassandraConnection;
-import com.exactpro.cradle.cassandra.connection.CassandraConnectionSettings;
-import com.exactpro.cradle.cassandra.connection.NetworkTopologyStrategy;
-import com.exactpro.cradle.utils.CradleStorageException;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
@@ -39,15 +38,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.*;
 
-import static com.exactpro.cradle.cassandra.CassandraStorageSettings.DEFAULT_MAX_EVENT_BATCH_SIZE;
-import static com.exactpro.cradle.cassandra.CassandraStorageSettings.DEFAULT_MAX_MESSAGE_BATCH_SIZE;
+import static com.datastax.oss.driver.api.querybuilder.SchemaBuilder.createKeyspace;
 import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithAnnotation;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
-import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
-import static org.apache.commons.lang3.StringUtils.isNotEmpty;
+import static java.util.Collections.unmodifiableMap;
 
 public class SchemaInitializer {
 
@@ -270,56 +269,45 @@ public class SchemaInitializer {
     }
 
     private static void initializeKeyspace(CassandraConfig cassandraConfig, String keyspaceName) {
-        CassandraCradleManager manager = null;
+        CqlSession session;
         try {
-            CassandraConnectionSettings cassandraConnectionSettings = new CassandraConnectionSettings(
-                    cassandraConfig.getDataCenter(),
-                    cassandraConfig.getHost(),
-                    cassandraConfig.getPort(),
-                    keyspaceName
-            );
+            logger.info("Connecting to Cassandra");
+            session = CqlSession.builder()
+                    .addContactPoint(new InetSocketAddress(cassandraConfig.getHost(), cassandraConfig.getPort()))
+                    .withAuthCredentials(cassandraConfig.getUsername(), cassandraConfig.getPassword())
+                    .withLocalDatacenter(cassandraConfig.getDataCenter())
+                    .build();
 
-            String username = cassandraConfig.getUsername();
-            String password = cassandraConfig.getPassword();
-            int timeout = cassandraConfig.getTimeout();
-            int pageSize = cassandraConfig.getPageSize();
-            var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
+        } catch (Exception e) {
+            logger.error("Could not open Cassandra connection", e);
+            return;
+        }
 
-            if (isNotEmpty(username)) {
-                cassandraConnectionSettings.setUsername(username);
-            }
-            if (isNotEmpty(password)) {
-                cassandraConnectionSettings.setPassword(password);
-            }
-            if (timeout > 0) {
-                cassandraConnectionSettings.setTimeout(timeout);
-            }
-            if (pageSize > 0) {
-                cassandraConnectionSettings.setResultPageSize(pageSize);
-            }
-            if (!networkTopologyStrategy.isEmpty()) {
-                cassandraConnectionSettings.setNetworkTopologyStrategy(
-                        new NetworkTopologyStrategy(networkTopologyStrategy)
-                );
-            }
+        CreateKeyspace createKs;
+        var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
+        if (networkTopologyStrategy == null) {
+            createKs = createKeyspace(keyspaceName)
+                    .ifNotExists()
+                    .withSimpleStrategy(1);
+        } else {
+            createKs = createKeyspace(keyspaceName)
+                    .ifNotExists()
+                    .withNetworkTopologyStrategy(unmodifiableMap(networkTopologyStrategy));
+        }
 
-            manager = new CassandraCradleManager(new CassandraConnection(cassandraConnectionSettings));
-            manager.init(defaultIfBlank(cassandraConfig.getInstanceName(), DEFAULT_CRADLE_INSTANCE_NAME),
-                    true,
-                    cassandraConfig.getCradleMaxMessageBatchSize() > 0 ? cassandraConfig.getCradleMaxMessageBatchSize()
-                            : DEFAULT_MAX_MESSAGE_BATCH_SIZE,
-                    cassandraConfig.getCradleMaxEventBatchSize() > 0 ? cassandraConfig.getCradleMaxEventBatchSize()
-                            : DEFAULT_MAX_EVENT_BATCH_SIZE);
-        } catch (CradleStorageException | RuntimeException e) {
-            throw new RuntimeException("Cannot create Cradle manager", e);
-        } finally {
-            if (manager != null) {
-                try {
-                    manager.dispose();
-                } catch (Exception e) {
-                    logger.error("Failed to dispose Cradle manager", e);
-                }
+        try {
+            logger.info("Initializing keyspace");
+            String query = createKs.asCql();
+            SimpleStatement statement = SimpleStatement.newInstance(query)
+                    .setTimeout(Duration.ofMillis(cassandraConfig.getTimeout()));
+            ResultSet rs = session.execute(statement);
+            if (rs.wasApplied()) {
+                logger.info("Keyspace \"{}\" was created", keyspaceName);
+            } else {
+                logger.error("Couldn't crete keyspace \"{}\", query \"{}\" was not applied", keyspaceName, query);
             }
+        } catch (Exception e) {
+            logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
         }
     }
 
