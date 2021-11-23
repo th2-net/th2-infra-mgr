@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr.validator.chain.impl;
 
 import com.exactpro.th2.inframgr.validator.enums.MessageFormatAttribute;
+import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 import com.exactpro.th2.inframgr.validator.model.BoxLinkContext;
 
 import java.util.List;
@@ -32,7 +33,8 @@ public final class ExpectedParsedMessageAttr extends ExpectedMessageFormatAttr {
                         MessageFormatAttribute.event.getPrefix()
                 ),
                 //otherMatchingAttributePrefixes
-                List.of(MessageFormatAttribute.group.getPrefix())
+                List.of(MessageFormatAttribute.group.getPrefix()),
+                ValidationStatus.PARSED_MESSAGE_FORMAT_ATTR_MISMATCH
         );
     }
 }

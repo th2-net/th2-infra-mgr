@@ -21,6 +21,8 @@ import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 import com.exactpro.th2.inframgr.validator.model.link.DictionaryLink;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 
+import static java.lang.String.format;
+
 public class DictionaryLinkValidator {
     private SchemaContext schemaContext;
 
@@ -42,7 +44,7 @@ public class DictionaryLinkValidator {
                 schemaValidationTable.addValidDictionaryLink(linkResName, link);
                 return;
             }
-            String message = String.format("link: \"%s\" from: \"%s\" is invalid. Resource: \"%s:[%s]\"",
+            String message = format("link: \"%s\" from: \"%s\" is invalid and will be ignored. Resource: \"%s:[%s]\"",
                     link.getName(), linkResName, link.getDictionary().getName(), ValidationStatus.RESOURCE_NOT_EXIST);
             schemaValidationTable.setInvalid(linkResName);
             schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
