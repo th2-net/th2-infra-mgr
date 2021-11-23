@@ -23,6 +23,7 @@ import com.exactpro.th2.inframgr.validator.model.link.MessageLink;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 
 import static com.exactpro.th2.inframgr.validator.enums.ValidationStatus.VALID;
+import static java.lang.String.format;
 
 abstract class BoxesLinkValidator {
     protected SchemaContext schemaContext;
@@ -53,14 +54,14 @@ abstract class BoxesLinkValidator {
         }
         //check if "from" resource is valid
         if (!fromResValidationStatus.equals(VALID)) {
-            String message = String.format("link: \"%s\" from: \"%s\" is invalid. Resource: \"%s:[%s]\"",
+            String message = format("link: \"%s\" from: \"%s\" is invalid and will be ignored. Resource: \"%s:[%s]\"",
                     link.getName(), linkResName, link.getFrom().getBox(), fromResValidationStatus);
             //Mark "th2link" resource as invalid, since it contains invalid link
             schemaValidationTable.setInvalid(linkResName);
             schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
         }
         if (!toResValidationStatus.equals(VALID)) {
-            String message = String.format("link: \"%s\" from: \"%s\" is invalid. Resource: \"%s[%s]\"",
+            String message = format("link: \"%s\" from: \"%s\" is invalid and will be ignored. Resource: \"%s[%s]\"",
                     link.getName(), linkResName, link.getTo().getBox(), toResValidationStatus);
             //Mark "th2link" resource as invalid, since it contains invalid link
             schemaValidationTable.setInvalid(linkResName);

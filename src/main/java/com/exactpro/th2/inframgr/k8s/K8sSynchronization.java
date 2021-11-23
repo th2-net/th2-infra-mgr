@@ -83,7 +83,7 @@ public class K8sSynchronization {
             // validate schema links, remove invalid ones
             // validate secret custom config
             if (!SchemaValidator.validate(schemaName, repositoryResources, commitRef)) {
-                logger.warn("Schema \"{}\" contains errors.",
+                logger.warn("Schema \"{}\" contains errors. Invalid links will not be applied to cluster.",
                         schemaName);
                 ValidationCache.getSchemaTable(schemaName).printErrors();
             } else {

@@ -40,11 +40,14 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
 
     private List<String> contradictingAttributePrefixes;
 
+    private ValidationStatus attributeMismatchStatus;
+
     public ExpectedMessageFormatAttr(
             BoxLinkContext context,
             String mainAttributePrefix,
             List<String> contradictingAttributePrefixes,
-            List<String> otherMatchingAttributePrefixes
+            List<String> otherMatchingAttributePrefixes,
+            ValidationStatus attributeMismatchStatus
     ) {
         this.linkedResource = context.getLinkedResource();
         this.linkedPinName = context.getLinkedPinName();
@@ -53,6 +56,7 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
 
         this.otherMatchingAttributePrefixes = otherMatchingAttributePrefixes;
         this.contradictingAttributePrefixes = contradictingAttributePrefixes;
+        this.attributeMismatchStatus = attributeMismatchStatus;
     }
 
     @Override
@@ -128,7 +132,7 @@ public class ExpectedMessageFormatAttr extends AbstractValidator {
         if (linkedPin.getAttributes().contains(exactAttribute) || otherMatchingAttributes.size() > 0) {
             return ValidationStatus.VALID;
         }
-        return ValidationStatus.MESSAGE_FORMAT_ATTR_MISMATCH;
+        return attributeMismatchStatus;
 
     }
 }
