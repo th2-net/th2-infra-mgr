@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -97,7 +96,7 @@ public class CassandraConfig {
     }
 
     public Map<String, Integer> getNetworkTopologyStrategy() {
-        return networkTopologyStrategy == null ? new HashMap<>() : networkTopologyStrategy;
+        return networkTopologyStrategy;
     }
 
     @Override
