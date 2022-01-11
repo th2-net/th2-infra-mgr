@@ -20,9 +20,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
+import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_COMMIT_HASH;
 import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_SOURCE_HASH;
 
-public class SourceHashUtil {
+public class AnnotationUtils {
 
     public static String digest(String data) {
         try {
@@ -36,6 +37,11 @@ public class SourceHashUtil {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void stamp(Map<String, String> annotations, Map<String, String> cmData, String fullCommitHash) {
+        setSourceHash(annotations, cmData);
+        annotations.put(KEY_COMMIT_HASH, fullCommitHash);
     }
 
     public static void setSourceHash(Map<String, String> annotations, Map<String, String> data) {

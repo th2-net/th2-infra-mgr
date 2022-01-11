@@ -45,7 +45,7 @@ import java.util.*;
 import static com.datastax.oss.driver.api.querybuilder.SchemaBuilder.createKeyspace;
 import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithAnnotation;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
-import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
+import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 import static java.util.Collections.unmodifiableMap;
 
 public class SchemaInitializer {
