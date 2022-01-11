@@ -42,13 +42,13 @@ public class DescriptorExtractor {
         this.kube = kube;
     }
 
-    public String getImageDescriptor(String kind, String box, String descriptor) {
+    public String getImageDescriptor(String resName, String kind, String box, String descriptor) {
         K8sCustomResource resource = kube.loadCustomResource(ResourceType.forKind(kind), box);
         if (resource != null) {
             Object spec = resource.getSpec();
             String imageName = SpecUtils.getImageName(spec);
             String version = SpecUtils.getImageVersion(spec);
-            return getDescriptor(imageName, version, descriptor);
+            return getDescriptor(resName, imageName, version, descriptor);
         }
         String errorMessage = String.format("Couldn't find resource: \"%s\" on cluster",
                 ResourcePath.annotationFor(kube.getNamespaceName(), kind, box));
@@ -56,21 +56,21 @@ public class DescriptorExtractor {
         throw new ResourceNotFoundException(errorMessage);
     }
 
-    private String getDescriptor(String imageName, String version, String descriptor) {
-        Map<String, String> imageLabels = getImageLabels(imageName, version);
+    private String getDescriptor(String resName, String imageName, String version, String descriptor) {
+        Map<String, String> imageLabels = getImageLabels(resName, imageName, version);
         if (imageLabels == null) {
             return null;
         }
         return imageLabels.get(descriptor);
     }
 
-    private Map<String, String> getImageLabels(String imageName, String version) {
-        ImageManifestV2 manifest = connection.getImageManifest(imageName, version);
+    private Map<String, String> getImageLabels(String resName, String imageName, String version) {
+        ImageManifestV2 manifest = connection.getImageManifest(resName, imageName, version);
         if (manifest == null) {
             return null;
         }
         String digest = manifest.getConfig().getDigest();
-        Blob blob = connection.getBlob(imageName, digest);
+        Blob blob = connection.getBlob(resName, imageName, digest);
         if (blob == null) {
             return null;
         }

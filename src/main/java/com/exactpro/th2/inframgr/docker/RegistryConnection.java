@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr.docker;
 
+import com.exactpro.th2.inframgr.docker.descriptor.errors.InvalidImageNameFormatException;
 import com.exactpro.th2.inframgr.docker.descriptor.errors.RegistryRequestException;
 import com.exactpro.th2.inframgr.docker.model.schemav2.Blob;
 import com.exactpro.th2.inframgr.docker.model.schemav2.ImageManifestV2;
@@ -52,39 +53,39 @@ public class RegistryConnection {
         this.secrets = secrets;
     }
 
-    public List<String> getTags(String imageName) {
+    public List<String> getTags(String resName, String imageName) {
         String tagsUrl = "/tags/list";
         return requestTags(
                 toApiUrl(imageName, tagsUrl),
-                getAuthenticationDetails(imageName)
+                getAuthenticationDetails(resName, imageName)
         );
     }
 
-    public List<String> getTags(String imageName, int count) {
+    public List<String> getTags(String resName, String imageName, int count) {
         String tagsUrl = String.format("/tags/list?n=%d", count);
         return requestTags(
                 toApiUrl(imageName, tagsUrl),
-                getAuthenticationDetails(imageName)
+                getAuthenticationDetails(resName, imageName)
         );
     }
 
-    public List<String> getTags(String imageName, int count, String last) {
+    public List<String> getTags(String resName, String imageName, int count, String last) {
         String tagsUrl = String.format("/tags/list?n=%d&last=%s", count, last);
         return requestTags(toApiUrl(imageName, tagsUrl),
-                getAuthenticationDetails(imageName)
+                getAuthenticationDetails(resName, imageName)
         );
     }
 
-    public ImageManifestV2 getImageManifest(String imageName, String version) {
+    public ImageManifestV2 getImageManifest(String resName, String imageName, String version) {
         String manifestsUrl = String.format("/manifests/%s", version);
         return requestImageManifest(toApiUrl(imageName, manifestsUrl),
-                getAuthenticationDetails(imageName));
+                getAuthenticationDetails(resName, imageName));
     }
 
-    public Blob getBlob(String imageName, String digest) {
+    public Blob getBlob(String resName, String imageName, String digest) {
         String blobsUrl = String.format("/blobs/%s", digest);
         return requestBlobs(toApiUrl(imageName, blobsUrl),
-                getAuthenticationDetails(imageName));
+                getAuthenticationDetails(resName, imageName));
     }
 
     private List<String> requestTags(String url, RegistryCredentialLookup.RegistryCredentials authenticationDetails) {
@@ -149,13 +150,14 @@ public class RegistryConnection {
         return builder.build();
     }
 
-    private RegistryCredentialLookup.RegistryCredentials getAuthenticationDetails(String imageName) {
+    private RegistryCredentialLookup.RegistryCredentials getAuthenticationDetails(String resName, String imageName) {
         try {
             String registry = imageName.substring(0, imageName.indexOf(SLASH_CHAR));
             return secrets.get(registry);
         } catch (Exception e) {
-            logger.error("Invalid image format for \"{}\"", imageName);
-            throw e;
+            String message = String.format("Invalid image format \"%s\" in \"%s\"", imageName, resName);
+            logger.error(message);
+            throw new InvalidImageNameFormatException(message, e);
         }
     }
 

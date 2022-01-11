@@ -19,6 +19,7 @@ package com.exactpro.th2.inframgr;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.RegistryCredentialLookup;
 import com.exactpro.th2.inframgr.docker.descriptor.DescriptorExtractor;
+import com.exactpro.th2.inframgr.docker.descriptor.errors.InvalidImageNameFormatException;
 import com.exactpro.th2.inframgr.docker.descriptor.errors.RegistryRequestException;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
@@ -34,6 +35,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
 
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
+
 @Controller
 public class DescriptorController {
 
@@ -42,6 +45,8 @@ public class DescriptorController {
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     private static final String REGISTRY_ERROR = "DOCKER_REGISTRY_ERROR";
+
+    private static final String FORMATTING_ERROR = "INVALID_FORMAT";
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
@@ -69,9 +74,12 @@ public class DescriptorController {
             RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
             DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
-            descriptor = descriptorExtractor.getImageDescriptor(kind, box, PROTOBUF_DESCRIPTOR);
+            String resourceLabel = annotationFor(schemaName, kind, box);
+            descriptor = descriptorExtractor.getImageDescriptor(resourceLabel, kind, box, PROTOBUF_DESCRIPTOR);
         } catch (ResourceNotFoundException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e.getMessage());
+        } catch (InvalidImageNameFormatException e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, FORMATTING_ERROR, e.getMessage());
         } catch (RegistryRequestException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e.getMessage());
         } catch (Exception e) {
