@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static com.exactpro.th2.inframgr.initializer.SchemaInitializer.*;
-import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
+import static com.exactpro.th2.inframgr.util.AnnotationUtils.stamp;
 
 public class Th2BoxConfigurations {
 
@@ -44,15 +44,17 @@ public class Th2BoxConfigurations {
     public static void synchronizeBoxConfigMaps(Map<String, String> mqRouter,
                                                 Map<String, String> grpcRouter,
                                                 Map<String, String> cradleManager,
+                                                String fullCommitRef,
                                                 Kubernetes kube) throws IOException {
-        synchronizeConfigMap(MQ_ROUTER_CM_NAME, MQ_ROUTER_FILE_NAME, mqRouter, kube);
-        synchronizeConfigMap(GRPC_ROUTER_CM_NAME, GRPC_ROUTER_FILE_NAME, grpcRouter, kube);
-        synchronizeConfigMap(CRADLE_MANAGER_CM_NAME, CRADLE_MANAGER_FILE_NAME, cradleManager, kube);
+        synchronizeConfigMap(MQ_ROUTER_CM_NAME, MQ_ROUTER_FILE_NAME, mqRouter, fullCommitRef, kube);
+        synchronizeConfigMap(GRPC_ROUTER_CM_NAME, GRPC_ROUTER_FILE_NAME, grpcRouter, fullCommitRef, kube);
+        synchronizeConfigMap(CRADLE_MANAGER_CM_NAME, CRADLE_MANAGER_FILE_NAME, cradleManager, fullCommitRef, kube);
     }
 
     private static void synchronizeConfigMap(String configMapName,
                                              String fileName,
                                              Map<String, String> newData,
+                                             String fullCommitRef,
                                              Kubernetes kube) throws IOException {
         String namespace = kube.getNamespaceName();
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
@@ -81,7 +83,7 @@ public class Th2BoxConfigurations {
 
             data.put(fileName, newDataStr);
             configMap.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
-            setSourceHash(configMap.getMetadata().getAnnotations(), newData);
+            stamp(configMap.getMetadata().getAnnotations(), newData, fullCommitRef);
             kube.createOrReplaceConfigMap(configMap);
         } catch (Exception e) {
             logger.error("Exception Updating \"{}\"", resourceLabel, e);

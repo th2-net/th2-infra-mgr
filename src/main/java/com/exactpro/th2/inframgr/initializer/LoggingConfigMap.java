@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
-import static com.exactpro.th2.inframgr.util.SourceHashUtil.setSourceHash;
+import static com.exactpro.th2.inframgr.util.AnnotationUtils.stamp;
 
 public class LoggingConfigMap {
 
@@ -63,21 +63,24 @@ public class LoggingConfigMap {
     public static void checkLoggingConfigMap(RepositoryResource resource,
                                              String logLevelRoot,
                                              String logLevelTh2,
+                                             String fullCommitRef,
                                              Kubernetes kube) throws IOException {
         if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
-            copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, true);
+            copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, fullCommitRef, true);
         }
     }
 
     public static void copyLoggingConfigMap(String logLevelRoot,
                                             String logLevelTh2,
+                                            String fullCommitRef,
                                             Kubernetes kube) throws IOException {
-        copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, false);
+        copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, fullCommitRef, false);
     }
 
     public static void copyLoggingConfigMap(String logLevelRoot,
                                             String logLevelTh2,
                                             Kubernetes kube,
+                                            String fullCommitRef,
                                             boolean forceUpdate) throws IOException {
         String configMapName = getLoggingConfigMapName();
         if (configMapName == null || configMapName.isEmpty()) {
@@ -135,7 +138,7 @@ public class LoggingConfigMap {
             cmData.put(ROOT_LOGGING_JSON_KEY, logLevelRoot + "\n");
 
             cm.setMetadata(Kubernetes.createMetadataWithAnnotation(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE, resourceLabel));
-            setSourceHash(cm.getMetadata().getAnnotations(), cmData);
+            stamp(cm.getMetadata().getAnnotations(), cmData, fullCommitRef);
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
             logger.error("Exception copying \"{}\"", resourceLabel, e);

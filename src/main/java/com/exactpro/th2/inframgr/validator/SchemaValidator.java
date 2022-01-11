@@ -17,7 +17,7 @@
 package com.exactpro.th2.inframgr.validator;
 
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
-import com.exactpro.th2.inframgr.util.SourceHashUtil;
+import com.exactpro.th2.inframgr.util.AnnotationUtils;
 import com.exactpro.th2.inframgr.validator.cache.SchemaValidationTable;
 import com.exactpro.th2.inframgr.validator.cache.ValidationCache;
 import com.exactpro.th2.inframgr.validator.model.link.DictionaryLink;
@@ -126,7 +126,7 @@ public class SchemaValidator {
             linkRes.setSpec(spec);
             try {
                 String specStr = mapper.writeValueAsString(spec);
-                linkRes.setSourceHash(SourceHashUtil.digest(specStr));
+                linkRes.setSourceHash(AnnotationUtils.digest(specStr));
             } catch (JsonProcessingException e) {
                 logger.error("Couldn't update source hash for \"{}\"", annotationFor(linkRes, schemaName));
             }
