@@ -24,6 +24,7 @@ import java.util.List;
 
 import static com.exactpro.th2.inframgr.docker.util.VersionNumberUtils.chooseLatest;
 import static com.exactpro.th2.inframgr.docker.util.VersionNumberUtils.filterTags;
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 public class TagUpdater {
 
@@ -33,12 +34,13 @@ public class TagUpdater {
                                 List<SchemaJob.UpdatedResource> updatedResources,
                                 RegistryConnection connection) {
         String image = resource.getImage();
+        String resourceLabel = annotationFor(resource.getSchema(), resource.getKind(), resource.getName());
         //get tags in small pages
-        List<String> tags = connection.getTags(image, PAGE_SIZE);
+        List<String> tags = connection.getTags(resourceLabel, image, PAGE_SIZE);
         List<String> filteredTags = new ArrayList<>(filterTags(tags, resource.getVersionRange()));
         while (tags.size() >= PAGE_SIZE) {
             String currentVersion = tags.get(tags.size() - 1);
-            tags = connection.getTags(image, PAGE_SIZE, currentVersion);
+            tags = connection.getTags(resourceLabel, image, PAGE_SIZE, currentVersion);
             filteredTags.addAll(filterTags(tags, resource.getVersionRange()));
         }
         String latestTagSuffix = chooseLatest(filteredTags);

@@ -20,6 +20,8 @@ public class DynamicResource {
 
     private final String resourceName;
 
+    private final String kind;
+
     private final String image;
 
     private final String currentVersion;
@@ -29,11 +31,13 @@ public class DynamicResource {
     private final String schema;
 
     public DynamicResource(String resourceName,
+                           String kind,
                            String image,
                            String currentVersion,
                            String versionRange,
                            String schema) {
         this.resourceName = resourceName;
+        this.kind = kind;
         this.image = image;
         this.currentVersion = currentVersion;
         this.versionRange = versionRange;
@@ -42,6 +46,10 @@ public class DynamicResource {
 
     public String getName() {
         return resourceName;
+    }
+
+    public String getKind() {
+        return kind;
     }
 
     public String getImage() {

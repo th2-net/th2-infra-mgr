@@ -85,7 +85,7 @@ public class DynamicResourceProcessor {
             removeFromTrackedResources(schema, name, resourceLabel, "versionRange field is null");
             return;
         }
-        updateTrackedResources(schema, name, versionRange, resource);
+        updateTrackedResources(schema, name, kind, versionRange, resource);
     }
 
     public static void schemaDeleted(String schema) {
@@ -102,9 +102,11 @@ public class DynamicResourceProcessor {
 
     private static void updateTrackedResources(String schema,
                                                String name,
+                                               String kind,
                                                String versionRange,
                                                RepositoryResource resource) {
-        String resourceLabel = ResourcePath.annotationFor(schema, resource.getKind(), name);
+
+        String resourceLabel = ResourcePath.annotationFor(schema, kind, name);
         var spec = resource.getSpec();
         String image = SpecUtils.getImageName(spec);
         String currentVersion = SpecUtils.getImageVersion(spec);
@@ -114,7 +116,7 @@ public class DynamicResourceProcessor {
             logger.info("Resource: \"{}\" needs dynamic version tracking", resourceLabel);
             var alreadyInCache = DYNAMIC_RESOURCES_CACHE.add(
                     schema,
-                    new DynamicResource(name, image, currentVersion, versionRangeChopped, schema)
+                    new DynamicResource(name, kind, image, currentVersion, versionRangeChopped, schema)
             );
             if (alreadyInCache != null) {
                 logger.info("Modified resource: \"{}\" in dynamic resources cache", resourceLabel);
