@@ -12,7 +12,7 @@ RUN chgrp -R 0 /home/service && \
     chmod -R g=u /home/service
 EXPOSE 8080
 ENTRYPOINT ["java" \
-    , "-Dlog4j.configuration=file:/home/service/config/log4j.properties" \
+    , "-Dlog4j2.configurationFile=file:/home/service/config/log4j2.properties" \
     , "-Dinframgr.config.dir=config" \
     , "-jar" \
     , "/home/service/application.jar"]
