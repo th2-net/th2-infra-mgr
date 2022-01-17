@@ -70,8 +70,6 @@ public class SchemaInitializer {
 
     public static final String CRADLE_MANAGER_CM_NAME = "cradle-manager";
 
-    public static final String NAMESPACE_DEFAULTS_CONFIGMAP = "namespace-defaults";
-
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
 
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -143,7 +141,6 @@ public class SchemaInitializer {
         copyConfigMap(kube, MQ_ROUTER_CM_NAME);
         copyConfigMap(kube, GRPC_ROUTER_CM_NAME);
         copyConfigMap(kube, CRADLE_MANAGER_CM_NAME);
-        copyConfigMap(kube, NAMESPACE_DEFAULTS_CONFIGMAP);
 
         copyCassandraSecret(config, kube, forceUpdate);
 
