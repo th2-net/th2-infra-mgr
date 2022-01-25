@@ -36,30 +36,38 @@ class MqLinkValidator extends BoxesLinkValidator {
 
         var fromBoxSpec = link.getFrom();
         var toBoxSpec = link.getTo();
+        try {
+            RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
+            RepositoryResource fromRes = schemaContext.getBox(fromBoxSpec.getBox());
 
-        RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
-        RepositoryResource fromRes = schemaContext.getBox(fromBoxSpec.getBox());
 
+            var fromContext = BoxLinkContext.builder()
+                    .boxName(fromBoxSpec.getBox())
+                    .boxPinName(fromBoxSpec.getPin())
+                    .boxDirection(BoxDirection.from)
+                    .connectionType(SchemaConnectionType.mq)
+                    .linkedResource(toRes)
+                    .linkedPinName(toBoxSpec.getPin())
+                    .build();
 
-        var fromContext = BoxLinkContext.builder()
-                .boxName(fromBoxSpec.getBox())
-                .boxPinName(fromBoxSpec.getPin())
-                .boxDirection(BoxDirection.from)
-                .connectionType(SchemaConnectionType.mq)
-                .linkedResource(toRes)
-                .linkedPinName(toBoxSpec.getPin())
-                .build();
+            var toContext = BoxLinkContext.builder()
+                    .boxName(toBoxSpec.getBox())
+                    .boxPinName(toBoxSpec.getPin())
+                    .boxDirection(BoxDirection.to)
+                    .connectionType(SchemaConnectionType.mq)
+                    .linkedResource(fromRes)
+                    .linkedPinName(fromBoxSpec.getPin())
+                    .build();
 
-        var toContext = BoxLinkContext.builder()
-                .boxName(toBoxSpec.getBox())
-                .boxPinName(toBoxSpec.getPin())
-                .boxDirection(BoxDirection.to)
-                .connectionType(SchemaConnectionType.mq)
-                .linkedResource(fromRes)
-                .linkedPinName(fromBoxSpec.getPin())
-                .build();
-
-        validate(fromContext, toContext, linkRes, link);
+            validate(fromContext, toContext, linkRes, link);
+        } catch (Exception e) {
+            String linkResName = linkRes.getMetadata().getName();
+            String message = String.format("Exception processing link: \"%s\" from resource \"%s\". %s",
+                    link.getName(), linkResName, e.getMessage());
+            var schemaValidationTable = schemaContext.getSchemaValidationTable();
+            schemaContext.getSchemaValidationTable().setInvalid(linkResName);
+            schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
+        }
     }
 
     @Override

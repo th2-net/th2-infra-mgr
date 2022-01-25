@@ -40,26 +40,34 @@ class GrpcLinkValidator extends BoxesLinkValidator {
         var fromBoxSpec = link.getFrom();
         var toBoxSpec = link.getTo();
 
-        RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
+        try {
+            RepositoryResource toRes = schemaContext.getBox(toBoxSpec.getBox());
 
-        var fromContext = BoxLinkContext.builder()
-                .boxName(fromBoxSpec.getBox())
-                .boxPinName(fromBoxSpec.getPin())
-                .boxDirection(BoxDirection.from)
-                .connectionType(SchemaConnectionType.grpc_client)
-                .linkedResource(toRes)
-                .linkedPinName(toBoxSpec.getPin())
-                .build();
+            var fromContext = BoxLinkContext.builder()
+                    .boxName(fromBoxSpec.getBox())
+                    .boxPinName(fromBoxSpec.getPin())
+                    .boxDirection(BoxDirection.from)
+                    .connectionType(SchemaConnectionType.grpc_client)
+                    .linkedResource(toRes)
+                    .linkedPinName(toBoxSpec.getPin())
+                    .build();
 
-        var toContext = fromContext.toBuilder()
-                .boxName(toBoxSpec.getBox())
-                .boxPinName(toBoxSpec.getPin())
-                .boxDirection(BoxDirection.to)
-                .connectionType(SchemaConnectionType.grpc_server)
-                .build();
+            var toContext = fromContext.toBuilder()
+                    .boxName(toBoxSpec.getBox())
+                    .boxPinName(toBoxSpec.getPin())
+                    .boxDirection(BoxDirection.to)
+                    .connectionType(SchemaConnectionType.grpc_server)
+                    .build();
 
-        validate(fromContext, toContext, linkRes, link);
-
+            validate(fromContext, toContext, linkRes, link);
+        } catch (Exception e) {
+            String linkResName = linkRes.getMetadata().getName();
+            String message = String.format("Exception processing link: \"%s\" from resource \"%s\". %s",
+                    link.getName(), linkResName, e.getMessage());
+            var schemaValidationTable = schemaContext.getSchemaValidationTable();
+            schemaContext.getSchemaValidationTable().setInvalid(linkResName);
+            schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
+        }
     }
 
     @Override

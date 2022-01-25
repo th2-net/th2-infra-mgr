@@ -17,10 +17,10 @@
 package com.exactpro.th2.inframgr.validator;
 
 import com.exactpro.th2.inframgr.validator.cache.SchemaValidationTable;
-import com.exactpro.th2.inframgr.validator.enums.ValidationStatus;
 import com.exactpro.th2.inframgr.validator.model.link.DictionaryLink;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 
+import static com.exactpro.th2.inframgr.validator.enums.ValidationStatus.RESOURCE_NOT_EXIST;
 import static java.lang.String.format;
 
 public class DictionaryLinkValidator {
@@ -35,18 +35,24 @@ public class DictionaryLinkValidator {
         String dicName = link.getDictionary().getName();
         String linkResName = linkRes.getMetadata().getName();
         SchemaValidationTable schemaValidationTable = schemaContext.getSchemaValidationTable();
-
-        RepositoryResource boxResource = schemaContext.getBox(boxName);
-        //First check if box is present
-        if (boxResource != null) {
-            //if box is present validate that required dictionary also exists
-            if (schemaContext.getDictionary(dicName) != null) {
-                schemaValidationTable.addValidDictionaryLink(linkResName, link);
-                return;
+        try {
+            RepositoryResource boxResource = schemaContext.getBox(boxName);
+            //First check if box is present
+            if (boxResource != null) {
+                //if box is present validate that required dictionary also exists
+                if (schemaContext.getDictionary(dicName) != null) {
+                    schemaValidationTable.addValidDictionaryLink(linkResName, link);
+                    return;
+                }
+                String msg = format("link: \"%s\" from: \"%s\" is invalid and will be ignored. Resource: \"%s:[%s]\"",
+                        link.getName(), linkResName, link.getDictionary().getName(), RESOURCE_NOT_EXIST);
+                schemaValidationTable.setInvalid(linkResName);
+                schemaValidationTable.addErrorMessage(linkResName, msg, schemaContext.getCommitRef());
             }
-            String message = format("link: \"%s\" from: \"%s\" is invalid and will be ignored. Resource: \"%s:[%s]\"",
-                    link.getName(), linkResName, link.getDictionary().getName(), ValidationStatus.RESOURCE_NOT_EXIST);
-            schemaValidationTable.setInvalid(linkResName);
+        } catch (Exception e) {
+            String message = String.format("Exception processing link: \"%s\" from resource \"%s\". %s",
+                    link.getName(), linkResName, e.getMessage());
+            schemaContext.getSchemaValidationTable().setInvalid(linkResName);
             schemaValidationTable.addErrorMessage(linkResName, message, schemaContext.getCommitRef());
         }
     }
