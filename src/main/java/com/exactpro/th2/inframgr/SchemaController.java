@@ -21,9 +21,12 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.models.RequestEntry;
+import com.exactpro.th2.inframgr.models.RequestOperation;
+import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.validator.SchemaValidator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,9 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Controller
 public class SchemaController {
@@ -48,9 +49,9 @@ public class SchemaController {
 
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
-    private static final String SOURCE_BRANCH = "master";
+    public static final String SOURCE_BRANCH = "master";
 
-    private final Logger logger = LoggerFactory.getLogger(SchemaController.class);
+    private static final Logger logger = LoggerFactory.getLogger(SchemaController.class);
 
     @GetMapping("/schemas")
     @ResponseBody
@@ -182,13 +183,21 @@ public class SchemaController {
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
         }
 
-        // apply updates
+        //validate schema and apply updates if valid
         try {
             final Gitter gitter = ctx.getGitter(schemaName);
             RepositorySnapshot snapshot;
             String commitRef;
             try {
                 gitter.lock();
+                snapshot = Repository.getSnapshot(gitter);
+                // combine recent validations and current snapshot and validate potential schema.
+                var validationContext = SchemaValidator.validate(schemaName, toRepositoryMap(snapshot, operations));
+                if (!validationContext.isValid()) {
+                    // do not update repository and kubernetes if requested changes contain errors.
+                    return new SchemaControllerResponse(validationContext.getReport());
+                }
+                // continue with update if schema is validated
                 commitRef = updateRepository(gitter, operations);
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
@@ -256,7 +265,7 @@ public class SchemaController {
         }
     }
 
-    private void validateResourceNames(List<RequestEntry> operations) {
+    public static void validateResourceNames(List<RequestEntry> operations) {
 
         Set<String> names = new HashSet<>();
 
@@ -277,5 +286,27 @@ public class SchemaController {
                 throw new NotAcceptableException(REPOSITORY_ERROR, "Multiple operation on the resource");
             }
         }
+    }
+
+    public Map<String, Map<String, RepositoryResource>> toRepositoryMap(RepositorySnapshot snapshot,
+                                                                         List<RequestEntry> operations) {
+        Set<RepositoryResource> resources = snapshot.getResources();
+        Map<String, Map<String, RepositoryResource>> repositoryMap = SchemaUtils.convertToRepositoryMap(resources);
+        for (RequestEntry entry : operations) {
+            RequestOperation operation = entry.getOperation();
+            ResourceEntry payload = entry.getPayload();
+            String entryName = payload.getName();
+            String entryKind = payload.getKind().kind();
+            if (operation.equals(RequestOperation.add) || operation.equals(RequestOperation.update)) {
+                repositoryMap
+                        .computeIfAbsent(entryKind, k -> new HashMap<>())
+                        .put(entryName, payload.toRepositoryResource());
+            } else if (operation.equals(RequestOperation.remove)) {
+                repositoryMap
+                        .computeIfAbsent(entryKind, k -> new HashMap<>())
+                        .remove(entryName);
+            }
+        }
+        return repositoryMap;
     }
 }

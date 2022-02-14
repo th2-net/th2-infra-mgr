@@ -18,7 +18,6 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
-import com.exactpro.th2.inframgr.UrlPathConflicts;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
@@ -27,9 +26,12 @@ import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
-import com.exactpro.th2.inframgr.validator.SchemaValidator;
-import com.exactpro.th2.inframgr.validator.cache.ValidationCache;
 import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.validator.SchemaValidationContext;
+import com.exactpro.th2.validator.SchemaValidator;
+import com.exactpro.th2.validator.ValidationReport;
+import com.exactpro.th2.validator.errormessages.BoxResourceErrorMessage;
+import com.exactpro.th2.validator.errormessages.LinkErrorMessage;
 import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ import rx.schedulers.Schedulers;
 
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -80,16 +83,6 @@ public class K8sSynchronization {
             String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
-            // validate schema links, remove invalid ones
-            // validate secret custom config
-            if (!SchemaValidator.validate(schemaName, repositoryResources, shortCommitRef)) {
-                logger.warn("Schema \"{}\" contains errors. Invalid links will not be applied to cluster.",
-                        schemaName);
-                ValidationCache.getSchemaTable(schemaName).printErrors();
-            } else {
-                logger.info("Schema \"{}\" validated.", schemaName);
-            }
-
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
                         repositorySettings.getLogLevelRoot(),
@@ -210,7 +203,6 @@ public class K8sSynchronization {
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
-            repositoryResources = UrlPathConflicts.detectUrlPathsConflicts(repositoryResources, branch);
             RepositorySettings repositorySettings = snapshot.getRepositorySettings();
             String fullCommitRef = snapshot.getCommitRef();
             String shortCommitRef = getShortCommitRef(fullCommitRef);
@@ -228,23 +220,22 @@ public class K8sSynchronization {
 
             logger.info("Proceeding with schema \"{}\" [{}]", branch, shortCommitRef);
 
-            // convert to map
-            Map<String, Map<String, RepositoryResource>> repositoryMap = new HashMap<>();
-            for (ResourceType t : ResourceType.values()) {
-                if (t.isK8sResource()) {
-                    repositoryMap.put(t.kind(), new HashMap<>());
-                }
-            }
+            var repositoryMap = SchemaUtils.convertToRepositoryMap(repositoryResources);
 
-            for (RepositoryResource resource : repositoryResources) {
-                if (ResourceType.forKind(resource.getKind()).isK8sResource()) {
-                    if (ResourceType.forKind(resource.getKind()) == ResourceType.Th2Dictionary) {
-                        Th2DictionaryProcessor.compressData(resource);
-                    }
+            // compress Dictionaries
+            repositoryMap.get(ResourceType.Th2Dictionary.kind())
+                    .values()
+                    .forEach(Th2DictionaryProcessor::compressData);
 
-                    Map<String, RepositoryResource> typeMap = repositoryMap.get(resource.getKind());
-                    typeMap.put(resource.getMetadata().getName(), resource);
-                }
+            // validate: schema links, urlPaths, secret custom config.
+            SchemaValidationContext validationContext = SchemaValidator.validate(branch, repositoryMap);
+            if (!validationContext.isValid()) {
+                logger.warn("Schema \"{}\" contains errors.", branch);
+                printErrors(validationContext.getReport());
+                // remove invalid links
+                SchemaValidator.removeInvalidLinks(validationContext, repositoryMap.get(ResourceType.Th2Link.kind()));
+            } else {
+                logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", branch);
             }
 
             // add commit reference in annotations to every resource
@@ -346,5 +337,26 @@ public class K8sSynchronization {
     private String getShortCommitRef(String commitRef) {
         int length = 8;
         return commitRef.substring(0, length);
+    }
+
+    private void printErrors(ValidationReport report) {
+        Map<String, List<LinkErrorMessage>> linkErrors = report.getLinkErrorMessages();
+        if (!linkErrors.isEmpty()) {
+            logger.error("Invalid links will not be applied to cluster");
+            logger.error("Link related errors: ");
+            for (String resName : linkErrors.keySet()) {
+                for (LinkErrorMessage message : linkErrors.get(resName)) {
+                    logger.error("Resource: {} - {}", resName, message.toPrintableMessage());
+                }
+            }
+        }
+
+        List<BoxResourceErrorMessage> boxResourceErrorMessages = report.getBoxResourceErrorMessages();
+        if (!boxResourceErrorMessages.isEmpty()) {
+            logger.error("Box related errors: ");
+            for (BoxResourceErrorMessage errorMessage : boxResourceErrorMessages) {
+                logger.error(errorMessage.toPrintableMessage());
+            }
+        }
     }
 }
