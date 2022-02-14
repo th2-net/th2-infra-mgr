@@ -45,7 +45,7 @@ public class SchemaController {
 
     public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
 
-    public static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
+    private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
 
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
@@ -192,7 +192,10 @@ public class SchemaController {
                 gitter.lock();
                 snapshot = Repository.getSnapshot(gitter);
                 // combine recent validations and current snapshot and validate potential schema.
-                var validationContext = SchemaValidator.validate(schemaName, toRepositoryMap(snapshot, operations));
+                var validationContext = SchemaValidator.validate(
+                        schemaName,
+                        toCombinedRepositoryMap(snapshot, operations)
+                );
                 if (!validationContext.isValid()) {
                     // do not update repository and kubernetes if requested changes contain errors.
                     return new SchemaControllerResponse(validationContext.getReport());
@@ -288,8 +291,8 @@ public class SchemaController {
         }
     }
 
-    public Map<String, Map<String, RepositoryResource>> toRepositoryMap(RepositorySnapshot snapshot,
-                                                                         List<RequestEntry> operations) {
+    public static Map<String, Map<String, RepositoryResource>> toCombinedRepositoryMap(RepositorySnapshot snapshot,
+                                                                                       List<RequestEntry> operations) {
         Set<RepositoryResource> resources = snapshot.getResources();
         Map<String, Map<String, RepositoryResource>> repositoryMap = SchemaUtils.convertToRepositoryMap(resources);
         for (RequestEntry entry : operations) {
