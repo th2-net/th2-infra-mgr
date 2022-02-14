@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.infrarepo.RepositorySnapshot;
+import com.exactpro.th2.validator.ValidationReport;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -28,10 +29,18 @@ public class SchemaControllerResponse {
 
     private Set<ResourceEntry> resources;
 
+    private ValidationReport validationErrors;
+
+    public SchemaControllerResponse(ValidationReport validationErrors) {
+        this.validationErrors = validationErrors;
+        this.resources = null;
+    }
+
     public SchemaControllerResponse(RepositorySnapshot snapshot) {
         this.commitRef = snapshot.getCommitRef();
-        resources = new HashSet<>();
+        this.resources = new HashSet<>();
         snapshot.getResources().forEach(e -> resources.add(new ResourceEntry(e)));
+        this.validationErrors = null;
     }
 
     public String getCommitRef() {
@@ -40,5 +49,9 @@ public class SchemaControllerResponse {
 
     public Set<ResourceEntry> getResources() {
         return resources;
+    }
+
+    public ValidationReport getValidationErrors() {
+        return validationErrors;
     }
 }
