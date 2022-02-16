@@ -61,13 +61,11 @@ public class SchemaInitializer {
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
 
     /*
-        Ingress annotation values with following key prefixes should be
-        passed to new ingress without any changes
+        Ingress annotation values with following key prefix should not be
+        passed to new ingress
      */
-    private static final String[] INGRESS_KEEP_ANNOTATION_KEY_PREFIXES = {
-            "kubernetes.io/",
-            "nginx.ingress.kubernetes.io/"
-    };
+    private static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
+
 
     public enum SchemaSyncMode {
         CHECK_NAMESPACE,
@@ -309,12 +307,12 @@ public class SchemaInitializer {
             Map<String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
             Map<String, String> newAnnotations = meta.getAnnotations();
             for (var entry : oldAnnotations.entrySet()) {
-                if (entry.getKey() == null)
+                if (entry.getKey() == null) {
                     continue;
-
-                if (Arrays.stream(INGRESS_KEEP_ANNOTATION_KEY_PREFIXES)
-                        .anyMatch(prefix -> entry.getKey().startsWith(prefix)))
+                }
+                if (!entry.getKey().startsWith(HELM_ANNOTATION_KEY_PREFIX)) {
                     newAnnotations.put(entry.getKey(), entry.getValue());
+                }
             }
 
             Ingress newIngress = new IngressBuilder()
