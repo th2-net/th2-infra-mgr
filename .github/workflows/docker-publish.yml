@@ -4,6 +4,7 @@ on:
   push:
     branches:
     - master
+    - infra-1.6.1
     paths:
     - gradle.properties
 #    - package_info.json  
