@@ -66,7 +66,6 @@ public class Th2BoxConfigurations {
             logger.info("Updating \"{}\"", resourceLabel);
 
             data.put(fileName, newDataStr);
-            configMap.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
             setSourceHash(configMap.getMetadata().getAnnotations(), newData);
             kube.createOrReplaceConfigMap(configMap);
         } catch (Exception e) {

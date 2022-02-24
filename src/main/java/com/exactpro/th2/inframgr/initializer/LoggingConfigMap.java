@@ -111,7 +111,7 @@ public class LoggingConfigMap {
             cmData.put(TH2_LOGGING_JSON_KEY, logLevelTh2 + "\n");
             cmData.put(ROOT_LOGGING_JSON_KEY, logLevelRoot + "\n");
 
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE, resourceLabel));
+            cm.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE, resourceLabel, cm.getMetadata().getAnnotations()));
             setSourceHash(cm.getMetadata().getAnnotations(), cmData);
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {

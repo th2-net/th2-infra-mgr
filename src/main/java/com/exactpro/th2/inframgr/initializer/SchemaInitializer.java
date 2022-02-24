@@ -64,7 +64,7 @@ public class SchemaInitializer {
         Ingress annotation values with following key prefix should not be
         passed to new ingress
      */
-    private static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
+    public static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
 
 
     public enum SchemaSyncMode {
@@ -134,7 +134,7 @@ public class SchemaInitializer {
         secret.setApiVersion(Kubernetes.API_VERSION_V1);
         secret.setKind(Kubernetes.KIND_SECRET);
         secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
-        secret.setMetadata(Kubernetes.createMetadataWithAnnotation(RABBITMQ_SECRET_NAME_FOR_NAMESPACES, resourceLabel));
+        secret.setMetadata(Kubernetes.createMetaDataWithNewAnnotations(RABBITMQ_SECRET_NAME_FOR_NAMESPACES, resourceLabel));
         secret.setData(data);
 
         kube.createOrReplaceSecret(secret);
@@ -157,7 +157,7 @@ public class SchemaInitializer {
         Secret secret = kube.currentNamespace().getSecrets().get(secretName);
         try {
             Secret copy = makeCopy(secret);
-            copy.setMetadata(Kubernetes.createMetadataWithAnnotation(CASSANDRA_SECRET_NAME_FOR_NAMESPACES, resourceLabel));
+            copy.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(CASSANDRA_SECRET_NAME_FOR_NAMESPACES, resourceLabel, secret.getMetadata().getAnnotations()));
             kube.createOrReplaceSecret(copy);
             logger.info("Copied \"{}\"", resourceLabel);
         } catch (Exception e) {
@@ -195,7 +195,7 @@ public class SchemaInitializer {
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
             cmData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+            cm.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(configMapName, resourceLabel, cm.getMetadata().getAnnotations()));
 
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
@@ -250,7 +250,7 @@ public class SchemaInitializer {
             var cradleMQJson = mapper.readValue(cmData.get(CASSANDRA_JSON_KEY), Map.class);
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             cmData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+            cm.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(configMapName, resourceLabel, cm.getMetadata().getAnnotations()));
 
             kube.createOrReplaceConfigMap(cm);
         } catch (Exception e) {
@@ -302,7 +302,7 @@ public class SchemaInitializer {
             String spec = mapper.writeValueAsString(ingress.getSpec()).replace(INGRESS_PATH_SUBSTRING, namespace);
             IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
 
-            ObjectMeta meta = Kubernetes.createMetadataWithAnnotation(ingressName, resourceLabel);
+            ObjectMeta meta = Kubernetes.createMetaDataWithNewAnnotations(ingressName, resourceLabel);
 
             Map<String, String> oldAnnotations = ingress.getMetadata().getAnnotations();
             Map<String, String> newAnnotations = meta.getAnnotations();
@@ -334,7 +334,7 @@ public class SchemaInitializer {
         secret.setApiVersion(Kubernetes.API_VERSION_V1);
         secret.setKind(Kubernetes.KIND_SECRET);
         secret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
-        secret.setMetadata(Kubernetes.createMetadataWithAnnotation(secretName, resourceLabel));
+        secret.setMetadata(Kubernetes.createMetaDataWithNewAnnotations(secretName, resourceLabel));
 
         try {
             kube.createOrReplaceSecret(secret);
@@ -385,7 +385,8 @@ public class SchemaInitializer {
                 else
                     try {
                         Secret copy = makeCopy(secret);
-                        copy.setMetadata(Kubernetes.createMetadataWithAnnotation(secretName, resourceLabel));
+                        Map<String, String> originalAnnotations = secret.getMetadata().getAnnotations();
+                        copy.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(secretName, resourceLabel, originalAnnotations));
                         kube.createOrReplaceSecret(copy);
                         logger.info("Copied \"{}\"", resourceLabel);
                     } catch (Exception e) {
@@ -412,7 +413,9 @@ public class SchemaInitializer {
             logger.error("Failed to load ConfigMap \"{}\"", configMapName);
             return;
         }
-        cm.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
+
+        Map<String, String> originalAnnotations = cm.getMetadata().getAnnotations();
+        cm.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(configMapName, resourceLabel, originalAnnotations));
         setSourceHash(cm.getMetadata().getAnnotations(), cm.getData());
         kube.createOrReplaceConfigMap(cm);
         logger.info("Copied \"{}\"", resourceLabel);
