@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.inframgr.util;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
@@ -24,6 +26,25 @@ import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_COMMIT_HASH;
 import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_SOURCE_HASH;
 
 public class AnnotationUtils {
+
+    public static void stamp(ConfigMap cm, String fullCommitHash) {
+        setSourceHash(cm);
+        setCommitHash(cm, fullCommitHash);
+    }
+
+    public static void setSourceHash(ConfigMap cm) {
+        Map<String, String> annotations = cm.getMetadata().getAnnotations();
+        Map<String, String> data = cm.getData();
+
+        String dataStr = String.join(", ", data.values());
+        String keysStr = String.join(",", data.keySet());
+        annotations.put(KEY_SOURCE_HASH, digest(dataStr + keysStr));
+    }
+
+    private static void setCommitHash(ConfigMap cm, String fullCommitHash) {
+        Map<String, String> annotations = cm.getMetadata().getAnnotations();
+        annotations.put(KEY_COMMIT_HASH, fullCommitHash);
+    }
 
     public static String digest(String data) {
         try {
@@ -37,16 +58,5 @@ public class AnnotationUtils {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static void stamp(Map<String, String> annotations, Map<String, String> cmData, String fullCommitHash) {
-        setSourceHash(annotations, cmData);
-        annotations.put(KEY_COMMIT_HASH, fullCommitHash);
-    }
-
-    public static void setSourceHash(Map<String, String> annotations, Map<String, String> data) {
-        String dataStr = String.join(", ", data.values());
-        String keysStr = String.join(",", data.keySet());
-        annotations.put(KEY_SOURCE_HASH, digest(dataStr + keysStr));
     }
 }

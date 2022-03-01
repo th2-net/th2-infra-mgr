@@ -67,7 +67,7 @@ public class Th2BoxConfigurations {
         ConfigMap configMap = kube.getConfigMap(configMapName);
 
         if (configMap == null || configMap.getData() == null) {
-            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
+            logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
 
@@ -82,8 +82,7 @@ public class Th2BoxConfigurations {
             logger.info("Updating \"{}\"", resourceLabel);
 
             data.put(fileName, newDataStr);
-            configMap.setMetadata(Kubernetes.createMetadataWithAnnotation(configMapName, resourceLabel));
-            stamp(configMap.getMetadata().getAnnotations(), newData, fullCommitRef);
+            stamp(configMap, fullCommitRef);
             kube.createOrReplaceConfigMap(configMap);
         } catch (Exception e) {
             logger.error("Exception Updating \"{}\"", resourceLabel, e);
