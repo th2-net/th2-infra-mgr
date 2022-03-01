@@ -305,7 +305,6 @@ public class Kubernetes implements Closeable {
 
     public List<Secret> getDockerRegistrySecrets() {
         return client.secrets()
-                .inNamespace("service")
                 .withField("type", "kubernetes.io/dockerconfigjson")
                 .list()
                 .getItems();
