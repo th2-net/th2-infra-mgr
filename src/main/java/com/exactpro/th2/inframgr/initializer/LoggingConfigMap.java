@@ -89,7 +89,7 @@ public class LoggingConfigMap {
 
         ConfigMap cm = kube.currentNamespace().getConfigMap(configMapName);
         if (cm == null || cm.getData() == null) {
-            logger.error("Failed to load ConfigMap \"{}\"", configMapName);
+            logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
 
@@ -115,8 +115,6 @@ public class LoggingConfigMap {
         // copy config map with updated log level value to namespace
         Map<String, String> cmData = cm.getData();
         try {
-            logger.info("Creating \"{}\"", resourceLabel);
-
             for (String key : cmData.keySet()) {
                 String data = cmData.get(key);
 
@@ -137,9 +135,15 @@ public class LoggingConfigMap {
             cmData.put(TH2_LOGGING_JSON_KEY, logLevelTh2 + "\n");
             cmData.put(ROOT_LOGGING_JSON_KEY, logLevelRoot + "\n");
 
-            cm.setMetadata(Kubernetes.createMetadataWithAnnotation(LOGGING_CONFIGMAP_NAME_IN_NAMESPACE, resourceLabel));
-            stamp(cm.getMetadata().getAnnotations(), cmData, fullCommitRef);
+            cm.setMetadata(Kubernetes.createMetadataWithPreviousAnnotations(
+                    LOGGING_CONFIGMAP_NAME_IN_NAMESPACE,
+                    resourceLabel,
+                    cm.getMetadata().getAnnotations())
+            );
+            stamp(cm, fullCommitRef);
             kube.createOrReplaceConfigMap(cm);
+            logger.info("Created \"{}\" based on \"{}\" from default namespace", resourceLabel, configMapName);
+
         } catch (Exception e) {
             logger.error("Exception copying \"{}\"", resourceLabel, e);
         }

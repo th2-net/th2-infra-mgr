@@ -35,6 +35,7 @@ import java.io.Closeable;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 
+import static com.exactpro.th2.inframgr.initializer.SchemaInitializer.HELM_ANNOTATION_KEY_PREFIX;
 import static io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind;
 
 public class Kubernetes implements Closeable {
@@ -61,12 +62,36 @@ public class Kubernetes implements Closeable {
         return namespacePrefix + schemaName;
     }
 
-    public static ObjectMeta createMetadataWithAnnotation(String name, String antecedentAnnotationValue) {
+    public static ObjectMeta createMetaDataWithNewAnnotations(String name, String antecedentAnnotationValue) {
         ObjectMeta metadata = new ObjectMeta();
         metadata.setName(name);
         Map<String, String> annotations = new HashMap<>();
         annotations.put(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue);
         metadata.setAnnotations(annotations);
+
+        return metadata;
+    }
+
+    public static ObjectMeta createMetadataWithPreviousAnnotations(
+            String name,
+            String antecedentAnnotationValue,
+            Map<String, String> originalAnnotations
+    ) {
+        ObjectMeta metadata = new ObjectMeta();
+        metadata.setName(name);
+        Map<String, String> newAnnotations = new HashMap<>();
+        if (originalAnnotations != null) {
+            for (var entry : originalAnnotations.entrySet()) {
+                if (entry.getKey() == null) {
+                    continue;
+                }
+                if (!entry.getKey().startsWith(HELM_ANNOTATION_KEY_PREFIX)) {
+                    newAnnotations.put(entry.getKey(), entry.getValue());
+                }
+            }
+        }
+        newAnnotations.put(ANTECEDENT_ANNOTATION_KEY, antecedentAnnotationValue);
+        metadata.setAnnotations(newAnnotations);
 
         return metadata;
     }
