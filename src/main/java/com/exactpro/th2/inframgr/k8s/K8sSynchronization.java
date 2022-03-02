@@ -64,8 +64,10 @@ public class K8sSynchronization {
 
     private void deleteNamespace(String schemaName) {
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
-            logger.info("Removing schema \"{}\" from kubernetes", schemaName);
-            kube.deleteNamespace();
+            if (kube.existsNamespace()) {
+                logger.info("Removing schema \"{}\" from kubernetes", schemaName);
+                kube.deleteNamespace();
+            }
         } catch (Exception e) {
             logger.error("Exception removing schema \"{}\" from kubernetes", schemaName, e);
         }
@@ -195,28 +197,28 @@ public class K8sSynchronization {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(branch);
             RepositorySnapshot snapshot;
+            RepositorySettings repositorySettings;
             try {
                 gitter.lock();
+                repositorySettings = Repository.getSettings(gitter);
+                if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
+                    DynamicResourceProcessor.schemaDeleted(branch);
+                    deleteNamespace(branch);
+                    return;
+                }
+                if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
+                    logger.info("Ignoring schema \"{}\" as it is not configured for synchronization",
+                            branch);
+                    return;
+                }
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
                 gitter.unlock();
             }
 
             Set<RepositoryResource> repositoryResources = snapshot.getResources();
-            RepositorySettings repositorySettings = snapshot.getRepositorySettings();
             String fullCommitRef = snapshot.getCommitRef();
             String shortCommitRef = getShortCommitRef(fullCommitRef);
-
-            if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
-                DynamicResourceProcessor.schemaDeleted(branch);
-                deleteNamespace(branch);
-                return;
-            }
-            if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
-                logger.info("Ignoring schema \"{}\" as it is not configured for synchronization [{}]",
-                        branch, shortCommitRef);
-                return;
-            }
 
             logger.info("Proceeding with schema \"{}\" [{}]", branch, shortCommitRef);
 
