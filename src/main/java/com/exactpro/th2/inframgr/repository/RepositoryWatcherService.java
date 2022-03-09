@@ -46,10 +46,10 @@ public class RepositoryWatcherService {
         logger = LoggerFactory.getLogger(RepositoryWatcherService.class);
     }
 
-    @Scheduled(fixedDelay = 30000)
+    @Scheduled(fixedDelayString  = "${GIT_FETCH_INTERVAL:14000}")
     public void scheduledJob() {
-
         try {
+            logger.debug("fetching changes from git");
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
             commits.forEach((branch, commitRef) -> {
