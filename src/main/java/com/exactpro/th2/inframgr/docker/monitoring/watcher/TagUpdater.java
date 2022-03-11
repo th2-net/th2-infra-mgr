@@ -46,7 +46,7 @@ public class TagUpdater {
         String latestTagSuffix = chooseLatest(filteredTags);
         if (latestTagSuffix != null) {
             String latestVersion = resource.getVersionRange() + latestTagSuffix;
-            updatedResources.add(new SchemaJob.UpdatedResource(resource.getName(), latestVersion));
+            updatedResources.add(new SchemaJob.UpdatedResource(resource.getName(), resource.getKind(), latestVersion));
         }
     }
 }

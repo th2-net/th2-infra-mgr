@@ -44,6 +44,59 @@ public class Config {
 
     private String configDir;
 
+    // config fields
+    private GitCfg git;
+
+    private RabbitMQConfig rabbitmq;
+
+    private CassandraConfig cassandra;
+
+    private PrometheusConfig prometheusConfiguration;
+
+    private K8sConfig kubernetes;
+
+    public GitCfg getGit() {
+        return git;
+    }
+
+    @JsonProperty("rabbitmq")
+    public RabbitMQConfig getRabbitMQ() {
+        return rabbitmq;
+    }
+
+    public CassandraConfig getCassandra() {
+        return cassandra;
+    }
+
+    public PrometheusConfig getPrometheusConfiguration() {
+        return prometheusConfiguration;
+    }
+
+    public K8sConfig getKubernetes() {
+        return kubernetes;
+    }
+
+    public void setGit(GitCfg git) {
+        this.git = git;
+    }
+
+    @JsonProperty("rabbitmq")
+    public void setRabbitMQ(RabbitMQConfig rabbitmq) {
+        this.rabbitmq = rabbitmq;
+    }
+
+    public void setCassandra(CassandraConfig cassandra) {
+        this.cassandra = cassandra;
+    }
+
+    public void setPrometheusConfiguration(PrometheusConfig prometheusConfiguration) {
+        this.prometheusConfiguration = prometheusConfiguration;
+    }
+
+    public void setKubernetes(K8sConfig kubernetes) {
+        this.kubernetes = kubernetes;
+    }
+
     private Config() {
         logger = LoggerFactory.getLogger(Config.class);
         configDir = System.getProperty(CONFIG_DIR_SYSTEM_PROPERTY, ".");
@@ -98,71 +151,4 @@ public class Config {
 
         return instance;
     }
-
-    private GitCfg git;
-
-    public GitCfg getGit() {
-        return git;
-    }
-
-    public void setGit(GitCfg git) {
-        this.git = git;
-    }
-
-    private K8sConfig kubernetes;
-
-    public K8sConfig getKubernetes() {
-        return kubernetes;
-    }
-
-    public void setKubernetes(K8sConfig kubernetes) {
-        this.kubernetes = kubernetes;
-    }
-
-    private RabbitMQConfig rabbitmq;
-
-    @JsonProperty("rabbitmq")
-    public RabbitMQConfig getRabbitMQ() {
-        return rabbitmq;
-    }
-
-    @JsonProperty("rabbitmq")
-    public void setRabbitMQ(RabbitMQConfig rabbitmq) {
-        this.rabbitmq = rabbitmq;
-    }
-
-    private CassandraConfig cassandra;
-
-    public CassandraConfig getCassandra() {
-        return cassandra;
-    }
-
-    public void setCassandra(CassandraConfig cassandra) {
-        this.cassandra = cassandra;
-    }
-
-    private PrometheusConfig prometheusConfiguration;
-
-    public PrometheusConfig getPrometheusConfiguration() {
-        return prometheusConfiguration;
-    }
-
-    public void setPrometheusConfiguration(PrometheusConfig prometheusConfiguration) {
-        this.prometheusConfiguration = prometheusConfiguration;
-    }
-
-//    public static class GitConfig extends _GitConfig {
-//    }
-//
-//    public static class RabbitMQConfig extends _RabbitMQConfig {
-//    }
-//
-//    public static class CassandraConfig extends _CassandraConfig {
-//    }
-//
-//    public static class K8sConfig extends _K8sConfig {
-//    }
-//
-//    public static class PrometheusConfiguration extends _PrometheusConfig {
-//    }
 }
