@@ -16,24 +16,17 @@
 
 package com.exactpro.th2.inframgr.docker.monitoring.watcher;
 
-import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
-import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
-import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.Gitter;
 import com.exactpro.th2.infrarepo.Repository;
-import com.exactpro.th2.infrarepo.RepositoryResource;
-import com.exactpro.th2.infrarepo.RepositorySnapshot;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+
+import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 public class SchemaJob implements Runnable {
 
@@ -63,63 +56,64 @@ public class SchemaJob implements Runnable {
     @Override
     public void run() {
         logger.info("Checking for new versions of resources in schema: \"{}\"", schema);
-        for (DynamicResource resource : dynamicResources) {
-            TagUpdater.checkLatestTags(resource, updatedResources, connection);
-        }
         try {
-            commitAndPush();
-        } catch (Exception e) {
-            logger.error("Exception while pushing to branch: \"{}\".", schema);
-        }
-    }
-
-    private void commitAndPush() throws IOException, GitAPIException {
-        try {
-            gitter.lock();
-            var snapshot = Repository.getSnapshot(gitter);
-            updateRepository(snapshot);
-            String commitRef = gitter.commitAndPush("Updated image versions");
-            if (commitRef != null) {
-                logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", schema, commitRef);
-                SchemaEventRouter router = SchemaEventRouter.getInstance();
-                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schema, commitRef);
-                router.addEvent(event);
-            } else {
-                logger.info("All files up to date for branch: \"{}\"", schema);
+            for (DynamicResource resource : dynamicResources) {
+                TagUpdater.checkLatestTags(resource, updatedResources, connection);
             }
-        } finally {
-            gitter.unlock();
+            if (!updatedResources.isEmpty()) {
+                try {
+                    gitter.lock();
+                    gitter.checkout();
+                    updateRepository();
+                    try {
+                        String commitRef = gitter.commitAndPush("Updated image versions");
+                        if (commitRef != null) {
+                            logger.info("Successfully pushed to branch: \"{}\" commitRef: \"{}\"", schema, commitRef);
+                        } else {
+                            logger.info("All files up to date for branch: \"{}\"", schema);
+                        }
+                    } catch (Exception e) {
+                        logger.error("Exception while pushing to branch: \"{}\".", schema, e);
+                    }
+                } catch (Exception e) {
+                    logger.error("Exception while working with gitter: \"{}\".", schema, e);
+                } finally {
+                    gitter.unlock();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Unexpected Exception while getting new versions for resources in schema: \"{}\".", schema, e);
         }
     }
 
-    private void updateRepository(RepositorySnapshot snapshot) {
-        Set<RepositoryResource> repositoryResources = snapshot.getResources();
-        Map<String, RepositoryResource> resourceSpecMap = repositoryResources.stream()
-                .collect(Collectors.toMap(
-                        x -> x.getMetadata().getName(),
-                        Function.identity())
-                );
-
+    private void updateRepository() {
         for (UpdatedResource updatedResource : updatedResources) {
-            var repositoryResource = resourceSpecMap.get(updatedResource.getName());
-            if (repositoryResource != null) {
-                var spec = repositoryResource.getSpec();
-                String resourceName = repositoryResource.getMetadata().getName();
-                String latestVersion = updatedResource.getLatestVersion();
-                String currentVersion = SpecUtils.getImageVersion(spec);
-                String resourceLabel = ResourcePath.annotationFor(schema, repositoryResource.getKind(), resourceName);
+            try {
+                var repositoryResource = Repository.getResource(gitter, updatedResource.kind, updatedResource.name);
+                if (repositoryResource != null) {
+                    var spec = repositoryResource.getSpec();
+                    String resourceName = repositoryResource.getMetadata().getName();
+                    String latestVersion = updatedResource.latestVersion;
+                    String currentVersion = SpecUtils.getImageVersion(spec);
+                    String resLabel = annotationFor(schema, repositoryResource.getKind(), resourceName);
 
-                if (latestVersion.equals(currentVersion)) {
-                    continue;
+                    if (latestVersion.equals(currentVersion)) {
+                        continue;
+                    }
+                    logger.info("Found new version for resource: \"{}\"", resLabel);
+                    SpecUtils.changeImageVersion(spec, latestVersion);
+                    try {
+                        Repository.update(gitter, repositoryResource);
+                        logger.info("Successfully updated repository with: \"{}\"", resLabel);
+                    } catch (Exception e) {
+                        logger.error("Exception while updating repository with : \"{}\"", resLabel, e);
+                    }
+                } else {
+                    logger.warn("Resource \"{}\" is not present in repository",
+                            annotationFor(schema, updatedResource.kind, updatedResource.name));
                 }
-                logger.info("Found new version for resource: \"{}\"", resourceLabel);
-                SpecUtils.changeImageVersion(spec, latestVersion);
-                try {
-                    Repository.update(gitter, repositoryResource);
-                    logger.info("Successfully updated repository with: \"{}\"", resourceLabel);
-                } catch (Exception e) {
-                    logger.error("Exception while updating repository with : \"{}\"", resourceLabel);
-                }
+            } catch (Exception e) {
+                logger.error("Unexpected Exception while working with repository", e);
             }
         }
     }
@@ -128,19 +122,14 @@ public class SchemaJob implements Runnable {
 
         private final String name;
 
+        private final String kind;
+
         private final String latestVersion;
 
-        public UpdatedResource(String name, String latestVersion) {
+        public UpdatedResource(String name, String kind, String latestVersion) {
             this.name = name;
+            this.kind = kind;
             this.latestVersion = latestVersion;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public String getLatestVersion() {
-            return latestVersion;
         }
     }
 }
