@@ -20,13 +20,20 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.GitterContext;
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class RepositoryWatcherService {
@@ -39,19 +46,31 @@ public class RepositoryWatcherService {
 
     private Logger logger;
 
+    private KubernetesClient kubeClient = new DefaultKubernetesClient();
+
+    private int prevBranchCount;
+
+    private String namespacePrefix;
+
     public RepositoryWatcherService() throws Exception {
+        var fullConfig = Config.getInstance();
         commitHistory = new HashMap<>();
-        config = Config.getInstance().getGit();
+        config = fullConfig.getGit();
+        namespacePrefix = fullConfig.getKubernetes().getNamespacePrefix();
         eventRouter = SchemaEventRouter.getInstance();
         logger = LoggerFactory.getLogger(RepositoryWatcherService.class);
     }
 
-    @Scheduled(fixedDelayString  = "${GIT_FETCH_INTERVAL:14000}")
+    @Scheduled(fixedDelayString = "${GIT_FETCH_INTERVAL:14000}")
     public void scheduledJob() {
         try {
             logger.debug("fetching changes from git");
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
+            if (prevBranchCount > commits.size()) {
+                removeExtinctedNamespaces(commits.keySet());
+            }
+            prevBranchCount = commits.size();
             commits.forEach((branch, commitRef) -> {
 
                 if (!(branch.equals("master")
@@ -70,6 +89,28 @@ public class RepositoryWatcherService {
             commitHistory.putAll(commits);
         } catch (Exception e) {
             logger.error("Error fetching repository", e);
+        }
+    }
+
+    private void removeExtinctedNamespaces(Set<String> existingNamespaces) {
+        List<String> extinctNamespaces = kubeClient.namespaces()
+                .list()
+                .getItems()
+                .stream()
+                .map(item -> item.getMetadata().getName())
+                .filter(name -> name.startsWith(namespacePrefix)
+                        && !existingNamespaces.contains(name.substring(namespacePrefix.length())))
+                .collect(Collectors.toList());
+
+        for (String extinctNamespace : extinctNamespaces) {
+            Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
+            if (namespaceResource != null) {
+                String branchName = extinctNamespace.substring(namespacePrefix.length());
+                logger.info("branch \"{}\" was removed from remote repository, deleting corresponding namespace \"{}\"",
+                        branchName, existingNamespaces);
+                namespaceResource.delete();
+                commitHistory.remove(branchName);
+            }
         }
     }
 }
