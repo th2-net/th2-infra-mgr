@@ -20,12 +20,18 @@ configurations.all {
 
 repositories {
 	maven {
-		url "https://dl.bintray.com/exactpro/th2"
+		name 'Sonatype_snapshots'
+		url 'https://s01.oss.sonatype.org/content/repositories/snapshots/'
+	}
+
+	maven {
+		name 'Sonatype_releases'
+		url 'https://s01.oss.sonatype.org/content/repositories/releases/'
 	}
 }
 
 dependencies {
-	implementation 'com.exactpro.th2:infra-repo:1.0.14'
+	implementation 'com.exactpro.th2:infra-repo:1.0.14-ssh-fix'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.1'
 
 	implementation 'org.apache.commons:commons-text:1.9'
