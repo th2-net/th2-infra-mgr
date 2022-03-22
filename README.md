@@ -30,12 +30,8 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       # path to folder where local copy of repository will be cached
       # separate local repository will be created for every branch of remote repository
       
-      privateKeyFile: /path/to/key
-      # path to private key file to be used for authentication
-      # due to underlayng library restrictions, only RSA keys generated in PEM mode are supported
-      
-      ignoreInsecureHosts: true
-      # set to true to connect to self signed or insecure servers
+      sshDir: /path/to/key directory
+      # path to private key directory to be used for authentication
 
       # For following configs to work
       # Http link should be provided in `remoteRepository' config

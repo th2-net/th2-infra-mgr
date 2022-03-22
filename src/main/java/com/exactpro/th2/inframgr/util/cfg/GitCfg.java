@@ -26,11 +26,9 @@ public class GitCfg implements GitConfig {
 
     private String httpAuthPassword;
 
-    private boolean ignoreInsecureHosts;
-
     private String localRepositoryRoot;
 
-    private String privateKeyFile;
+    private String sshDir;
 
     private String privateKey;
 
@@ -46,15 +44,6 @@ public class GitCfg implements GitConfig {
     }
 
     @Override
-    public boolean ignoreInsecureHosts() {
-        return ignoreInsecureHosts;
-    }
-
-    public void setIgnoreInsecureHosts(boolean ignoreInsecureHosts) {
-        this.ignoreInsecureHosts = ignoreInsecureHosts;
-    }
-
-    @Override
     public String getLocalRepositoryRoot() {
         return localRepositoryRoot;
     }
@@ -64,12 +53,8 @@ public class GitCfg implements GitConfig {
     }
 
     @Override
-    public String getPrivateKeyFile() {
-        return privateKeyFile;
-    }
-
-    public void setPrivateKeyFile(String privateKeyFile) {
-        this.privateKeyFile = privateKeyFile;
+    public String getSshDir() {
+        return sshDir;
     }
 
     @Override
