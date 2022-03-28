@@ -194,6 +194,7 @@ public class SchemaController {
                 // combine recent validations and current snapshot and validate potential schema.
                 var validationContext = SchemaValidator.validate(
                         schemaName,
+                        config.getKubernetes().getNamespacePrefix(),
                         toCombinedRepositoryMap(snapshot, operations)
                 );
                 if (!validationContext.isValid()) {

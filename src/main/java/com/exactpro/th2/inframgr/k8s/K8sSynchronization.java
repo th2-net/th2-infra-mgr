@@ -85,6 +85,25 @@ public class K8sSynchronization {
             String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
+
+            // validate: schema links, urlPaths, secret custom config.
+            SchemaValidationContext validationContext = SchemaValidator.validate(
+                    schemaName,
+                    config.getKubernetes().getNamespacePrefix(),
+                    repositoryResources
+            );
+            if (!validationContext.isValid()) {
+                logger.warn("Schema \"{}\" contains errors.", schemaName);
+                printErrors(validationContext.getReport());
+                // remove invalid links
+                SchemaValidator.removeInvalidLinks(
+                        validationContext,
+                        repositoryResources.get(ResourceType.Th2Link.kind())
+                );
+            } else {
+                logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", schemaName);
+            }
+
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
                         repositorySettings.getLogLevelRoot(),
@@ -228,17 +247,6 @@ public class K8sSynchronization {
             repositoryMap.get(ResourceType.Th2Dictionary.kind())
                     .values()
                     .forEach(Th2DictionaryProcessor::compressData);
-
-            // validate: schema links, urlPaths, secret custom config.
-            SchemaValidationContext validationContext = SchemaValidator.validate(branch, repositoryMap);
-            if (!validationContext.isValid()) {
-                logger.warn("Schema \"{}\" contains errors.", branch);
-                printErrors(validationContext.getReport());
-                // remove invalid links
-                SchemaValidator.removeInvalidLinks(validationContext, repositoryMap.get(ResourceType.Th2Link.kind()));
-            } else {
-                logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", branch);
-            }
 
             // add commit reference in annotations to every resource
             stampResources(repositoryMap, fullCommitRef, detectionTime);
