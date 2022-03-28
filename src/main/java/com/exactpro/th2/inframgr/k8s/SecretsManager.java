@@ -79,6 +79,27 @@ public class SecretsManager {
         }
     }
 
+    public Set<String> createOrReplaceSecrets(String schemaName,
+                                              Map<String, String> secretEntries) {
+        String namespace = prefix + schemaName;
+        String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, DEFAULT_SECRET_NAME);
+        Secret secret = getCustomSecret(schemaName);
+        Map<String, String> data = secret.getData();
+        if (data == null) {
+            data = new HashMap<>();
+        }
+        data.putAll(secretEntries);
+        secret.setData(data);
+        try {
+            kubernetesClient.secrets().inNamespace(namespace).createOrReplace(secret);
+            logger.info("Updated \"{}\"", resourceLabel);
+            return secretEntries.keySet();
+        } catch (Exception e) {
+            logger.error("Exception while updating \"{}\"", resourceLabel, e);
+            throw e;
+        }
+    }
+
     public Set<String> deleteSecrets(String schemaName, Set<String> secretEntries) {
         String namespace = prefix + schemaName;
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, DEFAULT_SECRET_NAME);
