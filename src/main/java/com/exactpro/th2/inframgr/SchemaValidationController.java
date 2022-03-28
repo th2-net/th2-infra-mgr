@@ -72,12 +72,16 @@ public class SchemaValidationController {
 
         validateResourceNames(operations);
 
+        Config config = Config.getInstance();
+
         if (request.fullSchema) {
-            return SchemaValidator.validate(schemaName, toRepositoryMap(operations));
+            return SchemaValidator.validate(
+                    schemaName,
+                    config.getKubernetes().getNamespacePrefix(),
+                    toRepositoryMap(operations));
         }
 
         // Combine received changes to existing schema and validate them together.
-        Config config = Config.getInstance();
         GitCfg gitConfig = config.getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
 
@@ -99,7 +103,11 @@ public class SchemaValidationController {
             try {
                 gitter.lock();
                 snapshot = Repository.getSnapshot(gitter);
-                validationContext = SchemaValidator.validate(schemaName, toCombinedRepositoryMap(snapshot, operations));
+                validationContext = SchemaValidator.validate(
+                        schemaName,
+                        config.getKubernetes().getNamespacePrefix(),
+                        toCombinedRepositoryMap(snapshot, operations)
+                );
             } finally {
                 gitter.unlock();
             }
