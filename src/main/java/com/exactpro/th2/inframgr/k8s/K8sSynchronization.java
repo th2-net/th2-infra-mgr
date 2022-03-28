@@ -360,5 +360,13 @@ public class K8sSynchronization {
                 logger.error(errorMessage.toPrintableMessage());
             }
         }
+
+        List<String> exceptionMessages = report.getExceptionMessages();
+        if (!exceptionMessages.isEmpty()) {
+            logger.error("Runtime exceptions errors: ");
+            for (String errorMessage : exceptionMessages) {
+                logger.error(errorMessage);
+            }
+        }
     }
 }
