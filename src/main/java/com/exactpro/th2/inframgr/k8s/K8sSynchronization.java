@@ -263,6 +263,7 @@ public class K8sSynchronization {
         logger.info("Starting Kubernetes synchronization phase");
 
         try {
+            subscribeToRepositoryEvents();
             config = Config.getInstance();
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Map<String, String> branches = ctx.getAllBranchesCommits();
@@ -287,8 +288,6 @@ public class K8sSynchronization {
 
         startupSynchronizationComplete = true;
         logger.info("Kubernetes synchronization phase complete");
-
-        subscribeToRepositoryEvents();
     }
 
     private void subscribeToRepositoryEvents() {
