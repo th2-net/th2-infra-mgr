@@ -24,9 +24,11 @@ import com.exactpro.th2.inframgr.models.RequestEntry;
 import com.exactpro.th2.inframgr.models.RequestOperation;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.validator.SchemaValidator;
+import com.exactpro.th2.validator.ValidationReport;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -199,7 +201,10 @@ public class SchemaController {
                 );
                 if (!validationContext.isValid()) {
                     // do not update repository and kubernetes if requested changes contain errors.
-                    return new SchemaControllerResponse(validationContext.getReport());
+                    logger.error("Schema \"{}\" contains errors, update request will be ignored", schemaName);
+                    ValidationReport report = validationContext.getReport();
+                    SchemaErrorPrinter.printErrors(report);
+                    return new SchemaControllerResponse(report);
                 }
                 // continue with update if schema is validated
                 commitRef = updateRepository(gitter, operations);
