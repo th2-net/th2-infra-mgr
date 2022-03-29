@@ -24,14 +24,12 @@ import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
+import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
 import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
-import com.exactpro.th2.validator.ValidationReport;
-import com.exactpro.th2.validator.errormessages.BoxResourceErrorMessage;
-import com.exactpro.th2.validator.errormessages.LinkErrorMessage;
 import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +38,6 @@ import rx.schedulers.Schedulers;
 
 import javax.annotation.PostConstruct;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -94,7 +91,7 @@ public class K8sSynchronization {
             );
             if (!validationContext.isValid()) {
                 logger.warn("Schema \"{}\" contains errors.", schemaName);
-                printErrors(validationContext.getReport());
+                SchemaErrorPrinter.printErrors(validationContext.getReport());
                 // remove invalid links
                 SchemaValidator.removeInvalidLinks(
                         validationContext,
@@ -346,34 +343,5 @@ public class K8sSynchronization {
     private String getShortCommitRef(String commitRef) {
         int length = 8;
         return commitRef.substring(0, length);
-    }
-
-    private void printErrors(ValidationReport report) {
-        Map<String, List<LinkErrorMessage>> linkErrors = report.getLinkErrorMessages();
-        if (!linkErrors.isEmpty()) {
-            logger.error("Invalid links will not be applied to cluster");
-            logger.error("Link related errors: ");
-            for (String resName : linkErrors.keySet()) {
-                for (LinkErrorMessage message : linkErrors.get(resName)) {
-                    logger.error("Resource: {} - {}", resName, message.toPrintableMessage());
-                }
-            }
-        }
-
-        List<BoxResourceErrorMessage> boxResourceErrorMessages = report.getBoxResourceErrorMessages();
-        if (!boxResourceErrorMessages.isEmpty()) {
-            logger.error("Box related errors: ");
-            for (BoxResourceErrorMessage errorMessage : boxResourceErrorMessages) {
-                logger.error(errorMessage.toPrintableMessage());
-            }
-        }
-
-        List<String> exceptionMessages = report.getExceptionMessages();
-        if (!exceptionMessages.isEmpty()) {
-            logger.error("Runtime exceptions errors: ");
-            for (String errorMessage : exceptionMessages) {
-                logger.error(errorMessage);
-            }
-        }
     }
 }
