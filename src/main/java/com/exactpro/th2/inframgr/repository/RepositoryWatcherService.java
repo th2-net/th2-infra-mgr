@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.repository;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
+import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.GitterContext;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -92,22 +93,23 @@ public class RepositoryWatcherService {
         }
     }
 
-    private void removeExtinctedNamespaces(Set<String> existingNamespaces) {
+    private void removeExtinctedNamespaces(Set<String> existingBranches) {
         List<String> extinctNamespaces = kubeClient.namespaces()
                 .list()
                 .getItems()
                 .stream()
                 .map(item -> item.getMetadata().getName())
-                .filter(name -> name.startsWith(namespacePrefix)
-                        && !existingNamespaces.contains(name.substring(namespacePrefix.length())))
+                .filter(namespace -> namespace.startsWith(namespacePrefix)
+                        && !existingBranches.contains(namespace.substring(namespacePrefix.length())))
                 .collect(Collectors.toList());
 
         for (String extinctNamespace : extinctNamespaces) {
+            DynamicResourceProcessor.schemaDeleted(extinctNamespace.substring(namespacePrefix.length()));
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
                 String branchName = extinctNamespace.substring(namespacePrefix.length());
                 logger.info("branch \"{}\" was removed from remote repository, deleting corresponding namespace \"{}\"",
-                        branchName, existingNamespaces);
+                        branchName, existingBranches);
                 namespaceResource.delete();
                 commitHistory.remove(branchName);
             }
