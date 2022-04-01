@@ -63,6 +63,7 @@ public class K8sSynchronization {
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             if (kube.existsNamespace()) {
                 logger.info("Removing schema \"{}\" from kubernetes", schemaName);
+                DynamicResourceProcessor.schemaDeleted(schemaName);
                 kube.deleteNamespace();
             }
         } catch (Exception e) {
@@ -218,7 +219,6 @@ public class K8sSynchronization {
                 gitter.lock();
                 repositorySettings = Repository.getSettings(gitter);
                 if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
-                    DynamicResourceProcessor.schemaDeleted(branch);
                     deleteNamespace(branch);
                     return;
                 }
