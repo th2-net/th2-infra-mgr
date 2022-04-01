@@ -93,6 +93,11 @@ public class DynamicResourceProcessor {
         logger.info("Removing resources associated with schema: \"{}\"", schema);
     }
 
+    public static void schemaDeletedMultiple(String schema) {
+        DYNAMIC_RESOURCES_CACHE.removeSchema(schema);
+        logger.info("Removing resources associated with schema: \"{}\"", schema);
+    }
+
     private static void removeFromTrackedResources(String schema, String name, String resourceLabel, String cause) {
         var removedResource = DYNAMIC_RESOURCES_CACHE.removeResource(schema, name);
         if (removedResource != null) {
