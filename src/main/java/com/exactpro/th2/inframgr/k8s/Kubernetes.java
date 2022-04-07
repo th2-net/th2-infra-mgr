@@ -142,26 +142,35 @@ public class Kubernetes implements Closeable {
             }
 
             if (!resourceUpdated) {
-
-                K8sCustomResource k8sResource = new K8sCustomResource();
-                ObjectMeta metaData = new ObjectMetaBuilder()
-                        .withName(repoResource.getMetadata().getName())
-                        .withNamespace(namespace)
-                        .build();
-                k8sResource.setMetadata(metaData);
-                k8sResource.setSourceHash(repoResource.getSourceHash());
-                k8sResource.setCommitHash(repoResource.getCommitHash());
-                k8sResource.setDetectionTime(repoResource.getDetectionTime());
-                k8sResource.setKind(repoResource.getKind());
-                k8sResource.setSpec(repoResource.getSpec());
+                K8sCustomResource k8sResource = buildCustomResource(repoResource, namespace);
                 operation.inNamespace(namespace).create((T) k8sResource);
-
                 cache.add(namespace, k8sResource);
             }
 
         } finally {
             lock.unlock();
         }
+    }
+
+    private K8sCustomResource buildCustomResource(RepositoryResource repoResource, String namespace) {
+        K8sCustomResource k8sResource = new K8sCustomResource();
+        ObjectMeta metaData = buildCustomResourceMetaData(repoResource, namespace);
+
+        k8sResource.setMetadata(metaData);
+        k8sResource.setSourceHash(repoResource.getSourceHash());
+        k8sResource.setCommitHash(repoResource.getCommitHash());
+        k8sResource.setDetectionTime(repoResource.getDetectionTime());
+        k8sResource.setKind(repoResource.getKind());
+        k8sResource.setSpec(repoResource.getSpec());
+
+        return k8sResource;
+    }
+
+    private ObjectMeta buildCustomResourceMetaData(RepositoryResource repoResource, String namespace) {
+        return new ObjectMetaBuilder()
+                .withName(repoResource.getMetadata().getName())
+                .withNamespace(namespace)
+                .build();
     }
 
     public void createCustomResource(RepositoryResource repoResource) {
@@ -179,19 +188,8 @@ public class Kubernetes implements Closeable {
             lock.lock();
 
             MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
-            K8sCustomResource k8sResource = new K8sCustomResource();
-            ObjectMeta metaData = new ObjectMetaBuilder()
-                    .withName(repoResource.getMetadata().getName())
-                    .withNamespace(namespace)
-                    .build();
-            k8sResource.setMetadata(metaData);
-            k8sResource.setSourceHash(repoResource.getSourceHash());
-            k8sResource.setCommitHash(repoResource.getCommitHash());
-            k8sResource.setDetectionTime(repoResource.getDetectionTime());
-            k8sResource.setKind(repoResource.getKind());
-            k8sResource.setSpec(repoResource.getSpec());
+            K8sCustomResource k8sResource = buildCustomResource(repoResource, namespace);
             operation.inNamespace(namespace).create((T) k8sResource);
-
             cache.add(namespace, k8sResource);
 
         } finally {
