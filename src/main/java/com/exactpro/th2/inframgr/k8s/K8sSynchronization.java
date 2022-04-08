@@ -80,15 +80,8 @@ public class K8sSynchronization {
             String namespace = kube.formatNamespaceName(schemaName);
             K8sResourceCache cache = K8sResourceCache.INSTANCE;
             SchemaInitializer.ensureSchema(schemaName, kube);
-            // validate schema links, remove invalid ones
-            // validate secret custom config
-            if (!SchemaValidator.validate(schemaName, repositoryResources, shortCommitRef)) {
-                logger.warn("Schema \"{}\" contains errors. Invalid links will not be applied to cluster.",
-                        schemaName);
-                ValidationCache.getSchemaTable(schemaName).printErrors();
-            } else {
-                logger.info("Schema \"{}\" validated.", schemaName);
-            }
+
+            validateSchema(schemaName, repositoryResources, shortCommitRef);
 
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
@@ -110,12 +103,8 @@ public class K8sSynchronization {
             );
 
             // load custom resources from k8s
-            Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
-            for (ResourceType t : ResourceType.values()) {
-                if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
-                    k8sResources.put(t.kind(), kube.loadCustomResources(t));
-                }
-            }
+            Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
+
             // synchronize by resource type
             for (ResourceType type : ResourceType.values()) {
                 if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
@@ -183,6 +172,28 @@ public class K8sSynchronization {
             }
         } finally {
             timer.observeDuration();
+        }
+    }
+
+    private Map<String, Map<String, K8sCustomResource>> loadCustomResources(Kubernetes kube) {
+        Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
+        for (ResourceType t : ResourceType.values()) {
+            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
+                k8sResources.put(t.kind(), kube.loadCustomResources(t)); // [kind, [name, K8sCustomResource]]
+            }
+        }
+        return k8sResources;
+    }
+
+    // validate schema links, remove invalid ones
+    // validate secret custom config
+    private void validateSchema(String schemaName, Map<String, Map<String, RepositoryResource>> repoResources, String shortCommitRef) {
+        if (!SchemaValidator.validate(schemaName, repoResources, shortCommitRef)) {
+            logger.warn("Schema \"{}\" contains errors. Invalid links will not be applied to cluster.",
+                    schemaName);
+            ValidationCache.getSchemaTable(schemaName).printErrors();
+        } else {
+            logger.info("Schema \"{}\" validated.", schemaName);
         }
     }
 
