@@ -99,7 +99,6 @@ public class K8sSynchronization {
                     kube
             );
 
-            // synchronize by resource type
             syncByResourceType(schemaName, repositoryResources, kube, shortCommitRef);
 
         } finally {
@@ -121,55 +120,63 @@ public class K8sSynchronization {
                 Map<String, K8sCustomResource> customResources = k8sResources.get(typeKind);
 
                 for (RepositoryResource resource : resources.values()) {
-                    String resourceName = resource.getMetadata().getName();
-                    String resourceLabel = "\"" + annotationFor(namespace, typeKind, resourceName) + "\"";
-                    String hashTag = Strings.formatHash(resource.getSourceHash());
                     // add resource to cache
                     cache.add(namespace, resource);
                     //check resources for dynamic image version range
                     DynamicResourceProcessor.checkResource(resource, schemaName);
-                    // check repository items against k8s
-                    if (!customResources.containsKey(resourceName)) {
-                        // create custom resources that do not exist in k8s
-                        logger.info("Creating resource {} {}. [commit: {}]",
-                                resourceLabel, hashTag, shortCommitRef);
-                        try {
-                            Strings.stringify(resource.getSpec());
-                            kube.createCustomResource(resource);
-                        } catch (Exception e) {
-                            logger.error("Exception creating resource {} {}. [commit: {}]",
-                                    resourceLabel, hashTag, shortCommitRef, e);
-                        }
-                    } else {
-                        // compare object's hashes and update custom resources whose hash labels do not match
-                        K8sCustomResource cr = customResources.get(resourceName);
 
-                        if (!(resource.getSourceHash() == null
-                                || resource.getSourceHash().equals(cr.getSourceHash()))) {
-                            // update custom resource
-                            logger.info("Updating resource {} {}. [commit: {}]",
-                                    resourceLabel, hashTag, shortCommitRef);
-                            try {
-                                Strings.stringify(resource.getSpec());
-                                kube.replaceCustomResource(resource);
-                            } catch (Exception e) {
-                                logger.error("Exception updating resource {} {}. [commit: {}]",
-                                        resourceLabel, hashTag, shortCommitRef, e);
-                            }
-                        }
-                    }
+                    syncRepoResourceWithK8s(resource, namespace, typeKind,
+                            customResources, kube, shortCommitRef);
                 }
 
-                deleteK8sResourcesAbsentInRepo(typeKind, schemaName,
-                        resources, customResources, shortCommitRef, kube);
+                deleteK8sResourcesAbsentInRepo(schemaName, typeKind, resources,
+                        customResources, kube, shortCommitRef);
+            }
+        }
+    }
+
+    private void syncRepoResourceWithK8s(RepositoryResource resource, String namespace, String typeKind,
+                                         Map<String, K8sCustomResource> customResources,
+                                         Kubernetes kube, String shortCommitRef) {
+        String resourceName = resource.getMetadata().getName();
+        String resourceLabel = "\"" + annotationFor(namespace, typeKind, resourceName) + "\"";
+        String hashTag = Strings.formatHash(resource.getSourceHash());
+        // check repository items against k8s
+        if (!customResources.containsKey(resourceName)) {
+            // create custom resources that do not exist in k8s
+            logger.info("Creating resource {} {}. [commit: {}]",
+                    resourceLabel, hashTag, shortCommitRef);
+            try {
+                Strings.stringify(resource.getSpec());
+                kube.createCustomResource(resource);
+            } catch (Exception e) {
+                logger.error("Exception creating resource {} {}. [commit: {}]",
+                        resourceLabel, hashTag, shortCommitRef, e);
+            }
+        } else {
+            // compare object's hashes and update custom resources whose hash labels do not match
+            K8sCustomResource cr = customResources.get(resourceName);
+
+            if (!(resource.getSourceHash() == null
+                    || resource.getSourceHash().equals(cr.getSourceHash()))) {
+                // update custom resource
+                logger.info("Updating resource {} {}. [commit: {}]",
+                        resourceLabel, hashTag, shortCommitRef);
+                try {
+                    Strings.stringify(resource.getSpec());
+                    kube.replaceCustomResource(resource);
+                } catch (Exception e) {
+                    logger.error("Exception updating resource {} {}. [commit: {}]",
+                            resourceLabel, hashTag, shortCommitRef, e);
+                }
             }
         }
     }
 
 
-    private void deleteK8sResourcesAbsentInRepo(String typeKind, String schemaName,
+    private void deleteK8sResourcesAbsentInRepo(String schemaName, String typeKind,
                                              Map<String, RepositoryResource> resources, Map<String, K8sCustomResource> customResources,
-                                             String shortCommitRef, Kubernetes kube) {
+                                             Kubernetes kube, String shortCommitRef) {
         for (String resourceName : customResources.keySet()) {
             if (!resources.containsKey(resourceName)) {
                 String namespace = kube.formatNamespaceName(schemaName);
