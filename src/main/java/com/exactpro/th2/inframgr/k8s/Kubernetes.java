@@ -305,6 +305,10 @@ public class Kubernetes implements Closeable {
         return client.namespaces().withName(namespace).get();
     }
 
+    public Namespace getThisNamespace() {
+        return client.namespaces().withName(namespace).get();
+    }
+
     public boolean deleteNamespace() {
         return client.namespaces().withName(namespace).delete();
     }
