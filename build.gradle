@@ -1,5 +1,5 @@
 plugins {
-    id 'org.springframework.boot' version '2.3.2.RELEASE'
+    id 'org.springframework.boot' version '2.6.6'
     id 'java'
     id 'checkstyle'
 }
@@ -41,10 +41,10 @@ checkstyle {
 }
 
 dependencies {
-    implementation platform('org.springframework.boot:spring-boot-dependencies:2.3.2.RELEASE')
+    implementation platform('org.springframework.boot:spring-boot-dependencies:2.6.6')
 
-    compile "com.datastax.oss:java-driver-core:${driver_version}"
-    compile "com.datastax.oss:java-driver-query-builder:${driver_version}"
+    implementation "com.datastax.oss:java-driver-core:${driver_version}"
+    implementation "com.datastax.oss:java-driver-query-builder:${driver_version}"
 
     implementation "com.exactpro.th2:infra-repo:${infra_repo_version}"
 
@@ -68,7 +68,7 @@ dependencies {
         exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
     }
     testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.2')
-    testRuntime('org.junit.jupiter:junit-jupiter-engine:5.6.2')
+    testImplementation('org.junit.jupiter:junit-jupiter-engine:5.6.2')
 
     compileOnly 'org.projectlombok:lombok:1.18.12'
     annotationProcessor 'org.projectlombok:lombok:1.18.12'
@@ -83,6 +83,10 @@ test {
 }
 
 jar {
+    enabled = false
+}
+
+bootJar{
     manifest {
         attributes(
                 'Created-By': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
