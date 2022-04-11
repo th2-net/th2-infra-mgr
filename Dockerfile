@@ -1,4 +1,4 @@
-FROM gradle:6.6-jdk11 AS build
+FROM gradle:7.4.2-jdk11 AS build
 ARG app_version=0.0.0
 COPY ./ .
 RUN mkdir -p /home/service/repository /home/service/keys
