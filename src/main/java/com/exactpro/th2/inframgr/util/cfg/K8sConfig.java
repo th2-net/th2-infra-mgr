@@ -16,7 +16,9 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class K8sConfig {
@@ -120,7 +122,7 @@ public class K8sConfig {
     }
 
     public Set<String> getSecretNames() {
-        return secretNames;
+        return Objects.requireNonNullElseGet(secretNames, HashSet::new);
     }
 
     public void setSecretNames(Set<String> secretNames) {
