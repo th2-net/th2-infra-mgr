@@ -21,6 +21,7 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
@@ -102,6 +103,7 @@ public class SchemaInitializer {
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
         ensureSchema(schemaName, kube, SchemaSyncMode.CHECK_NAMESPACE);
+        K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
     }
 
     public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {

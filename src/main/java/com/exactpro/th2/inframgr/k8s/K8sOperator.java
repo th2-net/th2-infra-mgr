@@ -38,8 +38,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.locks.Lock;
 
-import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_COMMIT_HASH;
-
 @Component
 public class K8sOperator {
 
@@ -52,10 +50,6 @@ public class K8sOperator {
     private K8sResourceCache cache;
 
     private RetryableTaskQueue taskQueue;
-
-    private RepositorySnapshot snapshot = null;
-
-    private String prevCommitHash;
 
     private void startInformers() {
         // wait for startup synchronization to complete
@@ -117,8 +111,9 @@ public class K8sOperator {
                 // do preliminary check against the cache to avoid repository downloading
                 K8sResourceCache.CacheEntry cacheEntry = cache.get(namespace, kind, name);
                 String cachedHash = cacheEntry == null ? null : cacheEntry.getHash();
-                if (action.equals(Watcher.Action.DELETED) && cacheEntry != null && cacheEntry.isMarkedAsDeleted()
-                        && Objects.equals(cachedHash, hash)) {
+                if (action.equals(Watcher.Action.DELETED) &&
+                        (cache.isNamespaceDeleted(namespace)
+                                || (cacheEntry != null && cacheEntry.isMarkedAsDeleted() && cachedHash.equals(hash)))) {
                     logger.debug("No action needed for resource {} {}", resourceLabel, hashTag);
                     return;
                 }
@@ -138,11 +133,8 @@ public class K8sOperator {
                 RepositoryResource resource = null;
                 try {
                     gitter.lock();
-                    if (prevCommitHash == null || !prevCommitHash.equals(extractCommitHash(res.getMetadata()))) {
-                        logger.info("Checking out branch \"{}\" from repository", gitter.getBranch());
-                        snapshot = Repository.getSnapshot(gitter);
-                        prevCommitHash = extractCommitHash(res.getMetadata());
-                    }
+                    logger.info("Checking out branch \"{}\" from repository", gitter.getBranch());
+                    RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
 
                     // check if we need to re-synchronize k8s at all
                     RepositorySettings rs = snapshot.getRepositorySettings();
@@ -239,13 +231,5 @@ public class K8sOperator {
     public void destroy() {
         logger.info("Shutting down retryable task scheduler");
         taskQueue.shutdown();
-    }
-
-    private String extractCommitHash(ObjectMeta metadata) {
-        try {
-            return metadata.getAnnotations().get(KEY_COMMIT_HASH);
-        } catch (NullPointerException e) {
-            return null;
-        }
     }
 }
