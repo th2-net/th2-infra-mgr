@@ -19,7 +19,9 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.infrarepo.RepositoryResource;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -51,6 +53,8 @@ public enum K8sResourceCache {
 
     private final Map<String, CacheEntry> cache = new HashMap<>();
 
+    private final Set<String> namespacesCache = new HashSet<>();
+
     private final Map<String, Lock> locks = new HashMap<>();
 
     private String keyFor(String namespace, String type, String resourceName) {
@@ -76,6 +80,10 @@ public enum K8sResourceCache {
         cache.put(key, entry);
     }
 
+    public synchronized void addNamespace(String namespace) {
+        namespacesCache.add(namespace);
+    }
+
     public synchronized CacheEntry get(String namespace, String resourceType, String resourceName) {
 
         String key = keyFor(namespace, resourceType, resourceName);
@@ -87,12 +95,20 @@ public enum K8sResourceCache {
         return get(namespace, resource.getKind(), resource.getMetadata().getName());
     }
 
+    public boolean isNamespaceDeleted(String namespace) {
+        return !namespacesCache.contains(namespace);
+    }
+
     public synchronized void remove(String namespace, String resourceType, String resourceName) {
 
         CacheEntry entry = get(namespace, resourceType, resourceName);
         if (entry != null) {
             entry.markAsDeleted();
         }
+    }
+
+    public synchronized void removeNamespace(String namespace) {
+        namespacesCache.remove(namespace);
     }
 
     public synchronized Lock lockFor(String namespace, String resourceType, String resourceName) {
