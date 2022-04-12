@@ -1,5 +1,5 @@
 plugins {
-	id 'org.springframework.boot' version '2.3.2.RELEASE'
+	id 'org.springframework.boot' version '2.6.6'
 	id 'io.spring.dependency-management' version '1.0.9.RELEASE'
 	id 'java'
 }
@@ -50,7 +50,7 @@ dependencies {
 		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
 	}
 	testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.2')
-	testRuntime('org.junit.jupiter:junit-jupiter-engine:5.6.2')
+	testImplementation('org.junit.jupiter:junit-jupiter-engine:5.6.2')
 
 	compileOnly 'org.projectlombok:lombok:1.18.12'
 	annotationProcessor 'org.projectlombok:lombok:1.18.12'
@@ -65,15 +65,19 @@ test {
 }
 
 jar {
+	enabled = false
+}
+
+bootJar{
 	manifest {
 		attributes(
-				'Created-By':               "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
-				'Specification-Title':      '',
-				'Specification-Vendor':     'Exactpro Systems LLC',
-				'Implementation-Title':     project.archivesBaseName,
-				'Implementation-Vendor':    'Exactpro Systems LLC',
+				'Created-By': "${System.getProperty('java.version')} (${System.getProperty('java.vendor')})",
+				'Specification-Title': '',
+				'Specification-Vendor': 'Exactpro Systems LLC',
+				'Implementation-Title': project.archivesBaseName,
+				'Implementation-Vendor': 'Exactpro Systems LLC',
 				'Implementation-Vendor-Id': 'com.exactpro',
-				'Implementation-Version':   project.version
+				'Implementation-Version': project.version
 		)
 	}
 }
