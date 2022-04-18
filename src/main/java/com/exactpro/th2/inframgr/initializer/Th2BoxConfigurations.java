@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,9 +42,9 @@ public class Th2BoxConfigurations {
 
     private static final String CRADLE_MANAGER_FILE_NAME = "cradle_manager.json";
 
-    public static void synchronizeBoxConfigMaps(Map<String, String> mqRouter,
-                                                Map<String, String> grpcRouter,
-                                                Map<String, String> cradleManager,
+    public static void synchronizeBoxConfigMaps(Map<String, Object> mqRouter,
+                                                Map<String, Object> grpcRouter,
+                                                Map<String, Object> cradleManager,
                                                 String fullCommitRef,
                                                 Kubernetes kube) throws IOException {
         synchronizeConfigMap(MQ_ROUTER_CM_NAME, MQ_ROUTER_FILE_NAME, mqRouter, fullCommitRef, kube);
@@ -53,7 +54,7 @@ public class Th2BoxConfigurations {
 
     private static void synchronizeConfigMap(String configMapName,
                                              String fileName,
-                                             Map<String, String> newData,
+                                             Map<String, Object> newData,
                                              String fullCommitRef,
                                              Kubernetes kube) throws IOException {
         String namespace = kube.getNamespaceName();
@@ -64,16 +65,19 @@ public class Th2BoxConfigurations {
             return;
         }
 
-        ConfigMap configMap = kube.getConfigMap(configMapName);
+        ConfigMap defaultConfigMap = kube.currentNamespace().getConfigMap(configMapName);
 
-        if (configMap == null || configMap.getData() == null) {
+        if (defaultConfigMap == null || defaultConfigMap.getData() == null) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
 
-        Map<String, String> data = configMap.getData();
-        String newDataStr = getNewDataIfDifferent(data.get(fileName), newData);
-        if (newDataStr == null) {
+
+        Map<String, String> defaultData = defaultConfigMap.getData();
+        String newDataStr = mergeConfigs(defaultData.get(fileName), newData);
+        ConfigMap configMapInSchemaNamespace = kube.getConfigMap(configMapName);
+        Map<String, String> dataInSchemaNamespace = configMapInSchemaNamespace.getData();
+        if (newDataStr.equals(dataInSchemaNamespace.get(fileName))) {
             logger.info("Config map \"{}\" is up to date", resourceLabel);
             return;
         }
@@ -81,24 +85,22 @@ public class Th2BoxConfigurations {
         try {
             logger.info("Updating \"{}\"", resourceLabel);
 
-            data.put(fileName, newDataStr);
-            stamp(configMap, fullCommitRef);
-            kube.createOrReplaceConfigMap(configMap);
+            dataInSchemaNamespace.put(fileName, newDataStr);
+            stamp(configMapInSchemaNamespace, fullCommitRef);
+            kube.createOrReplaceConfigMap(configMapInSchemaNamespace);
         } catch (Exception e) {
             logger.error("Exception Updating \"{}\"", resourceLabel, e);
             throw e;
         }
     }
 
-    private static String getNewDataIfDifferent(String oldData,
-                                                Map<String, String> newData) throws JsonProcessingException {
+    private static String mergeConfigs(String initialDataStr,
+                                                Map<String, Object> newData) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
-        Map<String, String> oldDataMap = objectMapper.readValue(oldData, new TypeReference<>() {
+        Map<String, Object> defaults = objectMapper.readValue(initialDataStr, new TypeReference<>() {
         });
+        ObjectReader updater = objectMapper.readerForUpdating(defaults);
         String newDataStr = objectMapper.writeValueAsString(newData);
-        if (!oldDataMap.equals(newData)) {
-            return newDataStr;
-        }
-        return null;
+        return objectMapper.writeValueAsString(updater.readValue(newDataStr));
     }
 }
