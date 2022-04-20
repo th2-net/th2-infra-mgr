@@ -27,12 +27,14 @@ import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
 import com.exactpro.th2.infrarepo.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,10 @@ import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 import static java.util.Collections.unmodifiableMap;
 
 public class SchemaInitializer {
+
+    private SchemaInitializer() {
+        throw new AssertionError();
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
 
@@ -235,14 +241,12 @@ public class SchemaInitializer {
                                       Kubernetes kube,
                                       boolean forceUpdate) {
 
-        if (configMapName == null || configMapName.isEmpty()) {
+        if (StringUtils.isEmpty(configMapName)) {
             return;
         }
 
         ConfigMap originalConfigMap = kube.currentNamespace().getConfigMap(configMapName);
-        if (originalConfigMap == null
-                || originalConfigMap.getData() == null
-                || originalConfigMap.getData().get(RABBITMQ_JSON_KEY) == null) {
+        if (configMapNotLoaded(originalConfigMap, RABBITMQ_JSON_KEY)) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
@@ -260,20 +264,33 @@ public class SchemaInitializer {
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
 
-            ConfigMap newConfigMap = new ConfigMap();
-            Map<String, String> newData = new HashMap<>();
-            newData.put(RABBITMQ_JSON_KEY, mapper.writeValueAsString(rabbitMQJson));
+            ConfigMap newConfigMap = configMapWithNewData(RABBITMQ_JSON_KEY, rabbitMQJson);
+
             newConfigMap.setMetadata(createMetadataWithPreviousAnnotations(
                     configMapName,
                     newResourceLabel,
                     originalConfigMap.getMetadata().getAnnotations())
             );
-            newConfigMap.setData(newData);
             kube.createOrReplaceConfigMap(newConfigMap);
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, configMapName);
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", newResourceLabel, e);
         }
+    }
+
+    private static boolean configMapNotLoaded(ConfigMap configMap, String jsonKey) {
+        return configMap == null
+                || configMap.getData() == null
+                || configMap.getData().get(jsonKey) == null;
+    }
+
+    private static ConfigMap configMapWithNewData(String jsonKey, Map<String, String> jsonMap)
+            throws JsonProcessingException {
+        ConfigMap newConfigMap = new ConfigMap();
+        Map<String, String> newData = new HashMap<>();
+        newData.put(jsonKey, mapper.writeValueAsString(jsonMap));
+        newConfigMap.setData(newData);
+        return newConfigMap;
     }
 
     static void copyCassandraSecret(Config config, Kubernetes kube, boolean forceUpdate) {
@@ -382,13 +399,11 @@ public class SchemaInitializer {
                                                Kubernetes kube,
                                                boolean forceUpdate) {
 
-        if (configMapName == null || configMapName.isEmpty()) {
+        if (StringUtils.isEmpty(configMapName)) {
             return;
         }
         ConfigMap originalConfigMap = kube.currentNamespace().getConfigMap(configMapName);
-        if (originalConfigMap == null
-                || originalConfigMap.getData() == null
-                || originalConfigMap.getData().get(CASSANDRA_JSON_KEY) == null) {
+        if (configMapNotLoaded(originalConfigMap, CASSANDRA_JSON_KEY)) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
@@ -404,15 +419,12 @@ public class SchemaInitializer {
         try {
             var cradleMQJson = mapper.readValue(originalConfigMap.getData().get(CASSANDRA_JSON_KEY), Map.class);
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
-            ConfigMap newConfigMap = new ConfigMap();
-            Map<String, String> newData = new HashMap<>();
-            newData.put(CASSANDRA_JSON_KEY, mapper.writeValueAsString(cradleMQJson));
+            ConfigMap newConfigMap = configMapWithNewData(CASSANDRA_JSON_KEY, cradleMQJson);
             newConfigMap.setMetadata(createMetadataWithPreviousAnnotations(
                     configMapName,
                     newResourceLabel,
                     originalConfigMap.getMetadata().getAnnotations())
             );
-            newConfigMap.setData(newData);
             kube.createOrReplaceConfigMap(newConfigMap);
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, configMapName);
         } catch (Exception e) {

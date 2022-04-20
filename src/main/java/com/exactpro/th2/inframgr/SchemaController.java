@@ -30,6 +30,7 @@ import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.exactpro.th2.validator.ValidationReport;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
@@ -109,15 +110,8 @@ public class SchemaController {
         GitCfg gitConfig = config.getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
 
-        // check if the schema already exists
-        Set<String> branches;
-        try {
-            branches = ctx.getBranches();
-        } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
-        }
-        if (branches.contains(schemaName)) {
-            throw new NotAcceptableException(SCHEMA_EXISTS, "error crating schema. schema already exists");
+        if (schemaAlreadyExists(schemaName, ctx)) {
+            throw new NotAcceptableException(SCHEMA_EXISTS, "Error creating schema. schema already exists");
         }
 
         // create schema
@@ -132,11 +126,7 @@ public class SchemaController {
                 gitter.unlock();
             }
 
-            SchemaEventRouter router = SchemaEventRouter.getInstance();
-            RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-            RepositorySettings rs = snapshot.getRepositorySettings();
-            event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied() || rs.isK8sSynchronizationRequired())));
-            router.addEvent(event);
+            issueRepoUpdateEvent(schemaName, snapshot);
 
             return new SchemaControllerResponse(snapshot);
 
@@ -146,6 +136,16 @@ public class SchemaController {
             logger.error("Exception creating schema \"{}\"", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
+    }
+
+    private boolean schemaAlreadyExists(String schemaName, GitterContext ctx) {
+        Set<String> branches;
+        try {
+            branches = ctx.getBranches();
+        } catch (Exception e) {
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+        }
+        return branches.contains(schemaName);
     }
 
     @PostMapping("/schema/{name}")
@@ -174,15 +174,8 @@ public class SchemaController {
         GitCfg gitConfig = config.getGit();
         GitterContext ctx = GitterContext.getContext(gitConfig);
 
-        // check if the schema exists
-        Set<String> branches;
-        try {
-            branches = ctx.getBranches();
-        } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
-        }
-        if (!branches.contains(schemaName)) {
-            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
+        if (!schemaAlreadyExists(schemaName, ctx)) {
+            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "Schema does not exist");
         }
 
         //validate schema and apply updates if valid
@@ -216,12 +209,7 @@ public class SchemaController {
             if (commitRef == null) {
                 logger.info("Nothing changed, leaving");
             } else {
-                SchemaEventRouter router = SchemaEventRouter.getInstance();
-                RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-                RepositorySettings rs = snapshot.getRepositorySettings();
-                event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
-                        || rs.isK8sSynchronizationRequired())));
-                router.addEvent(event);
+                issueRepoUpdateEvent(schemaName, snapshot);
             }
             return new SchemaControllerResponse(snapshot);
         } catch (ServiceException se) {
@@ -230,6 +218,16 @@ public class SchemaController {
             logger.error("Exception updating schema \"{}\" request", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
         }
+    }
+
+    private void issueRepoUpdateEvent(String schemaName, RepositorySnapshot snapshot)
+            throws JsonProcessingException {
+        SchemaEventRouter router = SchemaEventRouter.getInstance();
+        RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
+        RepositorySettings rs = snapshot.getRepositorySettings();
+        event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
+                || rs.isK8sSynchronizationRequired())));
+        router.addEvent(event);
     }
 
     private String updateRepository(Gitter gitter, List<RequestEntry> operations) throws ServiceException {
