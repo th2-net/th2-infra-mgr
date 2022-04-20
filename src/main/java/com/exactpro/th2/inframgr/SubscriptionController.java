@@ -106,7 +106,7 @@ public class SubscriptionController {
                     .onBackpressureBuffer()
                     .filter(event -> event instanceof RepositoryUpdateEvent || event instanceof StatusUpdateEvent)
                     .observeOn(Schedulers.computation())
-                    .subscribe(event -> this.processEvent(event));
+                    .subscribe(this::processEvent);
         });
     }
 

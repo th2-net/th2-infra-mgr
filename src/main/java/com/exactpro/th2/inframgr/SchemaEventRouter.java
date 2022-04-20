@@ -57,9 +57,7 @@ public class SchemaEventRouter {
     }
 
     private EventCache getEventCache(String eventType) {
-
-        EventCache eventCache = acceptedEvents.computeIfAbsent(eventType, k -> new EventCache());
-        return eventCache;
+        return acceptedEvents.computeIfAbsent(eventType, k -> new EventCache());
     }
 
     public boolean isEventCached(SchemaEvent event) {
@@ -83,7 +81,6 @@ public class SchemaEventRouter {
     }
 
     public void addEvent(SchemaEvent event) {
-
         EventCache eventCache = getEventCache(event.getEventType());
         synchronized (eventCache) {
             eventCache.put(event.getEventKey(), event);
