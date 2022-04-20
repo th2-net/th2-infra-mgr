@@ -31,7 +31,11 @@ import java.util.zip.GZIPOutputStream;
     data if compression is not specified or is false
  */
 
-public final class Th2DictionaryProcessor {
+public class Th2DictionaryProcessor {
+
+    private Th2DictionaryProcessor() {
+        throw new AssertionError();
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(Th2DictionaryProcessor.class);
 

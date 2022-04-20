@@ -24,13 +24,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class K8sProvisioningErrorResponse extends ErrorResponse {
-    private class Item {
-
+    private static final class Item {
         @JsonProperty
         private String kind;
 
         @JsonProperty
         private String name;
+
+        @Override
+        public String toString() {
+            return "Item{" +
+                    "kind='" + kind + '\'' +
+                    ", name='" + name + '\'' +
+                    '}';
+        }
     }
 
     @JsonProperty
