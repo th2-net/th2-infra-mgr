@@ -60,11 +60,6 @@ public class Th2BoxConfigurations {
         String namespace = kube.getNamespaceName();
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, configMapName);
 
-        if (newData == null || newData.isEmpty()) {
-            logger.debug("Custom configuration for \"{}\" not found. Using default values", resourceLabel);
-            return;
-        }
-
         ConfigMap defaultConfigMap = kube.currentNamespace().getConfigMap(configMapName);
 
         if (defaultConfigMap == null || defaultConfigMap.getData() == null) {
@@ -72,30 +67,53 @@ public class Th2BoxConfigurations {
             return;
         }
 
-
-        Map<String, String> defaultData = defaultConfigMap.getData();
-        String newDataStr = mergeConfigs(defaultData.get(fileName), newData);
-        ConfigMap configMapInSchemaNamespace = kube.getConfigMap(configMapName);
-        Map<String, String> dataInSchemaNamespace = configMapInSchemaNamespace.getData();
-        if (newDataStr.equals(dataInSchemaNamespace.get(fileName))) {
-            logger.info("Config map \"{}\" is up to date", resourceLabel);
-            return;
-        }
-
         try {
-            logger.info("Updating \"{}\"", resourceLabel);
+            Map<String, String> defaultData = defaultConfigMap.getData();
+            ConfigMap configMapInSchemaNamespace = kube.getConfigMap(configMapName);
+            Map<String, String> dataInSchemaNamespace = configMapInSchemaNamespace.getData();
 
-            dataInSchemaNamespace.put(fileName, newDataStr);
-            stamp(configMapInSchemaNamespace, fullCommitRef);
-            kube.createOrReplaceConfigMap(configMapInSchemaNamespace);
-        } catch (Exception e) {
-            logger.error("Exception Updating \"{}\"", resourceLabel, e);
-            throw e;
+            if (newData == null || newData.isEmpty()) {
+                logger.debug("Custom configuration for \"{}\" not found. Using default values", resourceLabel);
+                String defaultDataSection = defaultData.get(fileName);
+                if (defaultDataSection.equals(dataInSchemaNamespace.get(fileName))) {
+                    logger.info("Config map \"{}\" is up to date", resourceLabel);
+                    return;
+                }
+                dataInSchemaNamespace.put(fileName, defaultDataSection);
+                try {
+                    logger.info("Resetting to default \"{}\"", resourceLabel);
+                    stamp(configMapInSchemaNamespace, fullCommitRef);
+                    kube.createOrReplaceConfigMap(configMapInSchemaNamespace);
+                } catch (Exception e) {
+                    logger.error("Exception Resetting \"{}\"", resourceLabel, e);
+                    throw e;
+                }
+                return;
+            }
+
+            String newDataStr = mergeConfigs(defaultData.get(fileName), newData);
+            if (newDataStr.equals(dataInSchemaNamespace.get(fileName))) {
+                logger.info("Config map \"{}\" is up to date", resourceLabel);
+                return;
+            }
+
+            try {
+                logger.info("Updating \"{}\"", resourceLabel);
+
+                dataInSchemaNamespace.put(fileName, newDataStr);
+                stamp(configMapInSchemaNamespace, fullCommitRef);
+                kube.createOrReplaceConfigMap(configMapInSchemaNamespace);
+            } catch (Exception e) {
+                logger.error("Exception Updating \"{}\"", resourceLabel, e);
+                throw e;
+            }
+        } catch (NullPointerException npe) {
+            logger.error(npe.getMessage(), npe);
         }
     }
 
     private static String mergeConfigs(String initialDataStr,
-                                                Map<String, Object> newData) throws JsonProcessingException {
+                                       Map<String, Object> newData) throws JsonProcessingException {
         ObjectMapper objectMapper = new ObjectMapper();
         Map<String, Object> defaults = objectMapper.readValue(initialDataStr, new TypeReference<>() {
         });
