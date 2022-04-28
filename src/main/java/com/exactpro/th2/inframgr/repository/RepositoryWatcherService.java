@@ -104,7 +104,7 @@ public class RepositoryWatcherService {
                 .collect(Collectors.toList());
 
         for (String extinctNamespace : extinctNamespaces) {
-            DynamicResourceProcessor.schemaDeleted(extinctNamespace.substring(namespacePrefix.length()));
+            DynamicResourceProcessor.deleteSchema(extinctNamespace.substring(namespacePrefix.length()));
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
                 String branchName = extinctNamespace.substring(namespacePrefix.length());

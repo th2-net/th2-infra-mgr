@@ -25,6 +25,7 @@ public class VersionNumberUtils {
     private static final String SPLIT_CHAR = "\\.";
 
     private VersionNumberUtils() {
+        throw new AssertionError();
     }
 
     public static boolean validate(String tag, String versionRange) {

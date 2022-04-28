@@ -65,7 +65,7 @@ public class K8sSynchronization {
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             if (kube.existsNamespace()) {
                 logger.info("Removing schema \"{}\" from kubernetes", schemaName);
-                DynamicResourceProcessor.schemaDeleted(schemaName);
+                DynamicResourceProcessor.deleteSchema(schemaName);
                 K8sResourceCache.INSTANCE.removeNamespace(kube.formatNamespaceName(schemaName));
                 kube.deleteNamespace();
             }
