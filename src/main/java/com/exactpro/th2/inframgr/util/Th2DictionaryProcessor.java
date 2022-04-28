@@ -34,7 +34,6 @@ import java.util.zip.GZIPOutputStream;
 public class Th2DictionaryProcessor {
 
     private Th2DictionaryProcessor() {
-        throw new AssertionError();
     }
 
     private static final Logger logger = LoggerFactory.getLogger(Th2DictionaryProcessor.class);

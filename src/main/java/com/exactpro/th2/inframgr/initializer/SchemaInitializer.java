@@ -54,7 +54,6 @@ import static java.util.Collections.unmodifiableMap;
 public class SchemaInitializer {
 
     private SchemaInitializer() {
-        throw new AssertionError();
     }
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);

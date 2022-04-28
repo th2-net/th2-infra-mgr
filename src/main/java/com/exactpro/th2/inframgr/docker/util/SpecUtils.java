@@ -27,7 +27,6 @@ public class SpecUtils {
     public static final String VERSION_RANGE_ALIAS = "version-range";
 
     private SpecUtils() {
-        throw new AssertionError();
     }
 
     public static String getImageName(Object sourceObj) {

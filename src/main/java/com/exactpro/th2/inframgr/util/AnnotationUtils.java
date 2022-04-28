@@ -28,7 +28,6 @@ import static com.exactpro.th2.inframgr.k8s.K8sCustomResource.KEY_SOURCE_HASH;
 public class AnnotationUtils {
 
     private AnnotationUtils() {
-        throw new AssertionError();
     }
 
     public static void stamp(ConfigMap cm, String fullCommitHash) {

@@ -19,6 +19,7 @@ package com.exactpro.th2.inframgr.repository;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
+import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.GitterContext;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -104,7 +105,9 @@ public class RepositoryWatcherService {
                 .collect(Collectors.toList());
 
         for (String extinctNamespace : extinctNamespaces) {
-            DynamicResourceProcessor.deleteSchema(extinctNamespace.substring(namespacePrefix.length()));
+            String schemaName = extinctNamespace.substring(namespacePrefix.length());
+            DynamicResourceProcessor.deleteSchema(schemaName);
+            K8sResourceCache.INSTANCE.removeNamespace(extinctNamespace);
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
                 String branchName = extinctNamespace.substring(namespacePrefix.length());

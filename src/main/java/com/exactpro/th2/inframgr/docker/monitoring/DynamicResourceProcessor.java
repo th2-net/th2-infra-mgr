@@ -54,7 +54,6 @@ public class DynamicResourceProcessor {
     private static final DynamicResourcesCache DYNAMIC_RESOURCES_CACHE = DynamicResourcesCache.INSTANCE;
 
     private DynamicResourceProcessor() {
-        throw new AssertionError();
     }
 
     public static void checkResource(RepositoryResource resource, String schema) {

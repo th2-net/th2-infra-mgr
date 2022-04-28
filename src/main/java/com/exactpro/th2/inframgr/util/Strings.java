@@ -22,7 +22,6 @@ import java.util.Map;
 public class Strings {
 
     private Strings() {
-        throw new AssertionError();
     }
 
     public static boolean stringify(Object o) {
