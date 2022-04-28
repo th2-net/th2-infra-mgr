@@ -96,9 +96,9 @@ class SchemaEventRouterCacheTests {
         }
     }
 
-    private abstract class BaseEvent extends SchemaEvent {
+    private abstract static class BaseEvent extends SchemaEvent {
 
-        private String key;
+        private final String key;
 
         private BaseEvent(String key) {
             super(key);

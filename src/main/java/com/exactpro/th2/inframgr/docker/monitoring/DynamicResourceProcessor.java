@@ -33,7 +33,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -45,7 +44,7 @@ public class DynamicResourceProcessor {
 
     private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 30;
 
-    private static final List<String> monitoredKinds = Arrays.asList(
+    private static final List<String> monitoredKinds = List.of(
             ResourceType.Th2Box.kind(),
             ResourceType.Th2CoreBox.kind(),
             ResourceType.Th2Estore.kind(),
@@ -55,13 +54,14 @@ public class DynamicResourceProcessor {
     private static final DynamicResourcesCache DYNAMIC_RESOURCES_CACHE = DynamicResourcesCache.INSTANCE;
 
     private DynamicResourceProcessor() {
+        throw new AssertionError();
     }
 
     public static void checkResource(RepositoryResource resource, String schema) {
         checkResource(resource, schema, false);
     }
 
-    public static void checkResource(RepositoryResource resource, String schema, boolean deleted) {
+    public static void checkResource(RepositoryResource resource, String schema, boolean delete) {
         String kind = resource.getKind();
         String name = resource.getMetadata().getName();
         String resourceLabel = ResourcePath.annotationFor(schema, kind, name);
@@ -69,7 +69,7 @@ public class DynamicResourceProcessor {
             return;
         }
 
-        if (deleted) {
+        if (delete) {
             removeFromTrackedResources(schema, name, resourceLabel, "Resource deleted from repository");
             return;
         }
@@ -88,12 +88,7 @@ public class DynamicResourceProcessor {
         updateTrackedResources(schema, name, kind, versionRange, resource);
     }
 
-    public static void schemaDeleted(String schema) {
-        DYNAMIC_RESOURCES_CACHE.removeSchema(schema);
-        logger.info("Removing resources associated with schema: \"{}\"", schema);
-    }
-
-    public static void schemaDeletedMultiple(String schema) {
+    public static void deleteSchema(String schema) {
         DYNAMIC_RESOURCES_CACHE.removeSchema(schema);
         logger.info("Removing resources associated with schema: \"{}\"", schema);
     }

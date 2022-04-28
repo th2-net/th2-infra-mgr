@@ -33,7 +33,7 @@ public enum DynamicResourcesCache {
     }
 
     public synchronized Collection<String> getSchemas() {
-        return Collections.unmodifiableCollection(cache.keySet());
+        return Collections.unmodifiableSet(cache.keySet());
     }
 
     public synchronized DynamicResource add(String schema, DynamicResource resource) {
@@ -45,12 +45,16 @@ public enum DynamicResourcesCache {
         var schemaCache = cache.get(schema);
         if (schemaCache == null || schemaCache.isEmpty()) {
             return null;
-        } else {
-            return schemaCache.remove(name);
         }
+
+        return schemaCache.remove(name);
     }
 
     public synchronized void removeSchema(String schema) {
         cache.remove(schema);
+    }
+
+    public synchronized void clear() {
+        cache.clear();
     }
 }

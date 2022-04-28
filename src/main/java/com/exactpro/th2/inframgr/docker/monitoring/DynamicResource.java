@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.inframgr.docker.monitoring;
 
+import java.util.Objects;
+
 public class DynamicResource {
 
     private final String resourceName;
@@ -72,4 +74,38 @@ public class DynamicResource {
         return String.format("%s.%s", schema, getName());
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof DynamicResource)) {
+            return false;
+        }
+        DynamicResource that = (DynamicResource) o;
+        return Objects.equals(resourceName, that.resourceName) &&
+                Objects.equals(kind, that.kind) &&
+                Objects.equals(image, that.image) &&
+                Objects.equals(currentVersion, that.currentVersion) &&
+                Objects.equals(versionRange, that.versionRange) &&
+                Objects.equals(schema, that.schema);
+    }
+
+    @Override
+    public String toString() {
+        return "DynamicResource{" +
+                "resourceName='" + resourceName + '\'' +
+                ", kind='" + kind + '\'' +
+                ", image='" + image + '\'' +
+                ", currentVersion='" + currentVersion + '\'' +
+                ", versionRange='" + versionRange + '\'' +
+                ", schema='" + schema + '\'' +
+                '}';
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(resourceName, kind, image,
+                currentVersion, versionRange, schema);
+    }
 }
