@@ -32,7 +32,6 @@ import static com.exactpro.th2.inframgr.util.AnnotationUtils.stamp;
 public class LoggingConfigMap {
 
     private LoggingConfigMap() {
-        throw new AssertionError();
     }
 
     private static final Logger logger = LoggerFactory.getLogger(LoggingConfigMap.class);

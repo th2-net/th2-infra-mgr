@@ -28,7 +28,6 @@ import java.util.Map;
 public class SchemaErrorPrinter {
 
     private SchemaErrorPrinter() {
-        throw new AssertionError();
     }
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaErrorPrinter.class);
