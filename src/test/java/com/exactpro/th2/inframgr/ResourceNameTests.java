@@ -24,9 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ResourceNameTests {
 
-    public ResourceNameTests() {
-    }
-
     @Test
     void testValidNames() {
         String[] names = new String[]{
@@ -51,6 +48,9 @@ class ResourceNameTests {
                 "sada.asd",
                 "a-b-74-",
                 "-",
+                "x!^+",
+                "y?",
+                "9$%&*()",
                 ""
         };
         for (String name : names) {
@@ -60,11 +60,7 @@ class ResourceNameTests {
 
     @Test
     void testLongNames() {
-
-        String barelyLegal = "";
-        for (int i = 1; i < K8sCustomResource.RESOURCE_NAME_MAX_LENGTH; i++) {
-            barelyLegal += 'x';
-        }
+        String barelyLegal = "x".repeat(K8sCustomResource.RESOURCE_NAME_MAX_LENGTH - 1);
         String illegal = barelyLegal + 'x';
 
         assertTrue(K8sCustomResource.isNameValid(barelyLegal), barelyLegal);

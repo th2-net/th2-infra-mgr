@@ -20,13 +20,14 @@ import java.util.Map;
 
 public class SpecUtils {
 
-    private static final String IMAGE_NAME_ALIAS = "image-name";
+    public static final String IMAGE_NAME_ALIAS = "image-name";
 
-    private static final String IMAGE_VERSION_ALIAS = "image-version";
+    public static final String IMAGE_VERSION_ALIAS = "image-version";
 
-    private static final String VERSION_RANGE_ALIAS = "version-range";
+    public static final String VERSION_RANGE_ALIAS = "version-range";
 
     private SpecUtils() {
+        throw new AssertionError();
     }
 
     public static String getImageName(Object sourceObj) {
@@ -49,9 +50,6 @@ public class SpecUtils {
     private static String getFieldAsString(Object spec, String path) {
         Map<String, Object> specMap = (Map<String, Object>) spec;
         var field = specMap.get(path);
-        if (field != null) {
-            return field.toString();
-        }
-        return null;
+        return field == null ? null : field.toString();
     }
 }
