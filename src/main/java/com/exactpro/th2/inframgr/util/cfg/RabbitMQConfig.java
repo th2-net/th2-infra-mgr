@@ -23,9 +23,7 @@ public class RabbitMQConfig {
 
     private String secret = "rabbitmq";
 
-    private String vhostPrefix;
-
-    private String usernamePrefix;
+    private String vhostName;
 
     private Integer passwordLength = 16;
 
@@ -41,20 +39,12 @@ public class RabbitMQConfig {
         }
     }
 
-    public String getVhostPrefix() {
-        return vhostPrefix == null ? "" : vhostPrefix;
+    public String getVhostName() {
+        return vhostName == null ? "" : vhostName;
     }
 
-    public void setVhostPrefix(String vhostPrefix) {
-        this.vhostPrefix = vhostPrefix;
-    }
-
-    public String getUsernamePrefix() {
-        return usernamePrefix == null ? getVhostPrefix() : usernamePrefix;
-    }
-
-    public void setUsernamePrefix(String usernamePrefix) {
-        this.usernamePrefix = usernamePrefix;
+    public void setVhostName(String vhostName) {
+        this.vhostName = vhostName;
     }
 
     public Integer getPasswordLength() {
