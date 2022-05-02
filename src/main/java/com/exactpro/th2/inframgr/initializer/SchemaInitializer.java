@@ -82,6 +82,8 @@ public class SchemaInitializer {
 
     public static final String CRADLE_MANAGER_CM_NAME = "cradle-manager";
 
+    public static final String BOOK_CONFIG_CM_NAME = "book-config";
+
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
 
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
@@ -159,6 +161,8 @@ public class SchemaInitializer {
         copyConfigMap(kube, MQ_ROUTER_CM_NAME, forceUpdate);
         copyConfigMap(kube, GRPC_ROUTER_CM_NAME, forceUpdate);
         copyConfigMap(kube, CRADLE_MANAGER_CM_NAME, forceUpdate);
+        copyConfigMap(kube, BOOK_CONFIG_CM_NAME, forceUpdate);
+
 
         // ensure rabbitMq resources
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
