@@ -90,6 +90,8 @@ public class SchemaInitializer {
 
     private static final String RABBITMQ_JSON_USERNAME_KEY = "username";
 
+    private static final String RABBITMQ_JSON_EXCHANGE_KEY = "exchangeName";
+
     private static final String RABBITMQ_SECRET_PASSWORD_KEY = "rabbitmq-password";
 
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
@@ -212,16 +214,22 @@ public class SchemaInitializer {
     static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String prefix = config.getKubernetes().getNamespacePrefix();
         RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
 
-        String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-        String username = rabbitMQConfig.getUsernamePrefix() + schemaName;
+        String vHostName = rabbitMQConfig.getVhostName();
+        String username = prefix + schemaName;
+        String exchange = prefix + schemaName;
 
         // copy config map with updated vHost value to namespace
         try {
             createRabbitMQSecret(config, kube, username, forceUpdate);
-            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, kube, forceUpdate);
-            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, kube, forceUpdate);
+            copyRabbitMQConfigMap(
+                    configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, exchange, kube, forceUpdate
+            );
+            copyRabbitMQConfigMap(
+                    configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, exchange, kube, forceUpdate
+            );
         } catch (Exception e) {
             logger.error("Exception writing RabbitMQ configuration resources", e);
         }
@@ -258,6 +266,7 @@ public class SchemaInitializer {
     static void copyRabbitMQConfigMap(String configMapName,
                                       String vHostName,
                                       String username,
+                                      String exchange,
                                       Kubernetes kube,
                                       boolean forceUpdate) {
 
@@ -283,6 +292,7 @@ public class SchemaInitializer {
             var rabbitMQJson = mapper.readValue(originalConfigMap.getData().get(RABBITMQ_JSON_KEY), Map.class);
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
+            rabbitMQJson.put(RABBITMQ_JSON_EXCHANGE_KEY, exchange);
 
             ConfigMap newConfigMap = configMapWithNewData(RABBITMQ_JSON_KEY, rabbitMQJson);
 
