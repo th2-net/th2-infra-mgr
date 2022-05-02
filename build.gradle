@@ -9,9 +9,8 @@ version = release_version
 
 ext {
     fabric_version = '5.9.0'
-    infra_repo_version = '1.1.7-metadata-fix'
-    schema_validator_version = '0.1.4'
-    driver_version = '4.6.1'
+    infra_repo_version = '1.1.6-timeout-fix'
+    schema_validator_version = '0.1.3'
 }
 
 apply plugin: 'distribution'
@@ -43,9 +42,6 @@ checkstyle {
 
 dependencies {
     implementation platform('org.springframework.boot:spring-boot-dependencies:2.6.6')
-
-    implementation "com.datastax.oss:java-driver-core:${driver_version}"
-    implementation "com.datastax.oss:java-driver-query-builder:${driver_version}"
 
     implementation "com.exactpro.th2:infra-repo:${infra_repo_version}"
 

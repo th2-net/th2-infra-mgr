@@ -16,10 +16,6 @@
 
 package com.exactpro.th2.inframgr.initializer;
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.SimpleStatement;
-import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.*;
 import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
@@ -40,15 +36,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.time.Duration;
 import java.util.*;
 
-import static com.datastax.oss.driver.api.querybuilder.SchemaBuilder.createKeyspace;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
-import static java.util.Collections.unmodifiableMap;
 
 public class SchemaInitializer {
 
@@ -370,7 +363,6 @@ public class SchemaInitializer {
                 var keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                initializeKeyspace(cassandraConfig, keyspaceName);
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
                 copyCassandraConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
             } finally {
@@ -378,44 +370,6 @@ public class SchemaInitializer {
             }
         } catch (Exception e) {
             logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
-        }
-    }
-
-    private static void initializeKeyspace(CassandraConfig cassandraConfig, String keyspaceName) {
-        try (CqlSession session = CqlSession.builder()
-                .addContactPoint(new InetSocketAddress(cassandraConfig.getHost(), cassandraConfig.getPort()))
-                .withAuthCredentials(cassandraConfig.getUsername(), cassandraConfig.getPassword())
-                .withLocalDatacenter(cassandraConfig.getDataCenter())
-                .build()) {
-            logger.info("Connecting to Cassandra");
-            CreateKeyspace createKs;
-            var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
-            if (networkTopologyStrategy == null) {
-                createKs = createKeyspace(keyspaceName)
-                        .ifNotExists()
-                        .withSimpleStrategy(1);
-            } else {
-                createKs = createKeyspace(keyspaceName)
-                        .ifNotExists()
-                        .withNetworkTopologyStrategy(unmodifiableMap(networkTopologyStrategy));
-            }
-
-            try {
-                logger.info("Initializing keyspace");
-                String query = createKs.asCql();
-                SimpleStatement statement = SimpleStatement.newInstance(query)
-                        .setTimeout(Duration.ofMillis(cassandraConfig.getTimeout()));
-                ResultSet rs = session.execute(statement);
-                if (rs.wasApplied()) {
-                    logger.info("Keyspace \"{}\" was created", keyspaceName);
-                } else {
-                    logger.error("Couldn't crete keyspace \"{}\", query \"{}\" was not applied", keyspaceName, query);
-                }
-            } catch (Exception e) {
-                logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
-            }
-        } catch (Exception e) {
-            logger.error("Exception while connecting to Cassandra", e);
         }
     }
 
