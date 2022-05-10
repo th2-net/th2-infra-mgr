@@ -19,7 +19,6 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
-import com.exactpro.th2.inframgr.errors.NamespaceNotRemovedException;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
@@ -83,14 +82,6 @@ public class K8sSynchronization {
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             SchemaInitializer.ensureSchema(schemaName, kube);
-            //check that namespace is in valid phase
-            String namespace = kube.formatNamespaceName(schemaName);
-            String namespacePhase = kube.getNamespace(namespace).getStatus().getPhase();
-            if (!namespacePhase.equals(Kubernetes.PHASE_ACTIVE)) {
-                logger.warn("Rescheduling synchronization event for branch {} as namespace is in \"{}\" state."
-                        , schemaName, namespacePhase);
-                throw new NamespaceNotRemovedException();
-            }
             validateSchema(schemaName, repositoryResources);
 
             try {
@@ -341,12 +332,8 @@ public class K8sSynchronization {
                     Thread.sleep(1000);
                     continue;
                 }
-                try {
-                    synchronizeBranch(job.getSchema(), job.getCreationTime());
-                    jobQueue.completeJob(job);
-                } catch (NamespaceNotRemovedException e) {
-                    Thread.sleep(5000);
-                }
+                synchronizeBranch(job.getSchema(), job.getCreationTime());
+                jobQueue.completeJob(job);
             } catch (InterruptedException e) {
                 logger.info("Interrupt signal received. Exiting synchronization thread");
                 break;
