@@ -28,12 +28,20 @@ public class SchemaRecoveryTask implements RetryableTask {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaRecoveryTask.class);
 
+    private static final int RETRY_DELAY_SEC = 60;
+
     private final String schema;
 
-    private static final int RETRY_DELAY_SEC = 60;
+    private final int retryDelay;
 
     public SchemaRecoveryTask(String schema) {
         this.schema = schema;
+        this.retryDelay = RETRY_DELAY_SEC;
+    }
+
+    public SchemaRecoveryTask(String schema, int retryDelay) {
+        this.schema = schema;
+        this.retryDelay = retryDelay;
     }
 
     @Override
@@ -43,7 +51,7 @@ public class SchemaRecoveryTask implements RetryableTask {
 
     @Override
     public long getRetryDelay() {
-        return RETRY_DELAY_SEC;
+        return retryDelay;
     }
 
     @Override

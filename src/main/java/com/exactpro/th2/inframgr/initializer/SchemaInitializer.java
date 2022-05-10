@@ -23,7 +23,9 @@ import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.SchemaRecoveryTask;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
+import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
 import com.exactpro.th2.infrarepo.*;
@@ -57,6 +59,10 @@ public class SchemaInitializer {
     }
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaInitializer.class);
+
+    private static final int RECOVERY_THREAD_POOL_SIZE = 1;
+
+    private static final int NAMESPACE_RETRY_DELAY = 10;
 
     private static final String RABBITMQ_SECRET_NAME_FOR_NAMESPACES = "rabbitmq";
 
@@ -100,6 +106,8 @@ public class SchemaInitializer {
      */
     public static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
 
+    private static final RetryableTaskQueue retryTaskQueue = new RetryableTaskQueue(RECOVERY_THREAD_POOL_SIZE);
+
     public enum SchemaSyncMode {
         CHECK_NAMESPACE,
         CHECK_RESOURCES,
@@ -115,6 +123,15 @@ public class SchemaInitializer {
         switch (syncMode) {
             case CHECK_NAMESPACE:
                 if (kube.existsNamespace()) {
+                    if (!kube.namespaceActive()) {
+                        retryTaskQueue.add(new SchemaRecoveryTask(schemaName, NAMESPACE_RETRY_DELAY), true);
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Cannot synchronize branch \"%s\" as corresponding namespace in the wrong state"
+                                        , schemaName
+                                )
+                        );
+                    }
                     return;
                 }
                 ensureNameSpace(schemaName, kube, false);
@@ -457,9 +474,9 @@ public class SchemaInitializer {
             Ingress newIngress = new IngressBuilder()
                     .withSpec(newSpec)
                     .withMetadata(createMetadataWithPreviousAnnotations(
-                            ingressName,
-                            newResourceLabel,
-                            originalIngress.getMetadata().getAnnotations()
+                                    ingressName,
+                                    newResourceLabel,
+                                    originalIngress.getMetadata().getAnnotations()
                             )
                     )
                     .build();

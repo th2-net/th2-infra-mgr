@@ -300,6 +300,11 @@ public class Kubernetes implements Closeable {
         return false;
     }
 
+    public boolean namespaceActive() {
+        String namespacePhase = client.namespaces().withName(namespace).get().getStatus().getPhase();
+        return namespacePhase.equals(Kubernetes.PHASE_ACTIVE);
+    }
+
     public Namespace getNamespace(String namespace) {
         return client.namespaces().withName(namespace).get();
     }
