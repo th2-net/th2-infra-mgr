@@ -30,8 +30,6 @@ public class GitCfg implements GitConfig {
 
     private String sshDir;
 
-    private String privateKey;
-
     private byte[] privateKeyBytes;
 
     @Override
@@ -63,7 +61,6 @@ public class GitCfg implements GitConfig {
     }
 
     public void setPrivateKey(String privateKey) {
-        this.privateKey = privateKey;
         this.privateKeyBytes = privateKey.getBytes();
     }
 

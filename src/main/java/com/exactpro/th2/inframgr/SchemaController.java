@@ -33,6 +33,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
@@ -161,7 +162,9 @@ public class SchemaController {
         // deserialize request body
         List<RequestEntry> operations;
         try {
-            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            ObjectMapper mapper = new ObjectMapper()
+                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .registerModule(new KotlinModule.Builder().build());
             operations = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {

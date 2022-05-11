@@ -24,6 +24,7 @@ import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -64,7 +65,9 @@ public class SecretsController {
         }
         List<SecretsRequestEntry> secretEntries;
         try {
-            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            ObjectMapper mapper = new ObjectMapper()
+                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .registerModule(new KotlinModule.Builder().build());
             secretEntries = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
@@ -88,7 +91,9 @@ public class SecretsController {
         }
         Set<String> secretsNames;
         try {
-            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            ObjectMapper mapper = new ObjectMapper()
+                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .registerModule(new KotlinModule.Builder().build());
             secretsNames = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {

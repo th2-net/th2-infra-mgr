@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.docker;
 
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import io.fabric8.kubernetes.api.model.Secret;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class RegistryCredentialLookup {
 
     public RegistryCredentialLookup(Kubernetes kube) {
         this.kube = kube;
-        this.mapper = new ObjectMapper();
+        this.mapper = new ObjectMapper().registerModule(new KotlinModule.Builder().build());
     }
 
     public Map<String, RegistryCredentials> getCredentials() {
