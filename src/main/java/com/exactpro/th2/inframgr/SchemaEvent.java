@@ -24,7 +24,7 @@ public abstract class SchemaEvent {
 
     public abstract String getEventKey();
 
-    private String schema;
+    private final String schema;
 
     public String getSchema() {
         return schema;

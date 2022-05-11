@@ -13,24 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.exactpro.th2.inframgr.docker.model.schemav2
 
-package com.exactpro.th2.inframgr.docker.model.schemav2;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Blob {
-    private ImageConfig config;
-
-    public Blob() {
-    }
-
-    public ImageConfig getConfig() {
-        return this.config;
-    }
-
-    public void setConfig(ImageConfig config) {
-        this.config = config;
-    }
-
-}
+data class Blob(val config: ImageConfig)

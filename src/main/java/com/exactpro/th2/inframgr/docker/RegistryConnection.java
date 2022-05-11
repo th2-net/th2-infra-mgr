@@ -129,6 +129,7 @@ public class RegistryConnection {
         }
 
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+
         converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));
         restTemplate.setMessageConverters(Arrays.asList(converter, new FormHttpMessageConverter()));
         try {

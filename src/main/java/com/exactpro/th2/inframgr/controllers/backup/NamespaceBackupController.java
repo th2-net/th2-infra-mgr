@@ -22,6 +22,7 @@ import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import net.lingala.zip4j.io.inputstream.ZipInputStream;
 import net.lingala.zip4j.io.outputstream.ZipOutputStream;
 import net.lingala.zip4j.model.LocalFileHeader;
@@ -52,7 +53,9 @@ public class NamespaceBackupController {
 
     private static final Logger logger = LoggerFactory.getLogger(NamespaceBackupController.class);
 
-    ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+    ObjectMapper mapper = new ObjectMapper()
+            .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+            .registerModule(new KotlinModule.Builder().build());
 
     @GetMapping("/backup/{schemaName}")
     @ResponseBody
