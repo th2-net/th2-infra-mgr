@@ -13,30 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.exactpro.th2.inframgr.docker.model.schemav2
 
-package com.exactpro.th2.inframgr.docker.model.schemav2;
+import com.fasterxml.jackson.annotation.JsonProperty
+import java.util.HashMap
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class ImageConfig {
-
-    @JsonProperty("Labels")
-    private Map<String, String> labels = new HashMap<>();
-
-    public ImageConfig() {
-    }
-
-    public Map<String, String> getLabels() {
-        return this.labels;
-    }
-
-    public void setLabels(Map<String, String> labels) {
-        this.labels = labels;
-    }
-
-}
+data class ImageConfig(@JsonProperty("Labels") val labels: HashMap<String, String>)

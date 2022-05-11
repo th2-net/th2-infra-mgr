@@ -20,7 +20,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class BackupResponse {
-    private Set<String> customSecrets;
+    private final Set<String> customSecrets;
 
     public BackupResponse() {
         customSecrets = new HashSet<>();

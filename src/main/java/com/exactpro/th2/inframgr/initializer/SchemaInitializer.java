@@ -28,6 +28,7 @@ import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
@@ -97,7 +98,8 @@ public class SchemaInitializer {
 
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
 
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private static final ObjectMapper mapper = new ObjectMapper()
+            .registerModule(new KotlinModule.Builder().build());
 
     /*
         Ingress annotation values with following key prefix should not be

@@ -13,33 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.exactpro.th2.inframgr.docker.model.tag
 
-package com.exactpro.th2.inframgr.docker.model.tag;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TagResponseBody {
-
-    private String name;
-
-    private List<String> tags;
-
-    public String getName() {
-        return name;
-    }
-
-    public List<String> getTags() {
-        return tags;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setTags(List<String> tags) {
-        this.tags = tags;
-    }
-}
+data class TagResponseBody(val name: String, val tags: List<String>)
