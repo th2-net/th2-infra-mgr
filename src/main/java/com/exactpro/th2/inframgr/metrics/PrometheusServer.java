@@ -38,7 +38,7 @@ public class PrometheusServer {
 
         String host = prometheusConfiguration.getHost();
         int port = prometheusConfiguration.getPort();
-        boolean enabled = prometheusConfiguration.isEnabled();
+        boolean enabled = prometheusConfiguration.getEnabled();
 
         prometheusExporter.updateAndGet(server -> {
             if (server == null && enabled) {

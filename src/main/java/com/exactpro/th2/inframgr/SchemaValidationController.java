@@ -29,6 +29,7 @@ import com.exactpro.th2.validator.SchemaValidator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -61,7 +62,9 @@ public class SchemaValidationController {
         ValidationRequest request;
         SchemaValidationContext validationContext;
         try {
-            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            ObjectMapper mapper = new ObjectMapper()
+                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .registerModule(new KotlinModule.Builder().build());
             request = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {

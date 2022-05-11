@@ -13,28 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.exactpro.th2.inframgr.models
 
-package com.exactpro.th2.inframgr.models;
-
-public class RequestEntry {
-
-    private RequestOperation operation;
-
-    private ResourceEntry payload;
-
-    public RequestOperation getOperation() {
-        return operation;
-    }
-
-    public void setOperation(RequestOperation operation) {
-        this.operation = operation;
-    }
-
-    public ResourceEntry getPayload() {
-        return payload;
-    }
-
-    public void setPayload(ResourceEntry payload) {
-        this.payload = payload;
-    }
-}
+data class RequestEntry(val operation: RequestOperation, val payload: ResourceEntry)

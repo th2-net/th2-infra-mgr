@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookupFactory;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class Config {
 
     private static volatile Config instance;
 
-    private Logger logger;
+    private final Logger logger;
 
     private String configDir;
 
@@ -119,7 +120,8 @@ public class Config {
             File file = new File(configDir + CONFIG_FILE);
 
             parseFile(file, new ObjectMapper(new YAMLFactory()).enable(
-                    JsonParser.Feature.STRICT_DUPLICATE_DETECTION), this);
+                    JsonParser.Feature.STRICT_DUPLICATE_DETECTION).
+                    registerModule(new KotlinModule.Builder().build()), this);
 
             if (rabbitmq == null) {
                 rabbitmq = new RabbitMQConfig();

@@ -13,26 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.exactpro.th2.inframgr.util.cfg
 
-package com.exactpro.th2.inframgr.util.cfg;
-
-public class PrometheusConfig {
-
-    private String host;
-
-    private int port;
-
-    private boolean enabled;
-
-    public String getHost() {
-        return host;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-}
+data class PrometheusConfig(val host: String, val port: Int, val enabled: Boolean)
