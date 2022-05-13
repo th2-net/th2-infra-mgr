@@ -368,45 +368,38 @@ public class SchemaInitializer {
     }
 
     private static void initializeKeyspace(CassandraConfig cassandraConfig, String keyspaceName) {
-        CqlSession session;
-        try {
+        try (CqlSession session = CqlSession.builder()
+                .addContactPoint(new InetSocketAddress(cassandraConfig.getHost(), cassandraConfig.getPort()))
+                .withAuthCredentials(cassandraConfig.getUsername(), cassandraConfig.getPassword())
+                .withLocalDatacenter(cassandraConfig.getDataCenter())
+                .build()) {
             logger.info("Connecting to Cassandra");
-            session = CqlSession.builder()
-                    .addContactPoint(new InetSocketAddress(cassandraConfig.getHost(), cassandraConfig.getPort()))
-                    .withAuthCredentials(cassandraConfig.getUsername(), cassandraConfig.getPassword())
-                    .withLocalDatacenter(cassandraConfig.getDataCenter())
-                    .build();
-
-        } catch (Exception e) {
-            logger.error("Could not open Cassandra connection", e);
-            return;
-        }
-
-        CreateKeyspace createKs;
-        var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
-        if (networkTopologyStrategy == null) {
-            createKs = createKeyspace(keyspaceName)
-                    .ifNotExists()
-                    .withSimpleStrategy(1);
-        } else {
-            createKs = createKeyspace(keyspaceName)
-                    .ifNotExists()
-                    .withNetworkTopologyStrategy(unmodifiableMap(networkTopologyStrategy));
-        }
-
-        try {
-            logger.info("Initializing keyspace");
-            String query = createKs.asCql();
-            SimpleStatement statement = SimpleStatement.newInstance(query)
-                    .setTimeout(Duration.ofMillis(cassandraConfig.getTimeout()));
-            ResultSet rs = session.execute(statement);
-            if (rs.wasApplied()) {
-                logger.info("Keyspace \"{}\" was created", keyspaceName);
+            CreateKeyspace createKs;
+            var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
+            if (networkTopologyStrategy == null) {
+                createKs = createKeyspace(keyspaceName)
+                        .ifNotExists()
+                        .withSimpleStrategy(1);
             } else {
-                logger.error("Couldn't crete keyspace \"{}\", query \"{}\" was not applied", keyspaceName, query);
+                createKs = createKeyspace(keyspaceName)
+                        .ifNotExists()
+                        .withNetworkTopologyStrategy(unmodifiableMap(networkTopologyStrategy));
             }
-        } catch (Exception e) {
-            logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
+
+            try {
+                logger.info("Initializing keyspace");
+                String query = createKs.asCql();
+                SimpleStatement statement = SimpleStatement.newInstance(query)
+                        .setTimeout(Duration.ofMillis(cassandraConfig.getTimeout()));
+                ResultSet rs = session.execute(statement);
+                if (rs.wasApplied()) {
+                    logger.info("Keyspace \"{}\" was created", keyspaceName);
+                } else {
+                    logger.error("Couldn't crete keyspace \"{}\", query \"{}\" was not applied", keyspaceName, query);
+                }
+            } catch (Exception e) {
+                logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
+            }
         }
     }
 
