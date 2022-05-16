@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.inframgr.util.cfg
 
 data class PrometheusConfig(val host: String, val port: Int, val enabled: Boolean)
