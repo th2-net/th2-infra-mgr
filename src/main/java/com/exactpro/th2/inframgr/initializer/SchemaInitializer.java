@@ -26,6 +26,7 @@ import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
 import com.exactpro.th2.infrarepo.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -55,6 +56,8 @@ public class SchemaInitializer {
     private static final int RECOVERY_THREAD_POOL_SIZE = 1;
 
     private static final int NAMESPACE_RETRY_DELAY = 10;
+
+    private static final String DEFAULT_KEYSPACE = "cradle_info";
 
     private static final String RABBITMQ_SECRET_NAME_FOR_NAMESPACES = "rabbitmq";
 
@@ -281,7 +284,11 @@ public class SchemaInitializer {
 
         // copy config map with updated vHost value to namespace
         try {
-            var rabbitMQJson = mapper.readValue(originalConfigMap.getData().get(RABBITMQ_JSON_KEY), Map.class);
+            Map<String, String> rabbitMQJson = mapper.readValue(
+                    originalConfigMap.getData().get(RABBITMQ_JSON_KEY),
+                    new TypeReference<>() {
+                    }
+            );
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
             rabbitMQJson.put(RABBITMQ_JSON_EXCHANGE_KEY, exchange);
@@ -351,19 +358,15 @@ public class SchemaInitializer {
         try {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(schemaName);
-            RepositorySnapshot snapshot;
             try {
                 gitter.lock();
-                snapshot = Repository.getSnapshot(gitter);
-                RepositorySettings repositorySettings = snapshot.getRepositorySettings();
-
-                CassandraConfig cassandraConfig = config.getCassandra();
-                var keyspace = repositorySettings.getKeyspace() != null ? repositorySettings.getKeyspace() : schemaName;
-                var keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
+                RepositorySettings repositorySettings = Repository.getSettings(gitter);
+                String keyspaceInConfig = repositorySettings.getKeyspace();
+                String keyspace = keyspaceInConfig != null ? keyspaceInConfig : DEFAULT_KEYSPACE;
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspace, kube, forceUpdate);
+                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), keyspace, kube, forceUpdate);
             } finally {
                 gitter.unlock();
             }
@@ -395,7 +398,11 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            var cradleMQJson = mapper.readValue(originalConfigMap.getData().get(CASSANDRA_JSON_KEY), Map.class);
+            Map<String, String> cradleMQJson = mapper.readValue(
+                    originalConfigMap.getData().get(CASSANDRA_JSON_KEY),
+                    new TypeReference<>() {
+                    }
+            );
             cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
             ConfigMap newConfigMap = configMapWithNewData(CASSANDRA_JSON_KEY, cradleMQJson);
             newConfigMap.setMetadata(createMetadataWithPreviousAnnotations(
