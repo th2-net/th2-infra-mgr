@@ -120,7 +120,7 @@ complexity:
     functionThreshold: 6
     constructorThreshold: 7
     ignoreDefaultParameters: false
-    ignoreDataClasses: true
+    ignoreDataClasses: false
     ignoreAnnotatedParameter: []
   MethodOverloading:
     active: false
@@ -652,7 +652,7 @@ style:
   UseCheckOrError:
     active: false
   UseDataClass:
-    active: false
+    active: true
     allowVars: false
   UseEmptyCounterpart:
     active: false
