@@ -15,8 +15,14 @@
  */
 package com.exactpro.th2.inframgr.docker.monitoring
 
-data class DynamicResource(val name: String, val kind: String, val image: String,
-                           val currentVersion: String, val versionRange: String, val schema: String) {
+data class DynamicResource(
+    val name: String,
+    val kind: String,
+    val image: String,
+    val currentVersion: String,
+    val versionRange: String,
+    val schema: String
+) {
     val annotation: String
-        get() = java.lang.String.format("%s.%s", schema, name);
+        get() = java.lang.String.format("%s.%s", schema, name)
 }
