@@ -14,9 +14,16 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.model.schemav2
+package com.exactpro.th2.inframgr.docker.monitoring
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import java.util.HashMap
-
-data class ImageConfig(@JsonProperty("Labels") val labels: HashMap<String, String>)
+data class DynamicResource(
+    val name: String,
+    val kind: String,
+    val image: String,
+    val currentVersion: String,
+    val versionRange: String,
+    val schema: String
+) {
+    val annotation: String
+        get() = java.lang.String.format("%s.%s", schema, name)
+}

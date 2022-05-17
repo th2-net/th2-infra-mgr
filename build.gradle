@@ -1,16 +1,9 @@
-buildscript {
-    ext.kotlin_version = '1.6.21'
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
 plugins {
     id 'org.springframework.boot' version '2.6.6'
     id 'java'
     id 'checkstyle'
+    id "org.jetbrains.kotlin.jvm" version "1.6.21"
+    id "io.gitlab.arturbosch.detekt" version "1.20.0"
 }
 
 group = 'com.exactpro.th2'
@@ -23,7 +16,6 @@ ext {
 }
 
 apply plugin: 'distribution'
-apply plugin: 'kotlin'
 
 repositories {
     mavenCentral()
@@ -48,6 +40,11 @@ repositories {
 
 checkstyle {
     toolVersion = "8.26"
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config = files("$rootDir/config/detekt/detekt.yml")
 }
 
 dependencies {
@@ -82,7 +79,7 @@ dependencies {
     testImplementation('org.junit.jupiter:junit-jupiter-api:5.6.2')
     testImplementation('org.junit.jupiter:junit-jupiter-engine:5.6.2')
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.20.0")
 }
 
 bootJar {
@@ -108,15 +105,5 @@ bootJar{
                 'Implementation-Vendor-Id': 'com.exactpro',
                 'Implementation-Version': project.version
         )
-    }
-}
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
-}
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
     }
 }
