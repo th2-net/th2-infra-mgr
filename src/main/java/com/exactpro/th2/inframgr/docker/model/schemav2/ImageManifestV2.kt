@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.exactpro.th2.inframgr.docker.model.schemav2
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
