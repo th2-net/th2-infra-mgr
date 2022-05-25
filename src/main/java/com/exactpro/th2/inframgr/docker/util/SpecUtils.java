@@ -20,11 +20,11 @@ import java.util.Map;
 
 public class SpecUtils {
 
-    public static final String IMAGE_NAME_ALIAS = "image-name";
+    public static final String IMAGE_NAME_ALIAS = "imageName";
 
-    public static final String IMAGE_VERSION_ALIAS = "image-version";
+    public static final String IMAGE_VERSION_ALIAS = "imageVersion";
 
-    public static final String VERSION_RANGE_ALIAS = "version-range";
+    public static final String VERSION_RANGE_ALIAS = "versionRange";
 
     private SpecUtils() {
     }

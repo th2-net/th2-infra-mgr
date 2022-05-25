@@ -190,7 +190,6 @@ public class K8sOperator {
                 hash = resource.getSourceHash();
                 hashTag = Strings.formatHash(hash);
 
-                Strings.stringify(resource.getSpec());
                 if (actionReplace) {
                     logger.info("Detected external manipulation on {}, recreating resource {}", resourceLabel, hashTag);
 

@@ -307,6 +307,7 @@ public class ResourceCondition {
         FAILED(-1, "Failed");
 
         private int value;
+
         private String text;
 
         Status(int value, String text) {
