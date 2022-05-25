@@ -165,7 +165,6 @@ public class K8sSynchronization {
                         logger.info("Creating resource {} {}. [commit: {}]",
                                 resourceLabel, hashTag, shortCommitRef);
                         try {
-                            Strings.stringify(resource.getSpec());
                             kube.createCustomResource(resource);
                         } catch (Exception e) {
                             logger.error("Exception creating resource {} {}. [commit: {}]",
@@ -181,7 +180,6 @@ public class K8sSynchronization {
                             logger.info("Updating resource {} {}. [commit: {}]",
                                     resourceLabel, hashTag, shortCommitRef);
                             try {
-                                Strings.stringify(resource.getSpec());
                                 kube.replaceCustomResource(resource);
                             } catch (Exception e) {
                                 logger.error("Exception updating resource {} {}. [commit: {}]",

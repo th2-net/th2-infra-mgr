@@ -61,8 +61,7 @@ public class Th2DictionaryProcessor {
                 if (!specMap.containsKey(COMPRESSED_KEY) || specMap.get(COMPRESSED_KEY).toString().equals("false")) {
                     String stringedData = specMap.get(DATA_KEY).toString();
                     specMap.put(DATA_KEY, encodeString(stringedData));
-                    specMap.put(COMPRESSED_KEY, "true");
-
+                    specMap.put(COMPRESSED_KEY, true);
                     repositoryResource.setSpec(specMap);
                 }
             } catch (Exception e) {
