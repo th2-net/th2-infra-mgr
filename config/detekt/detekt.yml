@@ -574,7 +574,7 @@ style:
   NestedClassesVisibility:
     active: true
   NewLineAtEndOfFile:
-    active: true
+    active: false
   NoTabs:
     active: false
   ObjectLiteralToLambda:
@@ -652,7 +652,7 @@ style:
   UseCheckOrError:
     active: false
   UseDataClass:
-    active: true
+    active: false
     allowVars: false
   UseEmptyCounterpart:
     active: false
