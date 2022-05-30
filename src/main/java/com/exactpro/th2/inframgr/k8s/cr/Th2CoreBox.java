@@ -24,7 +24,7 @@ import io.fabric8.kubernetes.model.annotation.Version;
 
 public final class Th2CoreBox {
     @Group("th2.exactpro.com")
-    @Version("v1")
+    @Version("v2")
     @Kind("Th2CoreBox")
     public static class Type extends K8sCustomResource {
     }
