@@ -58,8 +58,6 @@ public class SchemaInitializer {
 
     private static final int NAMESPACE_RETRY_DELAY = 10;
 
-    private static final String DEFAULT_KEYSPACE = "cradle_info";
-
     private static final String RABBITMQ_SECRET_NAME_FOR_NAMESPACES = "rabbitmq";
 
     private static final String CASSANDRA_SECRET_NAME_FOR_NAMESPACES = "cassandra";
@@ -92,9 +90,7 @@ public class SchemaInitializer {
 
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
-    private static final String CASSANDRA_JSON_KEY = "cradle.json";
-
-    private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
+    private static final String CRADLE_JSON_KEY = "cradle.json";
 
     private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
 
@@ -168,7 +164,7 @@ public class SchemaInitializer {
 
         //ensure cassandra resources
         copyCassandraSecret(config, kube, forceUpdate);
-        ensureKeyspace(config, schemaName, kube, forceUpdate);
+        ensureCradleConfig(config, schemaName, kube, forceUpdate);
 
         // copy Ingress
         copyIngress(config, kube, forceUpdate);
@@ -315,11 +311,11 @@ public class SchemaInitializer {
                 || configMap.getData().get(jsonKey) == null;
     }
 
-    private static ConfigMap configMapWithNewData(String jsonKey, Map<String, String> jsonMap)
+    private static ConfigMap configMapWithNewData(String jsonKey, Object content)
             throws JsonProcessingException {
         ConfigMap newConfigMap = new ConfigMap();
         Map<String, String> newData = new HashMap<>();
-        newData.put(jsonKey, mapper.writeValueAsString(jsonMap));
+        newData.put(jsonKey, mapper.writeValueAsString(content));
         newConfigMap.setData(newData);
         return newConfigMap;
     }
@@ -355,20 +351,18 @@ public class SchemaInitializer {
         }
     }
 
-    static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
+    static void ensureCradleConfig(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         try {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(schemaName);
             try {
                 gitter.lock();
-                RepositorySettings repositorySettings = Repository.getSettings(gitter);
-                String keyspaceInConfig = repositorySettings.getKeyspace();
-                String keyspace = keyspaceInConfig != null ? keyspaceInConfig : DEFAULT_KEYSPACE;
+                CradleConfig cradle = Repository.getSettings(gitter).getCradle();
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspace, kube, forceUpdate);
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), keyspace, kube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
             } finally {
                 gitter.unlock();
             }
@@ -377,16 +371,16 @@ public class SchemaInitializer {
         }
     }
 
-    private static void copyCassandraConfigMap(String configMapName,
-                                               String keyspaceName,
-                                               Kubernetes kube,
-                                               boolean forceUpdate) {
+    private static void copyCradleConfigMap(String configMapName,
+                                            CradleConfig cradle,
+                                            Kubernetes kube,
+                                            boolean forceUpdate) {
 
         if (StringUtils.isEmpty(configMapName)) {
             return;
         }
         ConfigMap originalConfigMap = kube.currentNamespace().getConfigMap(configMapName);
-        if (configMapNotLoaded(originalConfigMap, CASSANDRA_JSON_KEY)) {
+        if (configMapNotLoaded(originalConfigMap, CRADLE_JSON_KEY)) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
@@ -400,13 +394,15 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            Map<String, String> cradleMQJson = mapper.readValue(
-                    originalConfigMap.getData().get(CASSANDRA_JSON_KEY),
+            CradleJsonConfig cradleJsonConfig = mapper.readValue(
+                    originalConfigMap.getData().get(CRADLE_JSON_KEY),
                     new TypeReference<>() {
                     }
             );
-            cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
-            ConfigMap newConfigMap = configMapWithNewData(CASSANDRA_JSON_KEY, cradleMQJson);
+
+            cradleJsonConfig.overwriteWith(cradle);
+
+            ConfigMap newConfigMap = configMapWithNewData(CRADLE_JSON_KEY, cradleJsonConfig);
             newConfigMap.setMetadata(createMetadataWithPreviousAnnotations(
                     configMapName,
                     newResourceLabel,
