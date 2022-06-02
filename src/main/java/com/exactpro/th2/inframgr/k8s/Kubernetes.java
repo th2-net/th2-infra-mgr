@@ -22,7 +22,6 @@ import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
 import io.fabric8.kubernetes.client.*;
 import io.fabric8.kubernetes.client.ConfigBuilder;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -547,14 +546,6 @@ public class Kubernetes implements Closeable {
         return currentNamespace;
     }
 
-    public void createOrRepaceIngress(Ingress ingress) {
-        client.network().ingresses().inNamespace(namespace).createOrReplace(ingress);
-    }
-
-    public Ingress getIngress(String ingressName) {
-        return client.network().ingresses().inNamespace(namespace).withName(ingressName).get();
-    }
-
     public boolean deletePodWithName(String podName, boolean force) {
         if (force) {
             return client.pods().inNamespace(namespace).withName(podName).withGracePeriod(0).delete();
@@ -574,10 +565,6 @@ public class Kubernetes implements Closeable {
 
         public ServiceMonitor.Type loadServiceMonitor(String name) {
             return Kubernetes.this.loadServiceMonitor(client.getNamespace(), name);
-        }
-
-        public Ingress getIngress(String ingressName) {
-            return client.network().ingresses().withName(ingressName).get();
         }
     }
 }

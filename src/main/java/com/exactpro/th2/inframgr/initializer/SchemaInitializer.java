@@ -29,9 +29,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
@@ -90,15 +87,9 @@ public class SchemaInitializer {
 
     private static final String CRADLE_JSON_KEY = "cradle.json";
 
-    private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
-
     private static final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new KotlinModule.Builder().build());
 
-    /*
-        Ingress annotation values with following key prefix should not be
-        passed to new ingress
-     */
     public static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
 
     private static final RetryableTaskQueue retryTaskQueue = new RetryableTaskQueue(RECOVERY_THREAD_POOL_SIZE);
@@ -163,9 +154,6 @@ public class SchemaInitializer {
         //ensure cassandra resources
         copyCassandraSecret(config, kube, forceUpdate);
         ensureCradleConfig(config, schemaName, kube, forceUpdate);
-
-        // copy Ingress
-        copyIngress(config, kube, forceUpdate);
 
         // copy Service Monitor
         copyServiceMonitor(config, kube, forceUpdate);
@@ -413,46 +401,6 @@ public class SchemaInitializer {
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, configMapName);
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", newResourceLabel, e);
-        }
-    }
-
-    private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
-
-        String ingressName = config.getKubernetes().getIngress();
-
-        Ingress originalIngress = kube.currentNamespace().getIngress(ingressName);
-        if (originalIngress == null) {
-            logger.error("Failed to load ingress \"{}\" from default namespace", ingressName);
-            return;
-        }
-
-        String namespace = kube.getNamespaceName();
-        String newResourceLabel = annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName);
-        try {
-            if (kube.getIngress(ingressName) != null && !forceUpdate) {
-                logger.info("\"{}\" already exists, skipping", newResourceLabel);
-                return;
-            }
-
-            String spec = mapper.writeValueAsString(originalIngress.getSpec())
-                    .replace(INGRESS_PATH_SUBSTRING, namespace);
-
-            IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
-
-            Ingress newIngress = new IngressBuilder()
-                    .withSpec(newSpec)
-                    .withMetadata(createMetadataWithPreviousAnnotations(
-                                    ingressName,
-                                    newResourceLabel,
-                                    originalIngress.getMetadata().getAnnotations()
-                            )
-                    )
-                    .build();
-
-            kube.createOrRepaceIngress(newIngress);
-            logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, ingressName);
-        } catch (Exception e) {
-            logger.error("Exception creating ingress \"{}\"", newResourceLabel, e);
         }
     }
 

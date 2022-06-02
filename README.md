@@ -71,10 +71,6 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
       # this parameter will be prepended to schema name and will be used as a 
       # namespace name for the schema
 
-      ingress: ingress-name
-      # name of the ingress HelmRelease to be copied from infra-mgr namespace to schema namespace
-      # when deploying schema to kubernetes
-
       secretNames:
         - chart-secrets
         - git-chart-creds

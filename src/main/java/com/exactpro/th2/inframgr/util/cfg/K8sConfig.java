@@ -41,8 +41,6 @@ public class K8sConfig {
 
     private String clientKey;
 
-    private String ingress;
-
     private String serviceMonitor;
 
     private Set<String> secretNames;
@@ -145,14 +143,6 @@ public class K8sConfig {
 
     public void setConfigMaps(Map<String, String> configMaps) {
         this.configMaps = configMaps;
-    }
-
-    public String getIngress() {
-        return ingress;
-    }
-
-    public void setIngress(String ingress) {
-        this.ingress = ingress;
     }
 
     public String getServiceMonitor() {
