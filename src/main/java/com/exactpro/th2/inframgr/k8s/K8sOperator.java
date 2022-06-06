@@ -21,7 +21,13 @@ import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.ResourceType;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.Watcher;
@@ -137,7 +143,7 @@ public class K8sOperator {
                     RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
 
                     // check if we need to re-synchronize k8s at all
-                    RepositorySettings rs = snapshot.getRepositorySettings();
+                    RepositorySettingsSpec rs = snapshot.getRepositorySettings().getSpec();
                     if (rs == null || !rs.isK8sGovernanceRequired()) {
                         return;
                     }

@@ -18,8 +18,8 @@ package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.k8s.cr.*;
 import com.exactpro.th2.inframgr.util.cfg.K8sConfig;
-import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.*;

@@ -28,7 +28,15 @@ import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.ResourceType;
+import com.exactpro.th2.infrarepo.SchemaUtils;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsResource;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -77,7 +85,7 @@ public class K8sSynchronization {
 
     private void synchronizeNamespace(String schemaName,
                                       Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                      RepositorySettings repositorySettings,
+                                      RepositorySettingsResource repositorySettings,
                                       String fullCommitRef) throws Exception {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
@@ -86,10 +94,11 @@ public class K8sSynchronization {
             SchemaInitializer.ensureSchema(schemaName, kube);
             validateSchema(schemaName, repositoryResources);
 
+            RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
-                        repositorySettings.getLogLevelRoot(),
-                        repositorySettings.getLogLevelTh2(),
+                        settingsSpec.getLogLevelRoot(),
+                        settingsSpec.getLogLevelTh2(),
                         fullCommitRef,
                         kube
                 );
@@ -98,15 +107,15 @@ public class K8sSynchronization {
             }
 
             BookConfiguration.synchronizeBookConfig(
-                    repositorySettings.getBookConfig(),
+                    settingsSpec.getBookConfig(),
                     kube,
                     fullCommitRef
             );
 
             Th2BoxConfigurations.synchronizeBoxConfigMaps(
-                    repositorySettings.getMqRouter(),
-                    repositorySettings.getGrpcRouter(),
-                    repositorySettings.getCradleManager(),
+                    settingsSpec.getMqRouter(),
+                    settingsSpec.getGrpcRouter(),
+                    settingsSpec.getCradleManager(),
                     fullCommitRef,
                     kube
             );
@@ -239,15 +248,15 @@ public class K8sSynchronization {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(branch);
             RepositorySnapshot snapshot;
-            RepositorySettings repositorySettings;
+            RepositorySettingsResource repositorySettings;
             try {
                 gitter.lock();
                 repositorySettings = Repository.getSettings(gitter);
-                if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
+                if (repositorySettings != null && repositorySettings.getSpec().isK8sPropagationDenied()) {
                     deleteNamespace(branch);
                     return;
                 }
-                if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
+                if (repositorySettings == null || !repositorySettings.getSpec().isK8sSynchronizationRequired()) {
                     logger.info("Ignoring schema \"{}\" as it is not configured for synchronization",
                             branch);
                     return;

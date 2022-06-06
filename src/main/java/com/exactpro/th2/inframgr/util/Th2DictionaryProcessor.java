@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.util;
 
-import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

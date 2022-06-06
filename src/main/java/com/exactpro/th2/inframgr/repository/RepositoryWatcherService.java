@@ -21,7 +21,7 @@ import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
-import com.exactpro.th2.infrarepo.GitterContext;
+import com.exactpro.th2.infrarepo.git.GitterContext;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;

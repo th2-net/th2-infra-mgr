@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.initializer
 
-import com.exactpro.th2.infrarepo.CradleConfig
+import com.exactpro.th2.infrarepo.settings.CradleConfig
 
 data class CradleJsonConfig(
     var keyspace: String,

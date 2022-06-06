@@ -18,7 +18,7 @@ package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
-import com.exactpro.th2.infrarepo.BookConfig;
+import com.exactpro.th2.infrarepo.settings.BookConfig;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

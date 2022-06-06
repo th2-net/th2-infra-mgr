@@ -26,7 +26,14 @@ import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.InconsistentRepositoryStateException;
+import com.exactpro.th2.infrarepo.SchemaUtils;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.exactpro.th2.validator.ValidationReport;
 import com.fasterxml.jackson.core.JsonParser;
@@ -227,7 +234,7 @@ public class SchemaController {
             throws JsonProcessingException {
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-        RepositorySettings rs = snapshot.getRepositorySettings();
+        RepositorySettingsSpec rs = snapshot.getRepositorySettings().getSpec();
         event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
                 || rs.isK8sSynchronizationRequired())));
         router.addEvent(event);

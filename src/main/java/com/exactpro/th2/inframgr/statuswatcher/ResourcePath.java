@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.statuswatcher;
 
-import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 
 public class ResourcePath {
 

@@ -19,8 +19,8 @@ package com.exactpro.th2.inframgr.docker.monitoring.watcher;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResource;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
-import com.exactpro.th2.infrarepo.Gitter;
-import com.exactpro.th2.infrarepo.Repository;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.repo.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -80,15 +80,7 @@ __Response body example:__
                             "publish"
                         ]
                     }
-                ],
-                "extended-settings": {
-                    "service": {
-                        "enabled": false
-                    },
-                    "envVariables": {
-                        "JAVA_TOOL_OPTIONS": "-XX:+ExitOnOutOfMemoryError"
-                    }
-                }
+                ]
             },
             "sourceHash": "d42736f7985cf01619e8b316b4d7b896815da5d344281be6c11e74de14daf330"
         }

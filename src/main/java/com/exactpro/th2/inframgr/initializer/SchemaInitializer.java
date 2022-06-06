@@ -22,7 +22,10 @@ import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.settings.CradleConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -347,7 +350,7 @@ public class SchemaInitializer {
             Gitter gitter = ctx.getGitter(schemaName);
             try {
                 gitter.lock();
-                CradleConfig cradle = Repository.getSettings(gitter).getCradle();
+                CradleConfig cradle = Repository.getSettings(gitter).getSpec().getCradle();;
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
                 copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, kube, forceUpdate);

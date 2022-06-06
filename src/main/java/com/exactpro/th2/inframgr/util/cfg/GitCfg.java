@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
-import com.exactpro.th2.infrarepo.GitConfig;
+import com.exactpro.th2.infrarepo.git.GitConfig;
 
 public class GitCfg implements GitConfig {
 

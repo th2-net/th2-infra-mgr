@@ -16,8 +16,8 @@
 
 package com.exactpro.th2.inframgr.models;
 
-import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 public class ResourceEntry {
