@@ -493,7 +493,9 @@ public class SchemaInitializer {
         newSecret.setKind(Kubernetes.KIND_SECRET);
         newSecret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
         newSecret.setMetadata(createMetaDataWithNewAnnotations(secretName, newResourceLabel));
-        newSecret.setData(new HashMap<>());
+        newSecret.setData(new HashMap<>() {{
+            put("cassandraPassword", "");
+        }});
 
         try {
             kube.createOrReplaceSecret(newSecret);
