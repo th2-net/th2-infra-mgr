@@ -400,6 +400,8 @@ public class SchemaInitializer {
             } catch (Exception e) {
                 logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
             }
+        } catch (Exception e) {
+            logger.error("Exception while connecting to Cassandra", e);
         }
     }
 
