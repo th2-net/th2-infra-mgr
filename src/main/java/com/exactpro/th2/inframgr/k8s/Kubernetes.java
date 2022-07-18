@@ -412,7 +412,6 @@ public class Kubernetes implements Closeable {
         );
         registerCustomKind(ResourceType.Th2Estore.k8sApiVersion(), ResourceType.Th2Estore.kind(), Th2Estore.Type.class);
         registerCustomKind(ResourceType.Th2Mstore.k8sApiVersion(), ResourceType.Th2Mstore.kind(), Th2Mstore.Type.class);
-        registerCustomKind(ResourceType.Th2Link.k8sApiVersion(), ResourceType.Th2Link.kind(), Th2Link.Type.class);
 
         //Register informers for custom resources
         registerSharedInformerForCustomResource(eventHandler, Th2Box.Type.class);
@@ -420,7 +419,6 @@ public class Kubernetes implements Closeable {
         registerSharedInformerForCustomResource(eventHandler, Th2Dictionary.Type.class);
         registerSharedInformerForCustomResource(eventHandler, Th2Estore.Type.class);
         registerSharedInformerForCustomResource(eventHandler, Th2Mstore.Type.class);
-        registerSharedInformerForCustomResource(eventHandler, Th2Link.Type.class);
     }
 
     public void registerSharedInformersAll(ResourceEventHandler eventHandler) {
@@ -517,8 +515,7 @@ public class Kubernetes implements Closeable {
                 ResourceType.Th2CoreBox.kind(), client.resources(Th2CoreBox.Type.class),
                 ResourceType.Th2Estore.kind(), client.resources(Th2Estore.Type.class),
                 ResourceType.Th2Mstore.kind(), client.resources(Th2Mstore.Type.class),
-                ResourceType.Th2Dictionary.kind(), client.resources(Th2Dictionary.Type.class),
-                ResourceType.Th2Link.kind(), client.resources(Th2Link.Type.class)
+                ResourceType.Th2Dictionary.kind(), client.resources(Th2Dictionary.Type.class)
         );
     }
 

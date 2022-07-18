@@ -250,8 +250,8 @@ public class ResourceCondition {
     private static void processCustomResource(K8sCustomResource customResource, ResourceCondition resource) {
 
         String kind = resource.getKind();
-        if (kind.equals(ResourceType.Th2Link.kind()) || kind.equals(ResourceType.Th2Dictionary.kind())) {
-            // these custom resources are considered succesfully deployed
+        if (kind.equals(kind.equals(ResourceType.Th2Dictionary.kind()))) {
+            // these custom resource is considered succesfully deployed
             resource.setStatus(Status.RUNNING);
             return;
         }

@@ -138,10 +138,12 @@ public class K8sSynchronization {
         if (!validationContext.isValid()) {
             logger.warn("Schema \"{}\" contains errors.", schemaName);
             SchemaErrorPrinter.printErrors(validationContext.getReport());
-            // remove invalid links
+            // remove invalid links from boxes
+            var allBoxes = repositoryResources.get(ResourceType.Th2Box.name());
+            allBoxes.putAll(repositoryResources.get(ResourceType.Th2CoreBox.name()));
             SchemaValidator.removeInvalidLinks(
                     validationContext,
-                    repositoryResources.get(ResourceType.Th2Link.kind())
+                    allBoxes.values()
             );
         } else {
             logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", schemaName);
@@ -156,7 +158,7 @@ public class K8sSynchronization {
         Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
         // synchronize by resource type
         for (ResourceType type : ResourceType.values()) {
-            if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
+            if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease) && !type.equals(ResourceType.Th2Link)) {
                 var typeKind = type.kind();
                 Map<String, RepositoryResource> resources = repositoryResources.get(typeKind);
                 Map<String, K8sCustomResource> customResources = k8sResources.get(typeKind);
@@ -225,7 +227,7 @@ public class K8sSynchronization {
     private Map<String, Map<String, K8sCustomResource>> loadCustomResources(Kubernetes kube) {
         Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
         for (ResourceType t : ResourceType.values()) {
-            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
+            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease) && !t.equals(ResourceType.Th2Link)) {
                 k8sResources.put(t.kind(), kube.loadCustomResources(t));
             }
         }
