@@ -81,7 +81,7 @@ public class RepositoryWatcherService {
                     logger.info("New commit \"{}\" detected for branch \"{}\"", commitRef, branch);
 
                     RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
-                    boolean sent = eventRouter.addEventIfNotCached(event);
+                    boolean sent = eventRouter.addEventIfNotCached(branch, event);
                     if (!sent) {
                         logger.info("Event is recently processed, ignoring");
                     }
@@ -111,6 +111,7 @@ public class RepositoryWatcherService {
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
                 String branchName = extinctNamespace.substring(namespacePrefix.length());
+                eventRouter.removeEventsForSchema(branchName);
                 logger.info("branch \"{}\" was removed from remote repository, deleting corresponding namespace \"{}\"",
                         branchName, existingBranches);
                 namespaceResource.delete();

@@ -171,7 +171,7 @@ public class StatusCache {
             return;
         }
 
-        eventRouter.addEvent(new StatusUpdateEvent.Builder(schema)
+        eventRouter.addEvent(schema, new StatusUpdateEvent.Builder(schema)
                 .withKind(path.getKind())
                 .withResourceName(path.getResourceName())
                 .withStatus(calculateStatus(resource).toString())

@@ -237,7 +237,7 @@ public class SchemaController {
         RepositorySettingsSpec rs = snapshot.getRepositorySettings().getSpec();
         event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
                 || rs.isK8sSynchronizationRequired())));
-        router.addEvent(event);
+        router.addEvent(schemaName, event);
     }
 
     private String updateRepository(Gitter gitter, List<RequestEntry> operations) throws ServiceException {
