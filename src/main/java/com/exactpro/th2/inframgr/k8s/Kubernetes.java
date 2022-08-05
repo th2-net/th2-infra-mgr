@@ -129,7 +129,7 @@ public class Kubernetes implements Closeable {
             if (customResources.size() > 0) {
                 for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
-
+                        k8sResource.getMetadata().setAnnotations(repoResource.getMetadata().getAnnotations());
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         operation.inNamespace(namespace).createOrReplace(k8sResource);
@@ -155,7 +155,8 @@ public class Kubernetes implements Closeable {
 
     private K8sCustomResource buildCustomResource(RepositoryResource repoResource, String namespace) {
         K8sCustomResource k8sResource = new K8sCustomResource();
-        ObjectMeta metaData = buildCustomResourceMetaData(repoResource, namespace);
+        ObjectMeta metaData = repoResource.getMetadata();
+        metaData.setNamespace(namespace);
         k8sResource.setMetadata(metaData);
         k8sResource.setSourceHash(repoResource.getSourceHash());
         k8sResource.setCommitHash(repoResource.getCommitHash());
@@ -164,13 +165,6 @@ public class Kubernetes implements Closeable {
         k8sResource.setSpec(repoResource.getSpec());
 
         return k8sResource;
-    }
-
-    private ObjectMeta buildCustomResourceMetaData(RepositoryResource repoResource, String namespace) {
-        return new ObjectMetaBuilder()
-                .withName(repoResource.getMetadata().getName())
-                .withNamespace(namespace)
-                .build();
     }
 
     public void createCustomResource(RepositoryResource repoResource) {
@@ -220,6 +214,7 @@ public class Kubernetes implements Closeable {
                 for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
+                        k8sResource.getMetadata().setAnnotations(repoResource.getMetadata().getAnnotations());
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.setCommitHash(repoResource.getCommitHash());

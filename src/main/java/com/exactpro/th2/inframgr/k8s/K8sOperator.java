@@ -165,7 +165,9 @@ public class K8sOperator {
                 if (resource == null) {
                     resource = new RepositoryResource();
                     resource.setKind(kind);
-                    resource.setMetadata(new RepositoryResource.Metadata(name));
+                    ObjectMeta metaData = new ObjectMeta();
+                    metaData.setName(name);
+                    resource.setMetadata(metaData);
                 }
                 boolean actionReplace = false;
                 boolean actionDelete = false;

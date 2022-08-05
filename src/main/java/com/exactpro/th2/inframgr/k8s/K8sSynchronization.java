@@ -31,6 +31,7 @@ import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.prometheus.client.Histogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -192,7 +193,9 @@ public class K8sSynchronization {
                             logger.info("Deleting resource {}. [commit: {}]", resourceLabel, shortCommitRef);
                             RepositoryResource resource = new RepositoryResource();
                             resource.setKind(typeKind);
-                            resource.setMetadata(new RepositoryResource.Metadata(resourceName));
+                            ObjectMeta meta = new ObjectMeta();
+                            meta.setName(resourceName);
+                            resource.setMetadata(meta);
                             DynamicResourceProcessor.checkResource(resource, schemaName, true);
                             kube.deleteCustomResource(resource);
                         } catch (Exception e) {

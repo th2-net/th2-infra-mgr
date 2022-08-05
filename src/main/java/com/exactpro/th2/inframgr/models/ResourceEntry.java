@@ -18,6 +18,7 @@ package com.exactpro.th2.inframgr.models;
 
 import com.exactpro.th2.infrarepo.RepositoryResource;
 import com.exactpro.th2.infrarepo.ResourceType;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 public class ResourceEntry {
 
@@ -76,7 +77,9 @@ public class ResourceEntry {
         resource.setKind(this.getKind().kind());
         resource.setSpec(this.getSpec());
         resource.setSourceHash(this.getSourceHash());
-        resource.setMetadata(new RepositoryResource.Metadata(this.getName()));
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName(this.getName());
+        resource.setMetadata(meta);
         return resource;
     }
 

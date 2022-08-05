@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourcesCache;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.infrarepo.RepositoryResource;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,9 @@ class DynamicResourcesTests {
 
     private static void fillValidRepoResList() {
         RepositoryResource res1 = new RepositoryResource(Th2CoreBox);
-        res1.setMetadata(new RepositoryResource.Metadata("res1"));
+        ObjectMeta meta = new ObjectMeta();
+        meta.setName("res1");
+        res1.setMetadata(meta);
         Map<String, String> spec1 = Map.of(
                 VERSION_RANGE_ALIAS, "1.+",
                 IMAGE_NAME_ALIAS, "some-image",
@@ -62,7 +65,9 @@ class DynamicResourcesTests {
         res1.setSpec(spec1);
         validRepoResList.add(res1);
         RepositoryResource res2 = new RepositoryResource(Th2Estore);
-        res2.setMetadata(new RepositoryResource.Metadata("res2"));
+        ObjectMeta meta2 = new ObjectMeta();
+        meta2.setName("res2");
+        res2.setMetadata(meta2);
         Map<String, String> spec2 = Map.of(
                 VERSION_RANGE_ALIAS, "3.+",
                 IMAGE_NAME_ALIAS, "another-image",
