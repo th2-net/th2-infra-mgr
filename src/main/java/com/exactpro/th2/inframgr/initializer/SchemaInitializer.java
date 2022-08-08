@@ -21,10 +21,8 @@ import com.datastax.oss.driver.api.core.cql.ResultSet;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
-import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.k8s.SchemaRecoveryTask;
-import com.exactpro.th2.inframgr.k8s.SecretsManager;
+import com.exactpro.th2.inframgr.k8s.*;
+import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
@@ -47,8 +45,7 @@ import java.time.Duration;
 import java.util.*;
 
 import static com.datastax.oss.driver.api.querybuilder.SchemaBuilder.createKeyspace;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 import static java.util.Collections.unmodifiableMap;
@@ -169,6 +166,9 @@ public class SchemaInitializer {
 
         // copy Ingress
         copyIngress(config, kube, forceUpdate);
+
+        // copy Service Monitor
+        copyServiceMonitor(config, kube, forceUpdate);
 
         // copy required secrets
         copySecrets(config, kube, forceUpdate);
@@ -480,6 +480,32 @@ public class SchemaInitializer {
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, ingressName);
         } catch (Exception e) {
             logger.error("Exception creating ingress \"{}\"", newResourceLabel, e);
+        }
+    }
+
+    private static void copyServiceMonitor(Config config, Kubernetes kube, boolean forceUpdate) {
+        String serviceMonitorName = config.getKubernetes().getServiceMonitor();
+        ServiceMonitor.Type originalServiceMonitor = kube.currentNamespace().loadServiceMonitor(serviceMonitorName);
+        if (originalServiceMonitor == null) {
+            logger.error("Failed to load ServiceMonitor \"{}\" from default namespace", serviceMonitorName);
+            return;
+        }
+        String namespace = kube.getNamespaceName();
+        String newResourceLabel = annotationFor(namespace, KIND_SERVICE_MONITOR, serviceMonitorName);
+        try {
+            if (kube.loadServiceMonitor(namespace, serviceMonitorName) != null && !forceUpdate) {
+                logger.info("\"{}\" already exists, skipping", newResourceLabel);
+                return;
+            }
+            ServiceMonitor.Type newServiceMonitor = new ServiceMonitor.Type();
+            newServiceMonitor.setMetadata(originalServiceMonitor.getMetadata());
+            newServiceMonitor.getMetadata().setNamespace(namespace);
+            newServiceMonitor.setKind(KIND_SERVICE_MONITOR);
+            newServiceMonitor.setSpec(originalServiceMonitor.getSpec());
+            kube.createServiceMonitor(newServiceMonitor);
+            logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, serviceMonitorName);
+        } catch (Exception e) {
+            logger.error("Exception creating ServiceMonitor \"{}\"", newResourceLabel, e);
         }
     }
 

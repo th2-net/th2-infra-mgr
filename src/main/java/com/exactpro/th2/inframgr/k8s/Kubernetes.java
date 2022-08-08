@@ -46,6 +46,8 @@ public class Kubernetes implements Closeable {
 
     public static final String KIND_INGRESS = "Ingress";
 
+    public static final String KIND_SERVICE_MONITOR = "ServiceMonitor";
+
     public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
@@ -231,6 +233,16 @@ public class Kubernetes implements Closeable {
         } finally {
             lock.unlock();
         }
+    }
+
+    public ServiceMonitor.Type loadServiceMonitor(String namespace, String name) {
+        var mixedOperation = client.resources(ServiceMonitor.Type.class);
+        return mixedOperation.inNamespace(namespace).withName(name).get();
+    }
+
+    public void createServiceMonitor(ServiceMonitor.Type serviceMonitor) {
+        var mixedOperation = client.resources(ServiceMonitor.Type.class);
+        mixedOperation.inNamespace(namespace).createOrReplace(serviceMonitor);
     }
 
     private <T extends K8sCustomResource, L extends CustomResourceList<T>> K8sCustomResource loadCustomResource(
@@ -560,8 +572,8 @@ public class Kubernetes implements Closeable {
             return mapOf(client.secrets().list().getItems());
         }
 
-        public K8sCustomResource loadCustomResource(ResourceType type, String name) {
-            return Kubernetes.this.loadCustomResource(client.getNamespace(), type, name);
+        public ServiceMonitor.Type loadServiceMonitor(String name) {
+            return Kubernetes.this.loadServiceMonitor(client.getNamespace(), name);
         }
 
         public Ingress getIngress(String ingressName) {
