@@ -112,7 +112,7 @@ public class Kubernetes implements Closeable {
         createOrReplaceCustomResource(repoResource, namespace);
     }
 
-    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createOrReplaceCustomResource(
+    public <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>> void createOrReplaceCustomResource(
             RepositoryResource repoResource,
             String namespace) {
 
@@ -133,7 +133,7 @@ public class Kubernetes implements Closeable {
                         k8sResource.getMetadata().setAnnotations(repoResource.getMetadata().getAnnotations());
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
-                        operation.inNamespace(namespace).createOrReplace(k8sResource);
+                        operation.inNamespace(namespace).resource(k8sResource).createOrReplace();
 
                         cache.add(namespace, k8sResource);
                         resourceUpdated = true;
@@ -144,7 +144,7 @@ public class Kubernetes implements Closeable {
 
             if (!resourceUpdated) {
                 K8sCustomResource k8sResource = buildCustomResource(repoResource, namespace);
-                operation.inNamespace(namespace).create((T) k8sResource);
+                operation.inNamespace(namespace).resource((T) k8sResource).create();
 
                 cache.add(namespace, k8sResource);
             }
@@ -172,7 +172,7 @@ public class Kubernetes implements Closeable {
         createCustomResource(repoResource, namespace);
     }
 
-    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void createCustomResource(
+    public <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>> void createCustomResource(
             RepositoryResource repoResource,
             String namespace) {
 
@@ -184,7 +184,7 @@ public class Kubernetes implements Closeable {
 
             MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             K8sCustomResource k8sResource = buildCustomResource(repoResource, namespace);
-            operation.inNamespace(namespace).create((T) k8sResource);
+            operation.inNamespace(namespace).resource((T) k8sResource).create();
 
             cache.add(namespace, k8sResource);
 
@@ -197,7 +197,7 @@ public class Kubernetes implements Closeable {
         replaceCustomResource(repoResource, namespace);
     }
 
-    public <T extends K8sCustomResource, L extends CustomResourceList<T>> void replaceCustomResource(
+    public <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>> void replaceCustomResource(
             RepositoryResource repoResource,
             String namespace) throws ResourceNotFoundException {
 
@@ -220,7 +220,7 @@ public class Kubernetes implements Closeable {
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.setCommitHash(repoResource.getCommitHash());
                         k8sResource.setDetectionTime(repoResource.getDetectionTime());
-                        operation.inNamespace(namespace).createOrReplace(k8sResource);
+                        operation.inNamespace(namespace).resource(k8sResource).createOrReplace();
 
                         cache.add(namespace, k8sResource);
                         return;
@@ -241,11 +241,11 @@ public class Kubernetes implements Closeable {
 
     public void createServiceMonitor(ServiceMonitor.Type serviceMonitor) {
         var mixedOperation = client.resources(ServiceMonitor.Type.class);
-        mixedOperation.inNamespace(namespace).createOrReplace(serviceMonitor);
+        mixedOperation.inNamespace(namespace).resource(serviceMonitor).createOrReplace();
     }
 
-    private <T extends K8sCustomResource, L extends CustomResourceList<T>> K8sCustomResource loadCustomResource(
-            String namespace, ResourceType type, String name) {
+    private <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>>
+    K8sCustomResource loadCustomResource(String namespace, ResourceType type, String name) {
         MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
@@ -254,9 +254,8 @@ public class Kubernetes implements Closeable {
         return loadCustomResource(namespace, type, name);
     }
 
-    public <T extends K8sCustomResource,
-            L extends CustomResourceList<T>> Map<String,
-            K8sCustomResource> loadCustomResources(ResourceType type) {
+    public <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>>
+    Map<String, K8sCustomResource> loadCustomResources(ResourceType type) {
 
         MixedOperation<T, ? extends L, Resource<T>> mixedOperation = operations.get(type.kind());
         var customResourceList = mixedOperation.inNamespace(namespace).list();
@@ -269,12 +268,12 @@ public class Kubernetes implements Closeable {
         return resources;
     }
 
-    public boolean deleteCustomResource(RepositoryResource repoResource) {
+    public List<StatusDetails> deleteCustomResource(RepositoryResource repoResource) {
         return deleteCustomResource(repoResource, namespace);
     }
 
-    public <T extends K8sCustomResource, L extends CustomResourceList<T>> boolean deleteCustomResource(
-            RepositoryResource repoResource, String namespace) {
+    public <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>>
+    List<StatusDetails> deleteCustomResource(RepositoryResource repoResource, String namespace) {
 
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Lock lock = cache.lockFor(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
@@ -284,7 +283,7 @@ public class Kubernetes implements Closeable {
 
             MixedOperation<T, L, Resource<T>> operation = operations.get(repoResource.getKind());
             Resource<T> r = operation.inNamespace(namespace).withName(repoResource.getMetadata().getName());
-            boolean result = r.delete();
+            List<StatusDetails> result = r.delete();
 
             cache.remove(namespace, repoResource.getKind(), repoResource.getMetadata().getName());
             return result;
@@ -315,11 +314,7 @@ public class Kubernetes implements Closeable {
         return client.namespaces().withName(namespace).get();
     }
 
-    public Namespace getThisNamespace() {
-        return client.namespaces().withName(namespace).get();
-    }
-
-    public boolean deleteNamespace() {
+    public List<StatusDetails> deleteNamespace() {
         return client.namespaces().withName(namespace).delete();
     }
 
@@ -331,7 +326,7 @@ public class Kubernetes implements Closeable {
         Namespace ns = new Namespace();
         ns.setMetadata(meta);
 
-        client.namespaces().create(ns);
+        client.resource(ns).create();
     }
 
     public ConfigMap getConfigMap(String configMapName) {
@@ -351,7 +346,7 @@ public class Kubernetes implements Closeable {
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
         configMap.getMetadata().setNamespace(namespace);
-        client.configMaps().inNamespace(namespace).createOrReplace(configMap);
+        client.resource(configMap).inNamespace(namespace).createOrReplace();
     }
 
     private class FilteringResourceEventHandler<T extends HasMetadata> {
@@ -475,7 +470,7 @@ public class Kubernetes implements Closeable {
         this.currentNamespace = new CurrentNamespace();
 
         if (!config.useCustomConfig()) {
-            client = new DefaultKubernetesClient();
+            client = new KubernetesClientBuilder().build();
             generateMixedOperations();
             return;
         }
@@ -505,7 +500,7 @@ public class Kubernetes implements Closeable {
             configBuilder.withClientKeyFile(config.getClientKeyFile());
         }
 
-        client = new DefaultKubernetesClient(configBuilder.build());
+        client = new KubernetesClientBuilder().withConfig(configBuilder.build()).build();
         generateMixedOperations();
     }
 
@@ -525,7 +520,7 @@ public class Kubernetes implements Closeable {
 
     public Secret createOrReplaceSecret(Secret secret) {
         secret.getMetadata().setNamespace(namespace);
-        return client.secrets().inNamespace(namespace).createOrReplace(secret);
+        return client.resource(secret).inNamespace(namespace).createOrReplace();
     }
 
     public String getNamespaceName() {
@@ -543,7 +538,7 @@ public class Kubernetes implements Closeable {
         return currentNamespace;
     }
 
-    public boolean deletePodWithName(String podName, boolean force) {
+    public List<StatusDetails> deletePodWithName(String podName, boolean force) {
         if (force) {
             return client.pods().inNamespace(namespace).withName(podName).withGracePeriod(0).delete();
         } else {
