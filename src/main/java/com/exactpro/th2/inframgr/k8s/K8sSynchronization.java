@@ -39,6 +39,7 @@ import com.exactpro.th2.infrarepo.settings.RepositorySettingsResource;
 import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
+import com.exactpro.th2.validator.util.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.prometheus.client.Histogram;
@@ -139,8 +140,7 @@ public class K8sSynchronization {
             logger.warn("Schema \"{}\" contains errors.", schemaName);
             SchemaErrorPrinter.printErrors(validationContext.getReport());
             // remove invalid links from boxes
-            var allBoxes = repositoryResources.get(ResourceType.Th2Box.name());
-            allBoxes.putAll(repositoryResources.get(ResourceType.Th2CoreBox.name()));
+            var allBoxes = ResourceUtils.collectAllBoxes(repositoryResources);
             SchemaValidator.removeInvalidLinks(
                     validationContext,
                     allBoxes.values()

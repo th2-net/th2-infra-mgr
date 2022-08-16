@@ -42,6 +42,7 @@ import java.util.*;
 
 import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
 import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.KIND_SERVICE_MONITOR;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 
