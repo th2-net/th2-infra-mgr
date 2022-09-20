@@ -49,12 +49,12 @@ import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
@@ -66,8 +66,6 @@ public class K8sSynchronization {
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
 
     private Config config;
-
-    private static volatile boolean startupSynchronizationComplete;
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
@@ -294,33 +292,13 @@ public class K8sSynchronization {
     @PostConstruct
     public void start() {
         logger.info("Starting Kubernetes synchronization phase");
-
+        subscribeToRepositoryEvents();
         try {
-            subscribeToRepositoryEvents();
             config = Config.getInstance();
-            GitterContext ctx = GitterContext.getContext(config.getGit());
-            Map<String, String> branches = ctx.getAllBranchesCommits();
-
-            ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
-            for (String branch : branches.keySet()) {
-                if (!branch.equals("master")) {
-                    executor.execute(() -> synchronizeBranch(branch, System.currentTimeMillis()));
-                }
-            }
-
-            executor.shutdown();
-            try {
-                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            } catch (InterruptedException ignored) {
-            }
-
-        } catch (Exception e) {
-            logger.error("Exception fetching branch list from repository", e);
-            //throw new RuntimeException("Kubernetes synchronization failed");
+        } catch (IOException e) {
+            logger.error("Error loading config");
+            throw new RuntimeException("Failed to start Kubernetes synchronization component");
         }
-
-        startupSynchronizationComplete = true;
-        logger.info("Kubernetes synchronization phase complete");
     }
 
     private void subscribeToRepositoryEvents() {
@@ -361,9 +339,9 @@ public class K8sSynchronization {
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
     }
 
-    public static boolean isStartupSynchronizationComplete() {
-        return startupSynchronizationComplete;
-    }
+//    public static boolean isStartupSynchronizationComplete() {
+//        return startupSynchronizationComplete;
+//    }
 
     private void stampResources(Map<String, Map<String, RepositoryResource>> repositoryMap,
                                 String commitHash,

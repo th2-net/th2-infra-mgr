@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.Config;
+import com.exactpro.th2.inframgr.repository.RepositoryWatcherService;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.Strings;
@@ -60,7 +61,8 @@ public class K8sOperator {
     private void startInformers() {
         // wait for startup synchronization to complete
         logger.info("Operator is waiting for kubernetes startup  synchronization to complete");
-        while (!(Thread.currentThread().isInterrupted() || K8sSynchronization.isStartupSynchronizationComplete())) {
+        while (!(Thread.currentThread().isInterrupted()
+                || RepositoryWatcherService.isStartupSynchronizationComplete())) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {

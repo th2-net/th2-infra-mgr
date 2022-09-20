@@ -40,19 +40,21 @@ import java.util.stream.Collectors;
 @Component
 public class RepositoryWatcherService {
 
-    private Map<String, String> commitHistory;
+    private final Map<String, String> commitHistory;
 
-    private GitCfg config;
+    private final GitCfg config;
 
-    private SchemaEventRouter eventRouter;
+    private final SchemaEventRouter eventRouter;
 
-    private Logger logger;
+    private final Logger logger;
 
-    private KubernetesClient kubeClient = new KubernetesClientBuilder().build();
+    private final KubernetesClient kubeClient = new KubernetesClientBuilder().build();
 
     private int prevBranchCount;
 
-    private String namespacePrefix;
+    private final String namespacePrefix;
+
+    private static volatile boolean startupSynchronizationComplete;
 
     public RepositoryWatcherService() throws Exception {
         var fullConfig = Config.getInstance();
@@ -64,7 +66,7 @@ public class RepositoryWatcherService {
     }
 
     @Scheduled(fixedDelayString = "${GIT_FETCH_INTERVAL:14000}")
-    public void scheduledJob() {
+    private void scheduledJob() {
         try {
             logger.debug("fetching changes from git");
             GitterContext ctx = GitterContext.getContext(config);
@@ -73,6 +75,9 @@ public class RepositoryWatcherService {
                 removeExtinctedNamespaces(commits.keySet());
             }
             prevBranchCount = commits.size();
+            if (commitHistory.isEmpty()) {
+                doInitialSynchronization(commits);
+            }
             commits.forEach((branch, commitRef) -> {
 
                 if (!(branch.equals("master")
@@ -92,6 +97,21 @@ public class RepositoryWatcherService {
         } catch (Exception e) {
             logger.error("Error fetching repository", e);
         }
+    }
+
+    private void doInitialSynchronization(Map<String, String> commits) {
+        logger.info("Starting Kubernetes synchronization phase");
+        commits.forEach((branch, commitRef) -> {
+            if (!branch.equals("master")) {
+                RepositoryUpdateEvent event = new RepositoryUpdateEvent(branch, commitRef);
+                boolean sent = eventRouter.addEventIfNotCached(branch, event);
+                if (!sent) {
+                    logger.info("Event is recently processed, ignoring");
+                }
+            }
+        });
+        startupSynchronizationComplete = true;
+        logger.info("Kubernetes synchronization phase complete");
     }
 
     private void removeExtinctedNamespaces(Set<String> existingBranches) {
@@ -118,5 +138,9 @@ public class RepositoryWatcherService {
                 commitHistory.remove(branchName);
             }
         }
+    }
+
+    public static boolean isStartupSynchronizationComplete() {
+        return startupSynchronizationComplete;
     }
 }

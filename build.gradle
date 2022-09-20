@@ -43,10 +43,10 @@ detekt {
 }
 
 ext {
-    fabric8_version = '6.0.0'
-    infra_repo_version = '1.1.15'
-    schema_validator_version = '1.4.2'
-    jackson_dataformat_version = '2.13.3'
+    fabric8_version = '6.1.1'
+    infra_repo_version = '1.1.16-improve-logs-2888703297-SNAPSHOT'
+    schema_validator_version = '1.4.3'
+    jackson_dataformat_version = '2.13.4'
     jackson_kotlin_version = '2.13.2'
     zip4j_version = '2.11.1'
     commons_text_version = '1.9'
