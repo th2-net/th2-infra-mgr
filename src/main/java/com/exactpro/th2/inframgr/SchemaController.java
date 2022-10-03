@@ -234,7 +234,7 @@ public class SchemaController {
             throws JsonProcessingException {
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-        RepositorySettingsSpec rs = snapshot.getRepositorySettings().getSpec();
+        RepositorySettingsSpec rs = snapshot.getRepositorySettingsSpec();
         event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
                 || rs.isK8sSynchronizationRequired())));
         router.addEvent(schemaName, event);

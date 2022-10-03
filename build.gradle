@@ -44,11 +44,11 @@ detekt {
 
 ext {
     fabric8_version = '6.1.1'
-    infra_repo_version = '1.1.16-improve-logs-2888703297-SNAPSHOT'
-    schema_validator_version = '1.4.3'
-    jackson_dataformat_version = '2.13.4'
+    infra_repo_version = '1.1.17-infra-2.0-3104178934-SNAPSHOT'
+    schema_validator_version = '1.5.1-infra-2.0-3135518601-SNAPSHOT'
+    jackson_dataformat_version = '2.14.0-rc1'
     jackson_kotlin_version = '2.13.2'
-    zip4j_version = '2.11.1'
+    zip4j_version = '2.11.2'
     commons_text_version = '1.9'
     rxjava_version = '1.3.8'
     slf4j_api_version = '1.7.36'

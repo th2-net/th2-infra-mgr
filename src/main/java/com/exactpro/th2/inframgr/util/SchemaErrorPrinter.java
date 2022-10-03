@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Map;
 
 public class SchemaErrorPrinter {
 
@@ -33,13 +32,11 @@ public class SchemaErrorPrinter {
     private static final Logger logger = LoggerFactory.getLogger(SchemaErrorPrinter.class);
 
     public static void printErrors(ValidationReport report) {
-        Map<String, List<LinkErrorMessage>> linkErrors = report.getLinkErrorMessages();
+        List<LinkErrorMessage> linkErrors = report.getLinkErrorMessages();
         if (!linkErrors.isEmpty()) {
             logger.error("Link related errors: ");
-            for (String resName : linkErrors.keySet()) {
-                for (LinkErrorMessage message : linkErrors.get(resName)) {
-                    logger.error("Resource: {} - {}", resName, message.toPrintableMessage());
-                }
+            for (LinkErrorMessage message : linkErrors) {
+                logger.error(message.toPrintableMessage());
             }
         }
 

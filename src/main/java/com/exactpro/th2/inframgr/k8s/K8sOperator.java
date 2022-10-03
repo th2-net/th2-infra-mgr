@@ -145,7 +145,7 @@ public class K8sOperator {
                     RepositorySnapshot snapshot = Repository.getSnapshot(gitter);
 
                     // check if we need to re-synchronize k8s at all
-                    RepositorySettingsSpec rs = snapshot.getRepositorySettings().getSpec();
+                    RepositorySettingsSpec rs = snapshot.getRepositorySettingsSpec();
                     if (rs == null || !rs.isK8sGovernanceRequired()) {
                         return;
                     }
