@@ -206,7 +206,7 @@ public class SchemaController {
                     // do not update repository and kubernetes if requested changes contain errors.
                     logger.error("Schema \"{}\" contains errors, update request will be ignored", schemaName);
                     ValidationReport report = validationContext.getReport();
-                    SchemaErrorPrinter.printErrors(report);
+                    SchemaErrorPrinter.printErrors(report, "editor");
                     return new SchemaControllerResponse(report);
                 }
                 // continue with update if schema is validated

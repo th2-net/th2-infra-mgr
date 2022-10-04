@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,45 +14,36 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.util;
+package com.exactpro.th2.inframgr.util
 
-import com.exactpro.th2.validator.ValidationReport;
-import com.exactpro.th2.validator.errormessages.BoxResourceErrorMessage;
-import com.exactpro.th2.validator.errormessages.LinkErrorMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.exactpro.th2.validator.ValidationReport
+import mu.KotlinLogging
 
-import java.util.List;
+object SchemaErrorPrinter {
 
-public class SchemaErrorPrinter {
+    private val logger = KotlinLogging.logger { }
 
-    private SchemaErrorPrinter() {
-    }
-
-    private static final Logger logger = LoggerFactory.getLogger(SchemaErrorPrinter.class);
-
-    public static void printErrors(ValidationReport report) {
-        List<LinkErrorMessage> linkErrors = report.getLinkErrorMessages();
-        if (!linkErrors.isEmpty()) {
-            logger.error("Link related errors: ");
-            for (LinkErrorMessage message : linkErrors) {
-                logger.error(message.toPrintableMessage());
+    @JvmStatic
+    fun printErrors(report: ValidationReport, commit: String) {
+        val linkErrors = report.linkErrorMessages
+        if (linkErrors.isNotEmpty()) {
+            logger.error("Link related errors. [{}]: ", commit)
+            for (message in linkErrors) {
+                logger.error("${message.toPrintableMessage()} [$commit]")
             }
         }
-
-        List<BoxResourceErrorMessage> boxResourceErrorMessages = report.getBoxResourceErrorMessages();
-        if (!boxResourceErrorMessages.isEmpty()) {
-            logger.error("Box related errors: ");
-            for (BoxResourceErrorMessage errorMessage : boxResourceErrorMessages) {
-                logger.error(errorMessage.toPrintableMessage());
+        val boxResourceErrorMessages = report.boxResourceErrorMessages
+        if (boxResourceErrorMessages.isNotEmpty()) {
+            logger.error("Box related errors. [{}]: ", commit)
+            for (errorMessage in boxResourceErrorMessages) {
+                logger.error("${errorMessage.toPrintableMessage()}  [$commit]")
             }
         }
-
-        List<String> exceptionMessages = report.getExceptionMessages();
-        if (!exceptionMessages.isEmpty()) {
-            logger.error("Runtime exceptions errors: ");
-            for (String errorMessage : exceptionMessages) {
-                logger.error(errorMessage);
+        val exceptionMessages = report.exceptionMessages
+        if (exceptionMessages.isNotEmpty()) {
+            logger.error("Runtime exceptions errors. [{}]: ", commit)
+            for (errorMessage in exceptionMessages) {
+                logger.error("$errorMessage  [$commit]")
             }
         }
     }

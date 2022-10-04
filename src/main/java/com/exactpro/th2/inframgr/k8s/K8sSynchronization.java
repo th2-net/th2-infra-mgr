@@ -91,7 +91,7 @@ public class K8sSynchronization {
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             SchemaInitializer.ensureSchema(schemaName, kube);
-            validateSchema(schemaName, repositoryResources);
+            validateSchema(schemaName, repositoryResources, shortCommitRef);
 
             RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
             try {
@@ -126,7 +126,9 @@ public class K8sSynchronization {
         }
     }
 
-    private void validateSchema(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources)
+    private void validateSchema(String schemaName,
+                                Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                String commit)
             throws JsonProcessingException {
         // validate: schema links, urlPaths, secret custom config.
         SchemaValidationContext validationContext = SchemaValidator.validate(
@@ -135,8 +137,8 @@ public class K8sSynchronization {
                 repositoryResources
         );
         if (!validationContext.isValid()) {
-            logger.warn("Schema \"{}\" contains errors.", schemaName);
-            SchemaErrorPrinter.printErrors(validationContext.getReport());
+            logger.warn("Schema \"{}\" contains errors. [{}]", schemaName, commit);
+            SchemaErrorPrinter.printErrors(validationContext.getReport(), commit);
             // remove invalid links from boxes
             var allBoxes = ResourceUtils.collectAllBoxes(repositoryResources);
             SchemaValidator.removeInvalidLinks(
@@ -144,7 +146,7 @@ public class K8sSynchronization {
                     allBoxes.values()
             );
         } else {
-            logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", schemaName);
+            logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization. [{}]", schemaName, commit);
         }
     }
 
