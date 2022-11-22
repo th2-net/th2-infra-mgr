@@ -31,9 +31,14 @@ import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
+import com.exactpro.th2.validator.ValidationReport;
+import com.exactpro.th2.validator.errormessages.BoxResourceErrorMessage;
+import com.exactpro.th2.validator.errormessages.LinkErrorMessage;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +47,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.exactpro.th2.inframgr.SchemaController.*;
 
@@ -53,6 +59,73 @@ public class SchemaValidationController {
     private static final String UNSUPPORTED_OPERATION = "UNSUPPORTED_OPERATION";
 
     private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
+
+    @PostMapping("/validation/{schemaName}")
+    @ResponseBody
+    public String validateRequestedSchema(
+            @PathVariable String schemaName,
+            @RequestBody String allResourcesStr
+    ) throws Exception {
+
+        if (schemaName.equals(SOURCE_BRANCH)) {
+            throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
+        }
+
+        Config config = Config.getInstance();
+
+        SchemaValidationContext validationContext = SchemaValidator.validate(
+                schemaName,
+                config.getKubernetes().getNamespacePrefix(),
+                toRepositoryMap(allResourcesStr)
+        );
+
+        if (validationContext.isValid()) {
+            return "";
+        }
+
+        return allErrorMessages(validationContext.getReport());
+    }
+
+    private String allErrorMessages(ValidationReport report) {
+        final var allErrors = new StringBuilder();
+
+        List<String> linkErrors = report.getLinkErrorMessages().stream()
+                .map(LinkErrorMessage::toPrintableMessage)
+                .collect(Collectors.toUnmodifiableList());
+
+        appendErrors(allErrors, linkErrors);
+
+        List<String> boxErrors = report.getBoxResourceErrorMessages().stream()
+                .map(BoxResourceErrorMessage::toPrintableMessage)
+                .collect(Collectors.toUnmodifiableList());
+
+        appendErrors(allErrors, boxErrors);
+
+        List<String> exceptions = Collections.unmodifiableList(report.getExceptionMessages());
+
+        appendErrors(allErrors, exceptions);
+
+        return allErrors.toString();
+    }
+
+    private void appendErrors(StringBuilder allErrors, List<String> curErrorList) {
+        curErrorList.forEach(error -> allErrors.append("\n").append(error));
+    }
+
+    private Map<String, Map<String, RepositoryResource>> toRepositoryMap(String allResourcesStr)
+            throws JsonProcessingException {
+
+        Map<String, Map<String, RepositoryResource>> repoMap = new HashMap<>();
+        final String delimiter = "\nEOF\n";
+        String[] yamlResources = allResourcesStr.split(delimiter);
+        ObjectMapper mapper = new YAMLMapper();
+        for (String yamlRes : yamlResources) {
+            RepositoryResource res = mapper.readValue(yamlRes, RepositoryResource.class);
+            repoMap.computeIfAbsent(res.getKind(), kind -> new HashMap<>()).put(res.getMetadata().getName(), res);
+        }
+
+        return repoMap;
+    }
 
     @GetMapping("/validation/{schemaName}")
     @ResponseBody
