@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
+import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +50,8 @@ public class K8sConfig {
     private Map<String, String> configMaps;
 
     private String namespacePrefix;
+
+    private final SchemaInitializer.SchemaSyncMode schemaSyncMode = SchemaInitializer.SchemaSyncMode.CHECK_NAMESPACE;
 
     public boolean useCustomConfig() {
         return useCustomConfig;
@@ -147,5 +151,9 @@ public class K8sConfig {
 
     public String getServiceMonitor() {
         return serviceMonitor;
+    }
+
+    public SchemaInitializer.SchemaSyncMode getSchemaSyncMode() {
+        return schemaSyncMode;
     }
 }

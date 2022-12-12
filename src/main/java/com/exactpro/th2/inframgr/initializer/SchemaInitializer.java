@@ -105,7 +105,7 @@ public class SchemaInitializer {
     }
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
-        ensureSchema(schemaName, kube, SchemaSyncMode.CHECK_NAMESPACE);
+        ensureSchema(schemaName, kube, Config.getInstance().getKubernetes().getSchemaSyncMode());
         K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
     }
 
@@ -351,7 +351,7 @@ public class SchemaInitializer {
             Gitter gitter = ctx.getGitter(schemaName);
             try {
                 gitter.lock();
-                CradleConfig cradle = Repository.getSettings(gitter).getSpec().getCradle();;
+                CradleConfig cradle = Repository.getSettings(gitter).getSpec().getCradle();
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
                 copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
