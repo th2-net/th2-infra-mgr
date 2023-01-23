@@ -43,7 +43,7 @@ public class Kubernetes implements Closeable {
 
     public static final String KIND_CONFIGMAP = "ConfigMap";
 
-    public static final String KIND_INGRESS = "Ingress";
+    public static final String KIND_ARANGO = "ArangoDeployment";
 
     public static final String KIND_SERVICE_MONITOR = "ServiceMonitor";
 
@@ -242,6 +242,16 @@ public class Kubernetes implements Closeable {
     public void createServiceMonitor(ServiceMonitor.Type serviceMonitor) {
         var mixedOperation = client.resources(ServiceMonitor.Type.class);
         mixedOperation.inNamespace(namespace).resource(serviceMonitor).createOrReplace();
+    }
+
+    public ArangoDeployment.Type loadArangoDb(String namespace, String name) {
+        var mixedOperation = client.resources(ArangoDeployment.Type.class);
+        return mixedOperation.inNamespace(namespace).withName(name).get();
+    }
+
+    public void createOrReplaceArangoDb(String namespace, ArangoDeployment.Type arangoDeployment) {
+        var mixedOperation = client.resources(ArangoDeployment.Type.class);
+        mixedOperation.inNamespace(namespace).resource(arangoDeployment).createOrReplace();
     }
 
     private <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>>

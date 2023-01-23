@@ -33,7 +33,7 @@ public class BookConfiguration {
 
     private static final String DEFAULT_BOOK = "defaultBook";
 
-    public static void synchronizeBookConfig(BookConfig bookConfig, Kubernetes kube, String fullCommitRef) {
+    public static void synchronizeBookConfig(BookConfig bookConfig, String fullCommitRef, Kubernetes kube) {
         String namespace = kube.getNamespaceName();
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_CONFIGMAP, BOOK_CONFIG_CM_NAME);
 

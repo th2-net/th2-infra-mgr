@@ -19,10 +19,7 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
-import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
-import com.exactpro.th2.inframgr.initializer.BookConfiguration;
-import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
-import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
+import com.exactpro.th2.inframgr.initializer.*;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
@@ -35,6 +32,7 @@ import com.exactpro.th2.infrarepo.git.GitterContext;
 import com.exactpro.th2.infrarepo.repo.Repository;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.ArangoDeploymentResource;
 import com.exactpro.th2.infrarepo.settings.RepositorySettingsResource;
 import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidationContext;
@@ -85,6 +83,7 @@ public class K8sSynchronization {
     private void synchronizeNamespace(String schemaName,
                                       Map<String, Map<String, RepositoryResource>> repositoryResources,
                                       RepositorySettingsResource repositorySettings,
+                                      ArangoDeploymentResource arangoDeployment,
                                       String fullCommitRef) throws Exception {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
@@ -107,8 +106,8 @@ public class K8sSynchronization {
 
             BookConfiguration.synchronizeBookConfig(
                     settingsSpec.getBookConfig(),
-                    kube,
-                    fullCommitRef
+                    fullCommitRef,
+                    kube
             );
 
             Th2BoxConfigurations.synchronizeBoxConfigMaps(
@@ -119,7 +118,8 @@ public class K8sSynchronization {
                     kube
             );
 
-            syncCustomResourcesWithK8s(schemaName, repositoryResources, kube, shortCommitRef);
+            ArangoDeploymentManager.synchronizeArangoDeployment(arangoDeployment, kube);
+            syncCustomResourcesWithK8s(schemaName, repositoryResources, shortCommitRef, kube);
 
         } finally {
             timer.observeDuration();
@@ -152,7 +152,8 @@ public class K8sSynchronization {
 
     private void syncCustomResourcesWithK8s(String schemaName,
                                             Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                            Kubernetes kube, String shortCommitRef) {
+                                            String shortCommitRef,
+                                            Kubernetes kube) {
         String namespace = kube.formatNamespaceName(schemaName);
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
         Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
@@ -251,9 +252,11 @@ public class K8sSynchronization {
             Gitter gitter = ctx.getGitter(branch);
             RepositorySnapshot snapshot;
             RepositorySettingsResource repositorySettings;
+            ArangoDeploymentResource arangoDeploymentResource;
             try {
                 gitter.lock();
                 repositorySettings = Repository.getSettings(gitter);
+                arangoDeploymentResource = Repository.getArangoDeployment(gitter);
                 if (repositorySettings != null && repositorySettings.getSpec().isK8sPropagationDenied()) {
                     deleteNamespace(branch);
                     return;
@@ -284,7 +287,7 @@ public class K8sSynchronization {
             // add commit reference in annotations to every resource
             stampResources(repositoryMap, fullCommitRef, detectionTime);
             // synchronize entries
-            synchronizeNamespace(branch, repositoryMap, repositorySettings, fullCommitRef);
+            synchronizeNamespace(branch, repositoryMap, repositorySettings, arangoDeploymentResource, fullCommitRef);
 
         } catch (Exception e) {
             logger.error("Exception synchronizing schema \"{}\"", branch, e);
