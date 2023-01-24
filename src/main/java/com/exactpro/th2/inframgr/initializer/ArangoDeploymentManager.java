@@ -29,6 +29,9 @@ public class ArangoDeploymentManager {
     private static final Logger logger = LoggerFactory.getLogger(ArangoDeploymentManager.class);
 
     public static void synchronizeArangoDeployment(ArangoDeploymentResource arangoDeployment, Kubernetes kube) {
+        if (arangoDeployment == null) {
+            return;
+        }
         String namespace = kube.getNamespaceName();
         String arangoDbName = arangoDeployment.getMetadata().getName();
         String resourceLabel = ResourcePath.annotationFor(namespace, KIND_ARANGO, arangoDbName);
