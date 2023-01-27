@@ -90,7 +90,7 @@ class NamespaceResources {
 
         List<ResourceCondition> elements = new ArrayList<>();
         for (ResourceType type : ResourceType.values()) {
-            if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
+            if (type.isMangedResource()) {
                 Resources resources = typedResources.cache.get(type.kind());
                 if (resources == null) {
                     continue;
