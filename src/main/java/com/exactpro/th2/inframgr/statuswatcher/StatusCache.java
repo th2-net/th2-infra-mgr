@@ -58,7 +58,7 @@ public class StatusCache {
             ResourceType type = ResourceType.forKind(path.getKind());
 
             boolean isSchemaElement = false;
-            if (type != null && type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
+            if (type != null && type.isMangedResource()) {
                 isSchemaElement = true;
             }
 

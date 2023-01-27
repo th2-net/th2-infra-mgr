@@ -520,7 +520,8 @@ public class Kubernetes implements Closeable {
                 ResourceType.Th2CoreBox.kind(), client.resources(Th2CoreBox.Type.class),
                 ResourceType.Th2Estore.kind(), client.resources(Th2Estore.Type.class),
                 ResourceType.Th2Mstore.kind(), client.resources(Th2Mstore.Type.class),
-                ResourceType.Th2Dictionary.kind(), client.resources(Th2Dictionary.Type.class)
+                ResourceType.Th2Dictionary.kind(), client.resources(Th2Dictionary.Type.class),
+                ResourceType.Th2Job.kind(), client.resources(Th2Job.Type.class)
         );
     }
 

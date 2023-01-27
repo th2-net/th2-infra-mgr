@@ -159,7 +159,7 @@ public class K8sSynchronization {
         Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
         // synchronize by resource type
         for (ResourceType type : ResourceType.values()) {
-            if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease) && !type.equals(ResourceType.Th2Link)) {
+            if (type.isMangedResource() && !type.equals(ResourceType.Th2Job)) {
                 var typeKind = type.kind();
                 Map<String, RepositoryResource> resources = repositoryResources.get(typeKind);
                 Map<String, K8sCustomResource> customResources = k8sResources.get(typeKind);
@@ -228,7 +228,7 @@ public class K8sSynchronization {
     private Map<String, Map<String, K8sCustomResource>> loadCustomResources(Kubernetes kube) {
         Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
         for (ResourceType t : ResourceType.values()) {
-            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease) && !t.equals(ResourceType.Th2Link)) {
+            if (t.isMangedResource() && !t.equals(ResourceType.Th2Job)) {
                 k8sResources.put(t.kind(), kube.loadCustomResources(t));
             }
         }
@@ -256,7 +256,6 @@ public class K8sSynchronization {
             try {
                 gitter.lock();
                 repositorySettings = Repository.getSettings(gitter);
-                arangoDeploymentResource = Repository.getArangoDeployment(gitter);
                 if (repositorySettings != null && repositorySettings.getSpec().isK8sPropagationDenied()) {
                     deleteNamespace(branch);
                     return;
@@ -267,6 +266,7 @@ public class K8sSynchronization {
                     return;
                 }
                 snapshot = Repository.getSnapshot(gitter);
+                arangoDeploymentResource = snapshot.getArangoDeploymentResource();
             } finally {
                 gitter.unlock();
             }
@@ -343,10 +343,6 @@ public class K8sSynchronization {
         }
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
     }
-
-//    public static boolean isStartupSynchronizationComplete() {
-//        return startupSynchronizationComplete;
-//    }
 
     private void stampResources(Map<String, Map<String, RepositoryResource>> repositoryMap,
                                 String commitHash,
