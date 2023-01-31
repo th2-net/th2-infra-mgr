@@ -27,13 +27,12 @@ import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
-
-import javax.servlet.http.HttpServletResponse;
 
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 

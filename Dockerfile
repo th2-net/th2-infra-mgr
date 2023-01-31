@@ -1,11 +1,11 @@
-FROM gradle:7.4.2-jdk11 AS build
+FROM gradle:7.6-jdk17 AS build
 ARG app_version=0.0.0
 COPY ./ .
 RUN mkdir -p /home/service/repository /home/service/keys
 RUN gradle build -Prelease_version=${app_version} && \
     cp ./build/libs/*.jar /home/service/application.jar
 
-FROM adoptopenjdk/openjdk11:alpine
+FROM bellsoft/liberica-openjdk-debian:17
 WORKDIR /home/service/
 COPY --from=build /home/service .
 RUN chgrp -R 0 /home/service && \
