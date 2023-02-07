@@ -43,12 +43,12 @@ import com.exactpro.th2.validator.util.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.prometheus.client.Histogram;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;

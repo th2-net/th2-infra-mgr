@@ -47,7 +47,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.exactpro.th2.inframgr.SchemaController.*;
 
@@ -90,14 +89,12 @@ public class SchemaValidationController {
         final var allErrors = new StringBuilder();
 
         List<String> linkErrors = report.getLinkErrorMessages().stream()
-                .map(LinkErrorMessage::toPrintableMessage)
-                .collect(Collectors.toUnmodifiableList());
+                .map(LinkErrorMessage::toPrintableMessage).toList();
 
         appendErrors(allErrors, linkErrors);
 
         List<String> boxErrors = report.getBoxResourceErrorMessages().stream()
-                .map(BoxResourceErrorMessage::toPrintableMessage)
-                .collect(Collectors.toUnmodifiableList());
+                .map(BoxResourceErrorMessage::toPrintableMessage).toList();
 
         appendErrors(allErrors, boxErrors);
 
