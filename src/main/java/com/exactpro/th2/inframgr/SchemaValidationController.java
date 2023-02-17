@@ -71,11 +71,13 @@ public class SchemaValidationController {
         }
 
         Config config = Config.getInstance();
-
+        var fullRepositoryMap = toRepositoryMap(allResourcesStr);
         SchemaValidationContext validationContext = SchemaValidator.validate(
                 schemaName,
                 config.getKubernetes().getNamespacePrefix(),
-                toRepositoryMap(allResourcesStr)
+                config.getKubernetes().getStorageServiceUrl(),
+                SchemaUtils.findSettingsResource(fullRepositoryMap),
+                fullRepositoryMap
         );
 
         if (validationContext.isValid()) {
@@ -152,11 +154,15 @@ public class SchemaValidationController {
 
         Config config = Config.getInstance();
 
+        var fullRepositoryMap = toRepositoryMap(operations);
+
         if (request.fullSchema) {
             return SchemaValidator.validate(
                     schemaName,
                     config.getKubernetes().getNamespacePrefix(),
-                    toRepositoryMap(operations));
+                    config.getKubernetes().getStorageServiceUrl(),
+                    SchemaUtils.findSettingsResource(fullRepositoryMap),
+                    fullRepositoryMap);
         }
 
         // Combine received changes to existing schema and validate them together.
@@ -181,10 +187,13 @@ public class SchemaValidationController {
             try {
                 gitter.lock();
                 snapshot = Repository.getSnapshot(gitter);
+                var combinedRepositoryMap = toCombinedRepositoryMap(snapshot, operations);
                 validationContext = SchemaValidator.validate(
                         schemaName,
                         config.getKubernetes().getNamespacePrefix(),
-                        toCombinedRepositoryMap(snapshot, operations)
+                        config.getKubernetes().getStorageServiceUrl(),
+                        SchemaUtils.findSettingsResource(combinedRepositoryMap),
+                        combinedRepositoryMap
                 );
             } finally {
                 gitter.unlock();

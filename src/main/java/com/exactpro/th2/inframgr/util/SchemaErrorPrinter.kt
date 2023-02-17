@@ -39,6 +39,13 @@ object SchemaErrorPrinter {
                 logger.error("${errorMessage.toPrintableMessage()}  [$commit]")
             }
         }
+        val bookErrorMessages = report.bookErrorMessages
+        if (bookErrorMessages.isNotEmpty()) {
+            logger.error("Book related errors. [{}]: ", commit)
+            for (errorMessage in bookErrorMessages) {
+                logger.error("${errorMessage.toPrintableMessage()}  [$commit]")
+            }
+        }
         val exceptionMessages = report.exceptionMessages
         if (exceptionMessages.isNotEmpty()) {
             logger.error("Runtime exceptions errors. [{}]: ", commit)

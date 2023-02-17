@@ -44,8 +44,8 @@ detekt {
 
 ext {
     fabric8_version = '6.3.1'
-    infra_repo_version = '1.2.1-infra-2.0-4025898301-5a4fe8c-SNAPSHOT'
-    schema_validator_version = '1.6.0-infra-2.0-4025351511-b1c7682-SNAPSHOT'
+    infra_repo_version = '1.2.1-infra-2.0-4181510434-e68a8b4-SNAPSHOT'
+    schema_validator_version = '1.6.2'
     jackson_dataformat_version = '2.14.0'
     jackson_kotlin_version = '2.13.2'
     zip4j_version = '2.11.2'

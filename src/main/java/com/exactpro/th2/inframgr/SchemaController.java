@@ -196,11 +196,14 @@ public class SchemaController {
             try {
                 gitter.lock();
                 snapshot = Repository.getSnapshot(gitter);
+                var fullRepositoryMap = toCombinedRepositoryMap(snapshot, operations);
                 // combine recent validations and current snapshot and validate potential schema.
                 var validationContext = SchemaValidator.validate(
                         schemaName,
                         config.getKubernetes().getNamespacePrefix(),
-                        toCombinedRepositoryMap(snapshot, operations)
+                        config.getKubernetes().getStorageServiceUrl(),
+                        SchemaUtils.findSettingsResource(fullRepositoryMap),
+                        fullRepositoryMap
                 );
                 if (!validationContext.isValid()) {
                     // do not update repository and kubernetes if requested changes contain errors.

@@ -51,6 +51,8 @@ public class K8sConfig {
 
     private String namespacePrefix;
 
+    private String storageServiceUrl = "storage-service:8080";
+
     private final SchemaInitializer.SchemaSyncMode schemaSyncMode = SchemaInitializer.SchemaSyncMode.CHECK_NAMESPACE;
 
     public boolean useCustomConfig() {
@@ -155,5 +157,9 @@ public class K8sConfig {
 
     public SchemaInitializer.SchemaSyncMode getSchemaSyncMode() {
         return schemaSyncMode;
+    }
+
+    public String getStorageServiceUrl() {
+        return storageServiceUrl;
     }
 }

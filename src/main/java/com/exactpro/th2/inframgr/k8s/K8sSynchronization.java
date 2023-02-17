@@ -91,7 +91,7 @@ public class K8sSynchronization {
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             SchemaInitializer.ensureSchema(schemaName, kube);
-            validateSchema(schemaName, repositoryResources, shortCommitRef);
+            validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 
             RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
             try {
@@ -128,12 +128,15 @@ public class K8sSynchronization {
 
     private void validateSchema(String schemaName,
                                 Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                RepositorySettingsResource repositorySettings,
                                 String commit)
             throws JsonProcessingException {
         // validate: schema links, urlPaths, secret custom config.
         SchemaValidationContext validationContext = SchemaValidator.validate(
                 schemaName,
                 config.getKubernetes().getNamespacePrefix(),
+                config.getKubernetes().getStorageServiceUrl(),
+                repositorySettings,
                 repositoryResources
         );
         if (!validationContext.isValid()) {
@@ -263,8 +266,12 @@ public class K8sSynchronization {
                             branch);
                     return;
                 }
+                if (repositorySettings.getSpec().getCradle().getKeyspace() == null) {
+                    logger.error("Keyspace is not specified for schema \"{}\". Synchronization is ignored", branch);
+                    return;
+                }
+
                 snapshot = Repository.getSnapshot(gitter);
-                arangoDeploymentResource = snapshot.getArangoDeploymentResource();
             } finally {
                 gitter.unlock();
             }
