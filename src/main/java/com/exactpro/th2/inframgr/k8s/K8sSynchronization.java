@@ -143,7 +143,12 @@ public class K8sSynchronization {
             logger.warn("Schema \"{}\" contains errors. [{}]", schemaName, commit);
             SchemaErrorPrinter.printErrors(validationContext.getReport(), commit);
             // remove invalid links from boxes
-            var allBoxes = ResourceUtils.collectAllBoxes(repositoryResources);
+            var allBoxes = ResourceUtils.collectResources(
+                    repositoryResources,
+                    ResourceType.Th2Box.kind(),
+                    ResourceType.Th2CoreBox.kind(),
+                    ResourceType.Th2Job.kind()
+            );
             SchemaValidator.removeInvalidLinks(
                     validationContext,
                     allBoxes.values()
