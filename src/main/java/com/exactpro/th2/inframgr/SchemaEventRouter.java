@@ -19,6 +19,7 @@ package com.exactpro.th2.inframgr;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SchemaEventRouter {
     private static class EventCache extends LinkedHashMap<String, SchemaEvent> {
 
-        private static final int CACHE_CAPACITY = 1024;
+        private static final int CACHE_CAPACITY = 512;
 
         @Override
         public boolean removeEldestEntry(Map.Entry<String, SchemaEvent> eldest) {
@@ -38,7 +39,7 @@ public class SchemaEventRouter {
 
     private PublishSubject<SchemaEvent> subject;
 
-    private Map<String, EventCache> acceptedEvents;
+    private Map<String, Map<String, EventCache>> acceptedEvents;
 
     private SchemaEventRouter() {
         subject = PublishSubject.create();
@@ -56,17 +57,19 @@ public class SchemaEventRouter {
         return instance;
     }
 
-    private EventCache getEventCache(String eventType) {
-        return acceptedEvents.computeIfAbsent(eventType, k -> new EventCache());
+    private EventCache getEventCache(String schema, String eventType) {
+        return acceptedEvents
+                .computeIfAbsent(schema, k -> new HashMap<>())
+                .computeIfAbsent(eventType, k -> new EventCache());
     }
 
-    public boolean isEventCached(SchemaEvent event) {
-        EventCache cache = getEventCache(event.getEventType());
+    public boolean isEventCached(String schema, SchemaEvent event) {
+        EventCache cache = getEventCache(schema, event.getEventType());
         return cache.containsKey(event.getEventKey());
     }
 
-    public boolean addEventIfNotCached(SchemaEvent event) {
-        EventCache eventCache = getEventCache(event.getEventType());
+    public boolean addEventIfNotCached(String schema, SchemaEvent event) {
+        EventCache eventCache = getEventCache(schema, event.getEventType());
         boolean doSend = false;
         synchronized (eventCache) {
             if (!eventCache.containsKey(event.getEventKey())) {
@@ -80,12 +83,16 @@ public class SchemaEventRouter {
         return doSend;
     }
 
-    public void addEvent(SchemaEvent event) {
-        EventCache eventCache = getEventCache(event.getEventType());
+    public void addEvent(String schema, SchemaEvent event) {
+        EventCache eventCache = getEventCache(schema, event.getEventType());
         synchronized (eventCache) {
             eventCache.put(event.getEventKey(), event);
         }
         subject.onNext(event);
+    }
+
+    public void removeEventsForSchema(String schema) {
+        acceptedEvents.remove(schema);
     }
 
     public Observable<SchemaEvent> getObservable() {

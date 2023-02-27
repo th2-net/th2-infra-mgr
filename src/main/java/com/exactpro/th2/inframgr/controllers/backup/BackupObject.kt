@@ -14,21 +14,6 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.k8s.cr;
+package com.exactpro.th2.inframgr.controllers.backup
 
-import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
-import io.fabric8.kubernetes.client.CustomResourceList;
-import io.fabric8.kubernetes.model.annotation.Group;
-import io.fabric8.kubernetes.model.annotation.Kind;
-import io.fabric8.kubernetes.model.annotation.Version;
-
-public final class Th2Link {
-    @Group("th2.exactpro.com")
-    @Version("v1")
-    @Kind("Th2Link")
-    public static class Type extends K8sCustomResource {
-    }
-
-    public static class List extends CustomResourceList<Th2Link.Type> {
-    }
-}
+data class BackupObject(val password: String, val content: String)

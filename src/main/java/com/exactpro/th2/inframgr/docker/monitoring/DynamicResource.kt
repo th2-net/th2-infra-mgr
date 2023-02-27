@@ -14,32 +14,16 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.model.tag;
+package com.exactpro.th2.inframgr.docker.monitoring
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import java.util.List;
-
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class TagResponseBody {
-
-    private String name;
-
-    private List<String> tags;
-
-    public String getName() {
-        return name;
-    }
-
-    public List<String> getTags() {
-        return tags;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setTags(List<String> tags) {
-        this.tags = tags;
-    }
+data class DynamicResource(
+    val name: String,
+    val kind: String,
+    val image: String,
+    val currentVersion: String,
+    val versionRange: String,
+    val schema: String
+) {
+    val annotation: String
+        get() = java.lang.String.format("%s.%s", schema, name)
 }

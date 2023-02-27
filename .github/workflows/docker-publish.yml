@@ -14,6 +14,6 @@ jobs:
     with:
       build-target: 'Docker'
       docker-username: ${{ github.actor }}
-      trivy-sensitivity: 'CRITICAL,HIGH'
+      javaVersion: '17'
     secrets:
       docker-password: ${{ secrets.GITHUB_TOKEN }}

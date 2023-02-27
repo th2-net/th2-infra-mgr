@@ -14,26 +14,6 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.controllers.backup;
+package com.exactpro.th2.inframgr.controllers.backup
 
-public class ContentToZip {
-    private String data;
-
-    private String fileName;
-
-    public ContentToZip() {
-    }
-
-    public ContentToZip(String data, String fileName) {
-        this.data = data;
-        this.fileName = fileName;
-    }
-
-    public String getData() {
-        return data;
-    }
-
-    public String getFileName() {
-        return fileName;
-    }
-}
+data class ContentToZip(val data: String, val fileName: String)

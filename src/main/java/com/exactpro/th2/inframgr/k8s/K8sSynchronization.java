@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
+import com.exactpro.th2.inframgr.initializer.BookConfiguration;
 import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
@@ -27,24 +28,33 @@ import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.Strings;
 import com.exactpro.th2.inframgr.util.Th2DictionaryProcessor;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.ResourceType;
+import com.exactpro.th2.infrarepo.SchemaUtils;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsResource;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidationContext;
 import com.exactpro.th2.validator.SchemaValidator;
+import com.exactpro.th2.validator.util.ResourceUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.prometheus.client.Histogram;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
-import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
@@ -56,8 +66,6 @@ public class K8sSynchronization {
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
 
     private Config config;
-
-    private static volatile boolean startupSynchronizationComplete;
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
@@ -76,19 +84,20 @@ public class K8sSynchronization {
 
     private void synchronizeNamespace(String schemaName,
                                       Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                      RepositorySettings repositorySettings,
+                                      RepositorySettingsResource repositorySettings,
                                       String fullCommitRef) throws Exception {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
             SchemaInitializer.ensureSchema(schemaName, kube);
-            validateSchema(schemaName, repositoryResources);
+            validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 
+            RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
-                        repositorySettings.getLogLevelRoot(),
-                        repositorySettings.getLogLevelTh2(),
+                        settingsSpec.getLogLevelRoot(),
+                        settingsSpec.getLogLevelTh2(),
                         fullCommitRef,
                         kube
                 );
@@ -96,10 +105,16 @@ public class K8sSynchronization {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
             }
 
+            BookConfiguration.synchronizeBookConfig(
+                    settingsSpec.getBookConfig(),
+                    kube,
+                    fullCommitRef
+            );
+
             Th2BoxConfigurations.synchronizeBoxConfigMaps(
-                    repositorySettings.getMqRouter(),
-                    repositorySettings.getGrpcRouter(),
-                    repositorySettings.getCradleManager(),
+                    settingsSpec.getMqRouter(),
+                    settingsSpec.getGrpcRouter(),
+                    settingsSpec.getCradleManager(),
                     fullCommitRef,
                     kube
             );
@@ -111,24 +126,35 @@ public class K8sSynchronization {
         }
     }
 
-    private void validateSchema(String schemaName, Map<String, Map<String, RepositoryResource>> repositoryResources)
+    private void validateSchema(String schemaName,
+                                Map<String, Map<String, RepositoryResource>> repositoryResources,
+                                RepositorySettingsResource repositorySettings,
+                                String commit)
             throws JsonProcessingException {
         // validate: schema links, urlPaths, secret custom config.
         SchemaValidationContext validationContext = SchemaValidator.validate(
                 schemaName,
                 config.getKubernetes().getNamespacePrefix(),
+                config.getKubernetes().getStorageServiceUrl(),
+                repositorySettings,
                 repositoryResources
         );
         if (!validationContext.isValid()) {
-            logger.warn("Schema \"{}\" contains errors.", schemaName);
-            SchemaErrorPrinter.printErrors(validationContext.getReport());
-            // remove invalid links
+            logger.warn("Schema \"{}\" contains errors. [{}]", schemaName, commit);
+            SchemaErrorPrinter.printErrors(validationContext.getReport(), commit);
+            // remove invalid links from boxes
+            var allBoxes = ResourceUtils.collectResources(
+                    repositoryResources,
+                    ResourceType.Th2Box.kind(),
+                    ResourceType.Th2CoreBox.kind(),
+                    ResourceType.Th2Job.kind()
+            );
             SchemaValidator.removeInvalidLinks(
                     validationContext,
-                    repositoryResources.get(ResourceType.Th2Link.kind())
+                    allBoxes.values()
             );
         } else {
-            logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization", schemaName);
+            logger.info("Schema \"{}\" validated. Proceeding with namespace synchronization. [{}]", schemaName, commit);
         }
     }
 
@@ -140,7 +166,7 @@ public class K8sSynchronization {
         Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
         // synchronize by resource type
         for (ResourceType type : ResourceType.values()) {
-            if (type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
+            if (type.isMangedResource() && !type.equals(ResourceType.Th2Job)) {
                 var typeKind = type.kind();
                 Map<String, RepositoryResource> resources = repositoryResources.get(typeKind);
                 Map<String, K8sCustomResource> customResources = k8sResources.get(typeKind);
@@ -159,7 +185,6 @@ public class K8sSynchronization {
                         logger.info("Creating resource {} {}. [commit: {}]",
                                 resourceLabel, hashTag, shortCommitRef);
                         try {
-                            Strings.stringify(resource.getSpec());
                             kube.createCustomResource(resource);
                         } catch (Exception e) {
                             logger.error("Exception creating resource {} {}. [commit: {}]",
@@ -175,7 +200,6 @@ public class K8sSynchronization {
                             logger.info("Updating resource {} {}. [commit: {}]",
                                     resourceLabel, hashTag, shortCommitRef);
                             try {
-                                Strings.stringify(resource.getSpec());
                                 kube.replaceCustomResource(resource);
                             } catch (Exception e) {
                                 logger.error("Exception updating resource {} {}. [commit: {}]",
@@ -211,7 +235,7 @@ public class K8sSynchronization {
     private Map<String, Map<String, K8sCustomResource>> loadCustomResources(Kubernetes kube) {
         Map<String, Map<String, K8sCustomResource>> k8sResources = new HashMap<>();
         for (ResourceType t : ResourceType.values()) {
-            if (t.isK8sResource() && !t.equals(ResourceType.HelmRelease)) {
+            if (t.isMangedResource() && !t.equals(ResourceType.Th2Job)) {
                 k8sResources.put(t.kind(), kube.loadCustomResources(t));
             }
         }
@@ -234,19 +258,24 @@ public class K8sSynchronization {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(branch);
             RepositorySnapshot snapshot;
-            RepositorySettings repositorySettings;
+            RepositorySettingsResource repositorySettings;
             try {
                 gitter.lock();
                 repositorySettings = Repository.getSettings(gitter);
-                if (repositorySettings != null && repositorySettings.isK8sPropagationDenied()) {
+                if (repositorySettings != null && repositorySettings.getSpec().isK8sPropagationDenied()) {
                     deleteNamespace(branch);
                     return;
                 }
-                if (repositorySettings == null || !repositorySettings.isK8sSynchronizationRequired()) {
+                if (repositorySettings == null || !repositorySettings.getSpec().isK8sSynchronizationRequired()) {
                     logger.info("Ignoring schema \"{}\" as it is not configured for synchronization",
                             branch);
                     return;
                 }
+                if (repositorySettings.getSpec().getCradle().getKeyspace() == null) {
+                    logger.error("Keyspace is not specified for schema \"{}\". Synchronization is ignored", branch);
+                    return;
+                }
+
                 snapshot = Repository.getSnapshot(gitter);
             } finally {
                 gitter.unlock();
@@ -278,33 +307,13 @@ public class K8sSynchronization {
     @PostConstruct
     public void start() {
         logger.info("Starting Kubernetes synchronization phase");
-
+        subscribeToRepositoryEvents();
         try {
-            subscribeToRepositoryEvents();
             config = Config.getInstance();
-            GitterContext ctx = GitterContext.getContext(config.getGit());
-            Map<String, String> branches = ctx.getAllBranchesCommits();
-
-            ExecutorService executor = Executors.newFixedThreadPool(SYNC_PARALLELIZATION_THREADS);
-            for (String branch : branches.keySet()) {
-                if (!branch.equals("master")) {
-                    executor.execute(() -> synchronizeBranch(branch, System.currentTimeMillis()));
-                }
-            }
-
-            executor.shutdown();
-            try {
-                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
-            } catch (InterruptedException ignored) {
-            }
-
-        } catch (Exception e) {
-            logger.error("Exception fetching branch list from repository", e);
-            //throw new RuntimeException("Kubernetes synchronization failed");
+        } catch (IOException e) {
+            logger.error("Error loading config");
+            throw new RuntimeException("Failed to start Kubernetes synchronization component");
         }
-
-        startupSynchronizationComplete = true;
-        logger.info("Kubernetes synchronization phase complete");
     }
 
     private void subscribeToRepositoryEvents() {
@@ -343,10 +352,6 @@ public class K8sSynchronization {
             }
         }
         logger.info("Leaving Kubernetes synchronization thread: interrupt signal received");
-    }
-
-    public static boolean isStartupSynchronizationComplete() {
-        return startupSynchronizationComplete;
     }
 
     private void stampResources(Map<String, Map<String, RepositoryResource>> repositoryMap,

@@ -16,7 +16,7 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
-import com.exactpro.th2.infrarepo.GitConfig;
+import com.exactpro.th2.infrarepo.git.GitConfig;
 
 public class GitCfg implements GitConfig {
 
@@ -29,8 +29,6 @@ public class GitCfg implements GitConfig {
     private String localRepositoryRoot;
 
     private String sshDir;
-
-    private String privateKey;
 
     private byte[] privateKeyBytes;
 
@@ -63,7 +61,6 @@ public class GitCfg implements GitConfig {
     }
 
     public void setPrivateKey(String privateKey) {
-        this.privateKey = privateKey;
         this.privateKeyBytes = privateKey.getBytes();
     }
 

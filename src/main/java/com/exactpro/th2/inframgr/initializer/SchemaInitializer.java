@@ -16,39 +16,35 @@
 
 package com.exactpro.th2.inframgr.initializer;
 
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.SimpleStatement;
-import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.*;
 import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
 import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.settings.CradleConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.Ingress;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressBuilder;
-import io.fabric8.kubernetes.api.model.networking.v1beta1.IngressSpec;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.time.Duration;
 import java.util.*;
 
-import static com.datastax.oss.driver.api.querybuilder.SchemaBuilder.createKeyspace;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.KIND_SERVICE_MONITOR;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
-import static java.util.Collections.unmodifiableMap;
 
 public class SchemaInitializer {
 
@@ -79,28 +75,25 @@ public class SchemaInitializer {
 
     public static final String CRADLE_MANAGER_CM_NAME = "cradle-manager";
 
+    public static final String BOOK_CONFIG_CM_NAME = "book-config";
+
     private static final String RABBITMQ_JSON_KEY = "rabbitMQ.json";
 
     private static final String RABBITMQ_JSON_VHOST_KEY = "vHost";
 
     private static final String RABBITMQ_JSON_USERNAME_KEY = "username";
 
+    private static final String RABBITMQ_JSON_EXCHANGE_KEY = "exchangeName";
+
     private static final String RABBITMQ_SECRET_PASSWORD_KEY = "rabbitmq-password";
 
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
-    private static final String CASSANDRA_JSON_KEY = "cradle.json";
+    private static final String CRADLE_JSON_KEY = "cradle.json";
 
-    private static final String CASSANDRA_JSON_KEYSPACE_KEY = "keyspace";
+    private static final ObjectMapper mapper = new ObjectMapper()
+            .registerModule(new KotlinModule.Builder().build());
 
-    private static final String INGRESS_PATH_SUBSTRING = "${SCHEMA_NAMESPACE}";
-
-    private static final ObjectMapper mapper = new ObjectMapper();
-
-    /*
-        Ingress annotation values with following key prefix should not be
-        passed to new ingress
-     */
     public static final String HELM_ANNOTATION_KEY_PREFIX = "meta.helm.sh/";
 
     private static final RetryableTaskQueue retryTaskQueue = new RetryableTaskQueue(RECOVERY_THREAD_POOL_SIZE);
@@ -112,7 +105,7 @@ public class SchemaInitializer {
     }
 
     public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
-        ensureSchema(schemaName, kube, SchemaSyncMode.CHECK_NAMESPACE);
+        ensureSchema(schemaName, kube, Config.getInstance().getKubernetes().getSchemaSyncMode());
         K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
     }
 
@@ -156,16 +149,15 @@ public class SchemaInitializer {
         copyConfigMap(kube, MQ_ROUTER_CM_NAME, forceUpdate);
         copyConfigMap(kube, GRPC_ROUTER_CM_NAME, forceUpdate);
         copyConfigMap(kube, CRADLE_MANAGER_CM_NAME, forceUpdate);
+        copyConfigMap(kube, BOOK_CONFIG_CM_NAME, forceUpdate);
+
 
         // ensure rabbitMq resources
         ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
 
         //ensure cassandra resources
         copyCassandraSecret(config, kube, forceUpdate);
-        ensureKeyspace(config, schemaName, kube, forceUpdate);
-
-        // copy Ingress
-        copyIngress(config, kube, forceUpdate);
+        ensureCradleConfig(config, schemaName, kube, forceUpdate);
 
         // copy Service Monitor
         copyServiceMonitor(config, kube, forceUpdate);
@@ -208,16 +200,22 @@ public class SchemaInitializer {
     static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
+        String prefix = config.getKubernetes().getNamespacePrefix();
         RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
 
-        String vHostName = rabbitMQConfig.getVhostPrefix() + schemaName;
-        String username = rabbitMQConfig.getUsernamePrefix() + schemaName;
+        String vHostName = rabbitMQConfig.getVhostName();
+        String username = prefix + schemaName;
+        String exchange = prefix + schemaName;
 
         // copy config map with updated vHost value to namespace
         try {
             createRabbitMQSecret(config, kube, username, forceUpdate);
-            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, kube, forceUpdate);
-            copyRabbitMQConfigMap(configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, kube, forceUpdate);
+            copyRabbitMQConfigMap(
+                    configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, exchange, kube, forceUpdate
+            );
+            copyRabbitMQConfigMap(
+                    configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, exchange, kube, forceUpdate
+            );
         } catch (Exception e) {
             logger.error("Exception writing RabbitMQ configuration resources", e);
         }
@@ -254,6 +252,7 @@ public class SchemaInitializer {
     static void copyRabbitMQConfigMap(String configMapName,
                                       String vHostName,
                                       String username,
+                                      String exchange,
                                       Kubernetes kube,
                                       boolean forceUpdate) {
 
@@ -276,9 +275,14 @@ public class SchemaInitializer {
 
         // copy config map with updated vHost value to namespace
         try {
-            var rabbitMQJson = mapper.readValue(originalConfigMap.getData().get(RABBITMQ_JSON_KEY), Map.class);
+            Map<String, String> rabbitMQJson = mapper.readValue(
+                    originalConfigMap.getData().get(RABBITMQ_JSON_KEY),
+                    new TypeReference<>() {
+                    }
+            );
             rabbitMQJson.put(RABBITMQ_JSON_VHOST_KEY, vHostName);
             rabbitMQJson.put(RABBITMQ_JSON_USERNAME_KEY, username);
+            rabbitMQJson.put(RABBITMQ_JSON_EXCHANGE_KEY, exchange);
 
             ConfigMap newConfigMap = configMapWithNewData(RABBITMQ_JSON_KEY, rabbitMQJson);
 
@@ -300,11 +304,11 @@ public class SchemaInitializer {
                 || configMap.getData().get(jsonKey) == null;
     }
 
-    private static ConfigMap configMapWithNewData(String jsonKey, Map<String, String> jsonMap)
+    private static ConfigMap configMapWithNewData(String jsonKey, Object content)
             throws JsonProcessingException {
         ConfigMap newConfigMap = new ConfigMap();
         Map<String, String> newData = new HashMap<>();
-        newData.put(jsonKey, mapper.writeValueAsString(jsonMap));
+        newData.put(jsonKey, mapper.writeValueAsString(content));
         newConfigMap.setData(newData);
         return newConfigMap;
     }
@@ -340,25 +344,18 @@ public class SchemaInitializer {
         }
     }
 
-    static void ensureKeyspace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
+    static void ensureCradleConfig(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
 
         try {
             GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(schemaName);
-            RepositorySnapshot snapshot;
             try {
                 gitter.lock();
-                snapshot = Repository.getSnapshot(gitter);
-                RepositorySettings repositorySettings = snapshot.getRepositorySettings();
-
-                CassandraConfig cassandraConfig = config.getCassandra();
-                var keyspace = repositorySettings.getKeyspace() != null ? repositorySettings.getKeyspace() : schemaName;
-                var keyspaceName = (cassandraConfig.getKeyspacePrefix() + keyspace).replace("-", "_");
+                CradleConfig cradle = Repository.getSettings(gitter).getSpec().getCradle();
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                initializeKeyspace(cassandraConfig, keyspaceName);
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
-                copyCassandraConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), keyspaceName, kube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
             } finally {
                 gitter.unlock();
             }
@@ -367,54 +364,16 @@ public class SchemaInitializer {
         }
     }
 
-    private static void initializeKeyspace(CassandraConfig cassandraConfig, String keyspaceName) {
-        try (CqlSession session = CqlSession.builder()
-                .addContactPoint(new InetSocketAddress(cassandraConfig.getHost(), cassandraConfig.getPort()))
-                .withAuthCredentials(cassandraConfig.getUsername(), cassandraConfig.getPassword())
-                .withLocalDatacenter(cassandraConfig.getDataCenter())
-                .build()) {
-            logger.info("Connecting to Cassandra");
-            CreateKeyspace createKs;
-            var networkTopologyStrategy = cassandraConfig.getNetworkTopologyStrategy();
-            if (networkTopologyStrategy == null) {
-                createKs = createKeyspace(keyspaceName)
-                        .ifNotExists()
-                        .withSimpleStrategy(1);
-            } else {
-                createKs = createKeyspace(keyspaceName)
-                        .ifNotExists()
-                        .withNetworkTopologyStrategy(unmodifiableMap(networkTopologyStrategy));
-            }
-
-            try {
-                logger.info("Initializing keyspace");
-                String query = createKs.asCql();
-                SimpleStatement statement = SimpleStatement.newInstance(query)
-                        .setTimeout(Duration.ofMillis(cassandraConfig.getTimeout()));
-                ResultSet rs = session.execute(statement);
-                if (rs.wasApplied()) {
-                    logger.info("Keyspace \"{}\" was created", keyspaceName);
-                } else {
-                    logger.error("Couldn't crete keyspace \"{}\", query \"{}\" was not applied", keyspaceName, query);
-                }
-            } catch (Exception e) {
-                logger.error("Exception while creating keyspace \"{}\"", keyspaceName, e);
-            }
-        } catch (Exception e) {
-            logger.error("Exception while connecting to Cassandra", e);
-        }
-    }
-
-    private static void copyCassandraConfigMap(String configMapName,
-                                               String keyspaceName,
-                                               Kubernetes kube,
-                                               boolean forceUpdate) {
+    private static void copyCradleConfigMap(String configMapName,
+                                            CradleConfig cradle,
+                                            Kubernetes kube,
+                                            boolean forceUpdate) {
 
         if (StringUtils.isEmpty(configMapName)) {
             return;
         }
         ConfigMap originalConfigMap = kube.currentNamespace().getConfigMap(configMapName);
-        if (configMapNotLoaded(originalConfigMap, CASSANDRA_JSON_KEY)) {
+        if (configMapNotLoaded(originalConfigMap, CRADLE_JSON_KEY)) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
@@ -428,9 +387,15 @@ public class SchemaInitializer {
 
         // copy config map with updated keyspace name
         try {
-            var cradleMQJson = mapper.readValue(originalConfigMap.getData().get(CASSANDRA_JSON_KEY), Map.class);
-            cradleMQJson.put(CASSANDRA_JSON_KEYSPACE_KEY, keyspaceName);
-            ConfigMap newConfigMap = configMapWithNewData(CASSANDRA_JSON_KEY, cradleMQJson);
+            CradleJsonConfig cradleJsonConfig = mapper.readValue(
+                    originalConfigMap.getData().get(CRADLE_JSON_KEY),
+                    new TypeReference<>() {
+                    }
+            );
+
+            cradleJsonConfig.overwriteWith(cradle);
+
+            ConfigMap newConfigMap = configMapWithNewData(CRADLE_JSON_KEY, cradleJsonConfig);
             newConfigMap.setMetadata(createMetadataWithPreviousAnnotations(
                     configMapName,
                     newResourceLabel,
@@ -440,46 +405,6 @@ public class SchemaInitializer {
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, configMapName);
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", newResourceLabel, e);
-        }
-    }
-
-    private static void copyIngress(Config config, Kubernetes kube, boolean forceUpdate) {
-
-        String ingressName = config.getKubernetes().getIngress();
-
-        Ingress originalIngress = kube.currentNamespace().getIngress(ingressName);
-        if (originalIngress == null) {
-            logger.error("Failed to load ingress \"{}\" from default namespace", ingressName);
-            return;
-        }
-
-        String namespace = kube.getNamespaceName();
-        String newResourceLabel = annotationFor(namespace, Kubernetes.KIND_INGRESS, ingressName);
-        try {
-            if (kube.getIngress(ingressName) != null && !forceUpdate) {
-                logger.info("\"{}\" already exists, skipping", newResourceLabel);
-                return;
-            }
-
-            String spec = mapper.writeValueAsString(originalIngress.getSpec())
-                    .replace(INGRESS_PATH_SUBSTRING, namespace);
-
-            IngressSpec newSpec = mapper.readValue(spec, IngressSpec.class);
-
-            Ingress newIngress = new IngressBuilder()
-                    .withSpec(newSpec)
-                    .withMetadata(createMetadataWithPreviousAnnotations(
-                                    ingressName,
-                                    newResourceLabel,
-                                    originalIngress.getMetadata().getAnnotations()
-                            )
-                    )
-                    .build();
-
-            kube.createOrRepaceIngress(newIngress);
-            logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, ingressName);
-        } catch (Exception e) {
-            logger.error("Exception creating ingress \"{}\"", newResourceLabel, e);
         }
     }
 
@@ -572,7 +497,9 @@ public class SchemaInitializer {
         newSecret.setKind(Kubernetes.KIND_SECRET);
         newSecret.setType(Kubernetes.SECRET_TYPE_OPAQUE);
         newSecret.setMetadata(createMetaDataWithNewAnnotations(secretName, newResourceLabel));
-        newSecret.setData(new HashMap<>());
+        newSecret.setData(new HashMap<>() {{
+            put("cassandraPassword", "");
+        }});
 
         try {
             kube.createOrReplaceSecret(newSecret);

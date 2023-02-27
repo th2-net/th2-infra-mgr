@@ -20,7 +20,7 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.docker.RegistryConnection;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourcesCache;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
-import com.exactpro.th2.infrarepo.GitterContext;
+import com.exactpro.th2.infrarepo.git.GitterContext;
 
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;

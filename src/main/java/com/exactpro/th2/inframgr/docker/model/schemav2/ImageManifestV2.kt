@@ -14,24 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.model.schemav2;
+package com.exactpro.th2.inframgr.docker.model.schemav2
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ManifestConfig {
-
-    String digest;
-
-    public ManifestConfig() {
-    }
-
-    public String getDigest() {
-        return this.digest;
-    }
-
-    public void setDigest(String digest) {
-        this.digest = digest;
-    }
-
-}
+data class ImageManifestV2(val config: ManifestConfig?)

@@ -16,6 +16,8 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
+import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -41,8 +43,6 @@ public class K8sConfig {
 
     private String clientKey;
 
-    private String ingress;
-
     private String serviceMonitor;
 
     private Set<String> secretNames;
@@ -50,6 +50,10 @@ public class K8sConfig {
     private Map<String, String> configMaps;
 
     private String namespacePrefix;
+
+    private String storageServiceUrl = "storage-service:8080";
+
+    private final SchemaInitializer.SchemaSyncMode schemaSyncMode = SchemaInitializer.SchemaSyncMode.CHECK_NAMESPACE;
 
     public boolean useCustomConfig() {
         return useCustomConfig;
@@ -147,15 +151,15 @@ public class K8sConfig {
         this.configMaps = configMaps;
     }
 
-    public String getIngress() {
-        return ingress;
-    }
-
-    public void setIngress(String ingress) {
-        this.ingress = ingress;
-    }
-
     public String getServiceMonitor() {
         return serviceMonitor;
+    }
+
+    public SchemaInitializer.SchemaSyncMode getSchemaSyncMode() {
+        return schemaSyncMode;
+    }
+
+    public String getStorageServiceUrl() {
+        return storageServiceUrl;
     }
 }

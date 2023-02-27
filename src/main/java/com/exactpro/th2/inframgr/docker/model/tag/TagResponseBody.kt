@@ -14,19 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.initializer;
+package com.exactpro.th2.inframgr.docker.model.tag
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class RabbitMQvHost {
-    private String name;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-}
+data class TagResponseBody(val name: String, val tags: List<String>)

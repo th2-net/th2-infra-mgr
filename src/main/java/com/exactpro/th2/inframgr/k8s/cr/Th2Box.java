@@ -17,18 +17,18 @@
 package com.exactpro.th2.inframgr.k8s.cr;
 
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
-import io.fabric8.kubernetes.client.CustomResourceList;
+import io.fabric8.kubernetes.api.model.DefaultKubernetesResourceList;
 import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Kind;
 import io.fabric8.kubernetes.model.annotation.Version;
 
 public final class Th2Box {
     @Group("th2.exactpro.com")
-    @Version("v1")
+    @Version("v2")
     @Kind("Th2Box")
     public static class Type extends K8sCustomResource {
     }
 
-    public static class List extends CustomResourceList<Th2Box.Type> {
+    public static class List extends DefaultKubernetesResourceList<Type> {
     }
 }

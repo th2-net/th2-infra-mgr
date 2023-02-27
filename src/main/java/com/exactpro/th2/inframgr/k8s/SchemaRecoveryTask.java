@@ -78,7 +78,7 @@ public class SchemaRecoveryTask implements RetryableTask {
             // send synchronization request
             SchemaEventRouter router = SchemaEventRouter.getInstance();
             SchemaEvent event = new SynchronizationRequestEvent(schema);
-            router.addEvent(event);
+            router.addEvent(schema, event);
 
         } catch (Exception e) {
             // rethrow exception to re-execute this task in the future

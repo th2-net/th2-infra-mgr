@@ -17,7 +17,7 @@
 package com.exactpro.th2.inframgr;
 
 import com.exactpro.th2.inframgr.models.ResourceEntry;
-import com.exactpro.th2.infrarepo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
 import com.exactpro.th2.validator.ValidationReport;
 
 import java.util.HashSet;

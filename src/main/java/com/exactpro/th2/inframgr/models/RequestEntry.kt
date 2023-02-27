@@ -14,26 +14,6 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.controllers.backup;
+package com.exactpro.th2.inframgr.models
 
-public class BackupObject {
-    private String password;
-
-    private String content;
-
-    public BackupObject() {
-    }
-
-    public BackupObject(String password, String content) {
-        this.password = password;
-        this.content = content;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public String getContent() {
-        return content;
-    }
-}
+data class RequestEntry(val operation: RequestOperation, val payload: ResourceEntry)

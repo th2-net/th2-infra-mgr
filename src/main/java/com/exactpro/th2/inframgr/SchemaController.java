@@ -26,13 +26,21 @@ import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
-import com.exactpro.th2.infrarepo.*;
+import com.exactpro.th2.infrarepo.InconsistentRepositoryStateException;
+import com.exactpro.th2.infrarepo.SchemaUtils;
+import com.exactpro.th2.infrarepo.git.Gitter;
+import com.exactpro.th2.infrarepo.git.GitterContext;
+import com.exactpro.th2.infrarepo.repo.Repository;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositorySnapshot;
+import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.exactpro.th2.validator.ValidationReport;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
@@ -161,7 +169,9 @@ public class SchemaController {
         // deserialize request body
         List<RequestEntry> operations;
         try {
-            ObjectMapper mapper = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            ObjectMapper mapper = new ObjectMapper()
+                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                    .registerModule(new KotlinModule.Builder().build());
             operations = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
@@ -186,17 +196,20 @@ public class SchemaController {
             try {
                 gitter.lock();
                 snapshot = Repository.getSnapshot(gitter);
+                var fullRepositoryMap = toCombinedRepositoryMap(snapshot, operations);
                 // combine recent validations and current snapshot and validate potential schema.
                 var validationContext = SchemaValidator.validate(
                         schemaName,
                         config.getKubernetes().getNamespacePrefix(),
-                        toCombinedRepositoryMap(snapshot, operations)
+                        config.getKubernetes().getStorageServiceUrl(),
+                        SchemaUtils.findSettingsResource(fullRepositoryMap),
+                        fullRepositoryMap
                 );
                 if (!validationContext.isValid()) {
                     // do not update repository and kubernetes if requested changes contain errors.
                     logger.error("Schema \"{}\" contains errors, update request will be ignored", schemaName);
                     ValidationReport report = validationContext.getReport();
-                    SchemaErrorPrinter.printErrors(report);
+                    SchemaErrorPrinter.printErrors(report, "editor");
                     return new SchemaControllerResponse(report);
                 }
                 // continue with update if schema is validated
@@ -224,10 +237,10 @@ public class SchemaController {
             throws JsonProcessingException {
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
-        RepositorySettings rs = snapshot.getRepositorySettings();
+        RepositorySettingsSpec rs = snapshot.getRepositorySettingsSpec();
         event.setSyncingK8s(!(rs != null && (rs.isK8sPropagationDenied()
                 || rs.isK8sSynchronizationRequired())));
-        router.addEvent(event);
+        router.addEvent(schemaName, event);
     }
 
     private String updateRepository(Gitter gitter, List<RequestEntry> operations) throws ServiceException {

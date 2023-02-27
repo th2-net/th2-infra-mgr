@@ -14,27 +14,9 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.models;
+package com.exactpro.th2.inframgr.docker.model.schemav2
 
-public class RequestEntry {
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
-    private RequestOperation operation;
-
-    private ResourceEntry payload;
-
-    public RequestOperation getOperation() {
-        return operation;
-    }
-
-    public void setOperation(RequestOperation operation) {
-        this.operation = operation;
-    }
-
-    public ResourceEntry getPayload() {
-        return payload;
-    }
-
-    public void setPayload(ResourceEntry payload) {
-        this.payload = payload;
-    }
-}
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class Blob(val config: ImageConfig)

@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,7 +62,9 @@ public class PodController {
             Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
             for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 if (resource.getKind().equals(Kubernetes.KIND_POD)) {
-                    if (!kubernetes.deletePodWithName(resource.getName(), force)) {
+                    try {
+                        kubernetes.deletePodWithName(resource.getName(), force);
+                    } catch (KubernetesClientException e) {
                         logger.error("Could not delete pod \"{}\"",
                                 annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
                     }

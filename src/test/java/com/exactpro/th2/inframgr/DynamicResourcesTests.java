@@ -20,8 +20,8 @@ import com.exactpro.th2.inframgr.docker.monitoring.DynamicResource;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourcesCache;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
-import com.exactpro.th2.infrarepo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +53,7 @@ class DynamicResourcesTests {
     }
 
     private static void fillValidRepoResList() {
-        RepositoryResource res1 = new RepositoryResource(Th2CoreBox);
+        RepositoryResource res1 = new RepositoryResource(null, Th2CoreBox.kind(), null, null);
         ObjectMeta meta = new ObjectMeta();
         meta.setName("res1");
         res1.setMetadata(meta);
@@ -64,7 +64,7 @@ class DynamicResourcesTests {
         );
         res1.setSpec(spec1);
         validRepoResList.add(res1);
-        RepositoryResource res2 = new RepositoryResource(Th2Estore);
+        RepositoryResource res2 = new RepositoryResource(null, Th2Estore.kind(), null, null);
         ObjectMeta meta2 = new ObjectMeta();
         meta2.setName("res2");
         res2.setMetadata(meta2);

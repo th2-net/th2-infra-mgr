@@ -18,7 +18,7 @@ package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.infrarepo.RepositoryResource;
+import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +50,8 @@ public class LoggingConfigMap {
 
     private static final String LOGGING_PYTHON_PATH_SUBSTRING = "${LOGLEVEL_PYTHON}";
 
+    private static final String LOGGING_GO_PATH_SUBSTRING = "${LOGLEVEL_GO}";
+
     private static final String LOGGING_ROOT_PATH_SUBSTRING = "${LOGLEVEL_ROOT}";
 
     private static final Map<String, String> pythonMap = Map.of(
@@ -61,6 +63,17 @@ public class LoggingConfigMap {
             "FATAL", "CRITICAL",
             "ALL", "NOTSET",
             "OFF", "CRITICAL"
+    );
+
+    private static final Map<String, String> goMap = Map.of(
+            "TRACE", "TRACE",
+            "DEBUG", "DEBUG",
+            "INFO", "INFO",
+            "WARNING", "WARN",
+            "ERROR", "ERROR",
+            "FATAL", "FATAL",
+            "ALL", "TRACE",
+            "OFF", "FATAL"
     );
 
     public static void checkLoggingConfigMap(RepositoryResource resource,
@@ -132,6 +145,9 @@ public class LoggingConfigMap {
                 }
                 if (data.contains(LOGGING_JAVA_PATH_SUBSTRING)) {
                     data = data.replace(LOGGING_JAVA_PATH_SUBSTRING, logLevelTh2);
+                }
+                if (data.contains(LOGGING_GO_PATH_SUBSTRING)) {
+                    data = data.replace(LOGGING_GO_PATH_SUBSTRING, goMap.get(logLevelTh2));
                 }
                 cmData.put(key, data);
             }

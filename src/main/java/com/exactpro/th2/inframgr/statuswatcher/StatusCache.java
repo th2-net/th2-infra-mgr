@@ -22,11 +22,11 @@ import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.util.*;
 
 @Component
@@ -58,7 +58,7 @@ public class StatusCache {
             ResourceType type = ResourceType.forKind(path.getKind());
 
             boolean isSchemaElement = false;
-            if (type != null && type.isK8sResource() && !type.equals(ResourceType.HelmRelease)) {
+            if (type != null && type.isMangedResource()) {
                 isSchemaElement = true;
             }
 
@@ -171,7 +171,7 @@ public class StatusCache {
             return;
         }
 
-        eventRouter.addEvent(new StatusUpdateEvent.Builder(schema)
+        eventRouter.addEvent(schema, new StatusUpdateEvent.Builder(schema)
                 .withKind(path.getKind())
                 .withResourceName(path.getResourceName())
                 .withStatus(calculateStatus(resource).toString())

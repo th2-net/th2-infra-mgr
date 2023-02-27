@@ -16,41 +16,9 @@
 
 package com.exactpro.th2.inframgr.util;
 
-import java.util.List;
-import java.util.Map;
-
 public class Strings {
 
     private Strings() {
-    }
-
-    public static boolean stringify(Object o) {
-        if (o instanceof Map) {
-            stringify((Map) o);
-            return true;
-        } else if (o instanceof List) {
-            stringify((List) o);
-            return true;
-        }
-        return false;
-    }
-
-    public static void stringify(List<Object> list) {
-        for (int i = 0; i < list.size(); i++) {
-            Object value = list.get(i);
-            if (!stringify(value)) {
-                list.set(i, value.toString());
-            }
-        }
-    }
-
-    public static void stringify(Map<String, Object> map) {
-        for (Map.Entry<String, Object> e : map.entrySet()) {
-            Object value = e.getValue();
-            if (!stringify(value) && value != null) {
-                e.setValue(value.toString());
-            }
-        }
     }
 
     public static String formatHash(String hash) {

@@ -14,29 +14,31 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.docker.model.schemav2;
+package com.exactpro.th2.inframgr.docker.monitoring.watcher;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+class UpdatedResource {
 
-import java.util.HashMap;
-import java.util.Map;
+    private final String name;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class ImageConfig {
+    private final String kind;
 
-    @JsonProperty("Labels")
-    private Map<String, String> labels = new HashMap<>();
+    private final String latestVersion;
 
-    public ImageConfig() {
+    public String getName() {
+        return name;
     }
 
-    public Map<String, String> getLabels() {
-        return this.labels;
+    public String getKind() {
+        return kind;
     }
 
-    public void setLabels(Map<String, String> labels) {
-        this.labels = labels;
+    public String getLatestVersion() {
+        return latestVersion;
     }
 
+    public UpdatedResource(String name, String kind, String latestVersion) {
+        this.name = name;
+        this.kind = kind;
+        this.latestVersion = latestVersion;
+    }
 }

@@ -16,31 +16,60 @@
 
 package com.exactpro.th2.inframgr;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SchemaEventRouterCacheTests {
 
     static SchemaEventRouter router;
+
+    private final String schema1 = "test-schema";
+
+    private final String schema2 = "test-schema-2";
 
     @BeforeAll
     static void createRouter() {
         router = SchemaEventRouter.getInstance();
     }
 
+    @AfterEach
+    void clearCache() {
+        router.removeEventsForSchema(schema1);
+        router.removeEventsForSchema(schema2);
+    }
+
     @Test
+    @Order(1)
     void testEmpty() {
         EventType1 t1e1 = new EventType1("abc");
-        assertTrue(router.isEventCached(t1e1));
+        assertFalse(router.isEventCached(schema1, t1e1));
+        assertFalse(router.isEventCached(schema2, t1e1));
     }
 
     @Test
     void testExists() {
         EventType1 t1e1 = new EventType1("abc");
-        router.addEvent(t1e1);
-        assertTrue(router.isEventCached(t1e1));
+        router.addEvent(schema1, t1e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
+    }
+
+    @Test
+    void testExistsInCorrectSchema() {
+        EventType1 t1e1 = new EventType1("abc");
+        router.addEvent(schema1, t1e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
+        assertFalse(router.isEventCached(schema2, t1e1));
+    }
+
+    @Test
+    void testRemoveSchemaEvents() {
+        EventType1 t1e1 = new EventType1("abc");
+        router.addEvent(schema1, t1e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
+        router.removeEventsForSchema(schema1);
+        assertFalse(router.isEventCached(schema1, t1e1));
     }
 
     @Test
@@ -48,13 +77,13 @@ class SchemaEventRouterCacheTests {
         EventType1 t1e1 = new EventType1("abc");
         EventType2 t2e1 = new EventType2("abc");
 
-        router.addEvent(t1e1);
-        assertTrue(router.isEventCached(t1e1));
-        assertFalse(router.isEventCached(t2e1));
+        router.addEvent(schema1, t1e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
+        assertFalse(router.isEventCached(schema1, t2e1));
 
-        router.addEvent(t2e1);
-        assertTrue(router.isEventCached(t1e1));
-        assertTrue(router.isEventCached(t2e1));
+        router.addEvent(schema1, t2e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
+        assertTrue(router.isEventCached(schema1, t2e1));
     }
 
     @Test
@@ -62,37 +91,37 @@ class SchemaEventRouterCacheTests {
 
         // add type1 event
         EventType1 t1e1 = new EventType1("abc");
-        router.addEvent(t1e1);
-        assertTrue(router.isEventCached(t1e1));
+        router.addEvent(schema1, t1e1);
+        assertTrue(router.isEventCached(schema1, t1e1));
 
         // populate with type2 events
         for (int i = 0; i < 2000; i++) {
             EventType2 t2 = new EventType2(String.format("a%08x", i));
-            router.addEvent(t2);
+            router.addEvent(schema1, t2);
         }
 
         //check that type1 event did not expire
-        assertTrue(router.isEventCached(t1e1));
+        assertTrue(router.isEventCached(schema1, t1e1));
 
         // trigger type2 event expirations
         for (int i = 0; i < 2000; i++) {
             EventType2 t2 = new EventType2(String.format("b%08x", i));
-            router.addEvent(t2);
+            router.addEvent(schema1, t2);
         }
 
         //check that type1 event did not expire
-        assertTrue(router.isEventCached(t1e1));
+        assertTrue(router.isEventCached(schema1, t1e1));
 
         // first stage type1 events should be all expired
         for (int i = 0; i < 2000; i++) {
             EventType2 t2 = new EventType2(String.format("a%08x", i));
-            assertFalse(router.isEventCached(t2));
+            assertFalse(router.isEventCached(schema1, t2));
         }
 
         // there should be some type2 events
         for (int i = 1900; i < 2000; i++) {
             EventType2 t2 = new EventType2(String.format("b%08x", i));
-            assertTrue(router.isEventCached(t2));
+            assertTrue(router.isEventCached(schema1, t2));
         }
     }
 

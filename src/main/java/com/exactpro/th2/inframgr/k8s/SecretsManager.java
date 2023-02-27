@@ -20,8 +20,8 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SecretsController;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.client.DefaultKubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,7 @@ public class SecretsManager {
 
     public static final String DEFAULT_SECRET_NAME = "secret-custom-config";
 
-    private final KubernetesClient kubernetesClient = new DefaultKubernetesClient();
+    private final KubernetesClient kubernetesClient = new KubernetesClientBuilder().build();
 
     private final String prefix;
 
@@ -70,7 +70,7 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.secrets().inNamespace(namespace).createOrReplace(secret);
+            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
             logger.info("Updated \"{}\"", resourceLabel);
             return updatedEntries;
         } catch (Exception e) {
@@ -91,7 +91,7 @@ public class SecretsManager {
         data.putAll(secretEntries);
         secret.setData(data);
         try {
-            kubernetesClient.secrets().inNamespace(namespace).createOrReplace(secret);
+            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
             logger.info("Updated \"{}\"", resourceLabel);
             return secretEntries.keySet();
         } catch (Exception e) {
@@ -113,7 +113,7 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.secrets().inNamespace(namespace).createOrReplace(secret);
+            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
             logger.info("Removed entries from \"{}\"", resourceLabel);
             return secretEntries;
         } catch (Exception e) {
