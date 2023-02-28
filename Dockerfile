@@ -9,7 +9,12 @@ FROM eclipse-temurin:17-alpine
 WORKDIR /home/service/
 COPY --from=build /home/service .
 RUN chgrp -R 0 /home/service && \
-    chmod -R g=u /home/service
+    chmod -R g=u /home/service && \
+    chgrp -R 65535 /home && \
+    chown -R 65535 /home && \
+    chgrp -R 65535 /tmp && \
+    chown -R 65535 /tmp
+
 EXPOSE 8080
 ENTRYPOINT ["java" \
     , "-Dlog4j2.configurationFile=file:/home/service/config/log4j2.properties" \
