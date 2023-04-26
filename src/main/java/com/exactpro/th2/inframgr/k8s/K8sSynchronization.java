@@ -147,7 +147,9 @@ public class K8sSynchronization {
                     repositoryResources,
                     ResourceType.Th2Box.kind(),
                     ResourceType.Th2CoreBox.kind(),
-                    ResourceType.Th2Job.kind()
+                    ResourceType.Th2Job.kind(),
+                    ResourceType.Th2Mstore.kind(),
+                    ResourceType.Th2Estore.kind()
             );
             SchemaValidator.removeInvalidLinks(
                     validationContext,
