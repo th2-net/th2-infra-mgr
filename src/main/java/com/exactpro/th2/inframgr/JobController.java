@@ -73,6 +73,7 @@ public class JobController {
             } finally {
                 gitter.unlock();
             }
+            kube.deleteCustomResource(resource);
             kube.createCustomResource(resource);
         } catch (IOException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, CONFIG_ERROR, e.getMessage());
