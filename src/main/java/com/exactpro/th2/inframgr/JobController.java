@@ -51,6 +51,7 @@ public class JobController {
     @PutMapping("/jobs/{schemaName}/{jobName}")
     public void putSecrets(@PathVariable(name = "schemaName") String schemaName,
                            @PathVariable(name = "jobName") String jobName) {
+        logger.debug("received request for job creation, job name: {}", jobName);
         if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
@@ -74,7 +75,9 @@ public class JobController {
                 gitter.unlock();
             }
             kube.deleteCustomResource(resource);
+            logger.info("Delete resource : {}", resourceLabel);
             kube.createCustomResource(resource);
+            logger.info("Created job with name : {}", resourceLabel);
         } catch (IOException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, CONFIG_ERROR, e.getMessage());
         }

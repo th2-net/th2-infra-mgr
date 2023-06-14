@@ -132,15 +132,21 @@ public class DynamicResourceProcessor {
 
     @PostConstruct
     public void start() throws IOException {
-        Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
-        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
-        RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-        RegistryWatcher registryWatcher = new RegistryWatcher(
-                REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
-                REGISTRY_CHECK_PERIOD_SECONDS,
-                registryConnection
-        );
-        registryWatcher.startWatchingRegistry();
-        logger.info("DynamicResourceProcessor has been started");
+        try {
+            Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
+            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+            RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
+            RegistryWatcher registryWatcher = new RegistryWatcher(
+                    REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
+                    REGISTRY_CHECK_PERIOD_SECONDS,
+                    registryConnection
+            );
+            registryWatcher.startWatchingRegistry();
+            logger.info("DynamicResourceProcessor has been started");
+        } catch (Exception e) {
+            logger.error("Exception while starting DynamicResourceProcessor. " +
+                    "resources with dynamic versions will not be monitored", e);
+            throw  e;
+        }
     }
 }
