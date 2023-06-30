@@ -17,7 +17,10 @@
 package com.exactpro.th2.inframgr.initializer;
 
 import com.exactpro.th2.inframgr.Config;
-import com.exactpro.th2.inframgr.k8s.*;
+import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
+import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.SchemaRecoveryTask;
+import com.exactpro.th2.inframgr.k8s.SecretsManager;
 import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
@@ -31,6 +34,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Secret;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.RandomStringGenerator;
@@ -38,11 +42,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.KIND_SERVICE_MONITOR;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 
@@ -90,6 +94,8 @@ public class SchemaInitializer {
     private static final String RABBITMQ_SECRET_USERNAME_KEY = "rabbitmq-username";
 
     private static final String CRADLE_JSON_KEY = "cradle.json";
+
+    private static final String INSTANCE_LABEL = "app.kubernetes.io/instance";
 
     private static final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new KotlinModule.Builder().build());
@@ -425,12 +431,20 @@ public class SchemaInitializer {
             ServiceMonitor.Type newServiceMonitor = new ServiceMonitor.Type();
             newServiceMonitor.setMetadata(originalServiceMonitor.getMetadata());
             newServiceMonitor.getMetadata().setNamespace(namespace);
+            processInstanceLabel(newServiceMonitor.getMetadata(), namespace);
             newServiceMonitor.setKind(KIND_SERVICE_MONITOR);
             newServiceMonitor.setSpec(originalServiceMonitor.getSpec());
             kube.createServiceMonitor(newServiceMonitor);
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, serviceMonitorName);
         } catch (Exception e) {
             logger.error("Exception creating ServiceMonitor \"{}\"", newResourceLabel, e);
+        }
+    }
+
+    private static void processInstanceLabel(ObjectMeta metadata, String namespace) {
+        var labels = metadata.getLabels();
+        if (labels.containsKey(INSTANCE_LABEL)) {
+            labels.put(INSTANCE_LABEL, namespace);
         }
     }
 
