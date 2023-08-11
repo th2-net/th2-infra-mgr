@@ -24,7 +24,7 @@ import io.fabric8.kubernetes.model.annotation.Version;
 
 public final class Th2Mstore {
     @Group("th2.exactpro.com")
-    @Version("v2")
+    @Version("v2-2")
     @Kind("Th2Mstore")
     public static class Type extends K8sCustomResource {
     }

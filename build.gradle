@@ -46,7 +46,7 @@ detekt {
 ext {
     fabric8_version = '6.6.2'
     infra_repo_version = '1.2.4'
-    schema_validator_version = '1.6.7'
+    schema_validator_version = '1.6.7-th2-5018-ingress-refactoring-5761747910-3ea7ac8-SNAPSHOT'
     jackson_version = '2.14.2'
     zip4j_version = '2.11.5'
     commons_text_version = '1.10.0'
