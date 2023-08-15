@@ -47,6 +47,8 @@ public class Kubernetes implements Closeable {
 
     public static final String KIND_SERVICE_MONITOR = "ServiceMonitor";
 
+    public static final String KIND_HELM_REPOSITORY = "HelmRepository";
+
     public static final String KIND_POD = "Pod";
 
     public static final String PHASE_ACTIVE = "Active";
@@ -133,7 +135,7 @@ public class Kubernetes implements Closeable {
                         k8sResource.getMetadata().setAnnotations(repoResource.getMetadata().getAnnotations());
                         k8sResource.setSpec(repoResource.getSpec());
                         k8sResource.setSourceHash(repoResource.getSourceHash());
-                        operation.inNamespace(namespace).resource(k8sResource).createOrReplace();
+                        operation.inNamespace(namespace).resource(k8sResource).serverSideApply();
 
                         cache.add(namespace, k8sResource);
                         resourceUpdated = true;
@@ -220,7 +222,7 @@ public class Kubernetes implements Closeable {
                         k8sResource.setSourceHash(repoResource.getSourceHash());
                         k8sResource.setCommitHash(repoResource.getCommitHash());
                         k8sResource.setDetectionTime(repoResource.getDetectionTime());
-                        operation.inNamespace(namespace).resource(k8sResource).createOrReplace();
+                        operation.inNamespace(namespace).resource(k8sResource).serverSideApply();
 
                         cache.add(namespace, k8sResource);
                         return;
@@ -239,9 +241,19 @@ public class Kubernetes implements Closeable {
         return mixedOperation.inNamespace(namespace).withName(name).get();
     }
 
+    public HelmRepository.Type loadHelmRepo(String namespace, String name) {
+        var mixedOperation = client.resources(HelmRepository.Type.class);
+        return mixedOperation.inNamespace(namespace).withName(name).get();
+    }
+
     public void createServiceMonitor(ServiceMonitor.Type serviceMonitor) {
         var mixedOperation = client.resources(ServiceMonitor.Type.class);
-        mixedOperation.inNamespace(namespace).resource(serviceMonitor).createOrReplace();
+        mixedOperation.inNamespace(namespace).resource(serviceMonitor).serverSideApply();
+    }
+
+    public void createHelmRepo(HelmRepository.Type helmRepo) {
+        var mixedOperation = client.resources(HelmRepository.Type.class);
+        mixedOperation.inNamespace(namespace).resource(helmRepo).serverSideApply();
     }
 
     private <T extends K8sCustomResource, L extends DefaultKubernetesResourceList<T>>
@@ -346,7 +358,7 @@ public class Kubernetes implements Closeable {
 
     public void createOrReplaceConfigMap(ConfigMap configMap) {
         configMap.getMetadata().setNamespace(namespace);
-        client.resource(configMap).inNamespace(namespace).createOrReplace();
+        client.resource(configMap).inNamespace(namespace).serverSideApply();
     }
 
     private class FilteringResourceEventHandler<T extends HasMetadata> {
@@ -521,7 +533,7 @@ public class Kubernetes implements Closeable {
 
     public Secret createOrReplaceSecret(Secret secret) {
         secret.getMetadata().setNamespace(namespace);
-        return client.resource(secret).inNamespace(namespace).createOrReplace();
+        return client.resource(secret).inNamespace(namespace).serverSideApply();
     }
 
     public String getNamespaceName() {
@@ -558,6 +570,10 @@ public class Kubernetes implements Closeable {
 
         public ServiceMonitor.Type loadServiceMonitor(String name) {
             return Kubernetes.this.loadServiceMonitor(client.getNamespace(), name);
+        }
+
+        public HelmRepository.Type loadHelmRepo(String name) {
+            return Kubernetes.this.loadHelmRepo(client.getNamespace(), name);
         }
     }
 }

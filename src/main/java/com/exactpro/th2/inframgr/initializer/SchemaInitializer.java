@@ -21,6 +21,7 @@ import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.inframgr.k8s.SchemaRecoveryTask;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
+import com.exactpro.th2.inframgr.k8s.cr.HelmRepository;
 import com.exactpro.th2.inframgr.k8s.cr.ServiceMonitor;
 import com.exactpro.th2.inframgr.util.RetryableTaskQueue;
 import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
@@ -167,6 +168,9 @@ public class SchemaInitializer {
 
         // copy Service Monitor
         copyServiceMonitor(config, kube, forceUpdate);
+
+        //copy Helm Repository (throw exception if not present)
+        copyHelmRepository(config, kube, forceUpdate);
 
         // copy required secrets
         copySecrets(config, kube, forceUpdate);
@@ -429,7 +433,8 @@ public class SchemaInitializer {
                 return;
             }
             ServiceMonitor.Type newServiceMonitor = new ServiceMonitor.Type();
-            newServiceMonitor.setMetadata(originalServiceMonitor.getMetadata());
+            newServiceMonitor.setMetadata(new ObjectMeta());
+            newServiceMonitor.getMetadata().setName(serviceMonitorName);
             newServiceMonitor.getMetadata().setNamespace(namespace);
             processInstanceLabel(newServiceMonitor.getMetadata(), namespace);
             newServiceMonitor.setKind(KIND_SERVICE_MONITOR);
@@ -445,6 +450,33 @@ public class SchemaInitializer {
         var labels = metadata.getLabels();
         if (labels.containsKey(INSTANCE_LABEL)) {
             labels.put(INSTANCE_LABEL, namespace);
+        }
+    }
+
+    private static void copyHelmRepository(Config config, Kubernetes kube, boolean forceUpdate) {
+        String helmRepoName = config.getKubernetes().getHelmRepository();
+        HelmRepository.Type originalHelmRepo = kube.currentNamespace().loadHelmRepo(helmRepoName);
+        if (originalHelmRepo == null) {
+            logger.error("Failed to load Helm Repository \"{}\" from default namespace", helmRepoName);
+            throw new RuntimeException("Can't create schema without Helm Repository");
+        }
+        String namespace = kube.getNamespaceName();
+        String newResourceLabel = annotationFor(namespace, KIND_HELM_REPOSITORY, helmRepoName);
+        try {
+            if (kube.loadHelmRepo(namespace, helmRepoName) != null && !forceUpdate) {
+                logger.info("\"{}\" already exists, skipping", newResourceLabel);
+                return;
+            }
+            HelmRepository.Type newHelmRepo = new HelmRepository.Type();
+            newHelmRepo.setMetadata(new ObjectMeta());
+            newHelmRepo.getMetadata().setName(helmRepoName);
+            newHelmRepo.getMetadata().setNamespace(namespace);
+            newHelmRepo.setKind(KIND_HELM_REPOSITORY);
+            newHelmRepo.setSpec(originalHelmRepo.getSpec());
+            kube.createHelmRepo(newHelmRepo);
+            logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, helmRepoName);
+        } catch (Exception e) {
+            logger.error("Exception creating \"{}\"", newResourceLabel, e);
         }
     }
 

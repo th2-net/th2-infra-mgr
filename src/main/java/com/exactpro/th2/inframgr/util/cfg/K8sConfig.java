@@ -45,6 +45,8 @@ public class K8sConfig {
 
     private String serviceMonitor;
 
+    private String helmRepository;
+
     private Set<String> secretNames;
 
     private Map<String, String> configMaps;
@@ -153,6 +155,10 @@ public class K8sConfig {
 
     public String getServiceMonitor() {
         return serviceMonitor;
+    }
+
+    public String getHelmRepository() {
+        return helmRepository;
     }
 
     public SchemaInitializer.SchemaSyncMode getSchemaSyncMode() {
