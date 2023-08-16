@@ -32,6 +32,8 @@ public class GitCfg implements GitConfig {
 
     private byte[] privateKeyBytes;
 
+    private boolean enableSslVerification = true;
+
     @Override
     public String getRemoteRepository() {
         return remoteRepository;
@@ -62,6 +64,15 @@ public class GitCfg implements GitConfig {
 
     public void setPrivateKey(String privateKey) {
         this.privateKeyBytes = privateKey.getBytes();
+    }
+
+    @Override
+    public boolean isEnableSslVerification() {
+        return enableSslVerification;
+    }
+
+    public void setEnableSslVerification(boolean enableSslVerification) {
+        this.enableSslVerification = enableSslVerification;
     }
 
     @Override
