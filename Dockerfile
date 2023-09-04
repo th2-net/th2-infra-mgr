@@ -6,6 +6,9 @@ RUN gradle build -Prelease_version=${app_version} && \
     cp ./build/libs/*.jar /home/service/application.jar
 
 FROM eclipse-temurin:17-alpine
+#TODO: git app is installed for test
+RUN apk add --no-cache git
+
 WORKDIR /home/service/
 COPY --from=build /home/service .
 RUN chgrp -R 0 /home/service && \
