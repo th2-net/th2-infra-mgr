@@ -8,6 +8,7 @@ RUN gradle build -Prelease_version=${app_version} && \
 FROM eclipse-temurin:17-alpine
 #TODO: git app is installed for test
 RUN apk add --no-cache git
+RUN apk add --no-cache openssh
 
 WORKDIR /home/service/
 COPY --from=build /home/service .
