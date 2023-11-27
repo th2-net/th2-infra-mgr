@@ -27,6 +27,7 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -70,14 +71,18 @@ public class RepositoryWatcherService {
     }
 
     @Scheduled(fixedDelayString = "${GIT_FETCH_INTERVAL:14000}")
+    @SuppressWarnings("unused")
     private void scheduledJob() {
         try {
             LOGGER.debug("fetching changes from git");
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
-            LOGGER.info("Fetched branches: {}, previous branch count: {}", commits, prevBranchCount);
+            LOGGER.info("Fetched branches: {}, current/previous branch count: {}/{}",
+                    commits, commits.size(), prevBranchCount);
             if (prevBranchCount > commits.size()) {
                 removeExtinctedNamespaces(commits.keySet());
+            } else {
+                notifyAboutExtinctedNamespaces(commits.keySet());
             }
             prevBranchCount = commits.size();
             if (commitHistory.isEmpty()) {
@@ -120,14 +125,7 @@ public class RepositoryWatcherService {
     }
 
     private void removeExtinctedNamespaces(Set<String> existingBranches) {
-        List<String> extinctNamespaces = kubeClient.namespaces()
-                .list()
-                .getItems()
-                .stream()
-                .map(item -> item.getMetadata().getName())
-                .filter(namespace -> namespace.startsWith(namespacePrefix)
-                        && !existingBranches.contains(namespace.substring(namespacePrefix.length())))
-                .toList();
+        List<String> extinctNamespaces = getExtinctNamespaces(existingBranches);
 
         for (String extinctNamespace : extinctNamespaces) {
             String schemaName = extinctNamespace.substring(namespacePrefix.length());
@@ -135,25 +133,49 @@ public class RepositoryWatcherService {
             K8sResourceCache.INSTANCE.removeNamespace(extinctNamespace);
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
-                String branchName = extinctNamespace.substring(namespacePrefix.length());
-                eventRouter.removeEventsForSchema(branchName);
+                eventRouter.removeEventsForSchema(schemaName);
                 if (behaviour.isPermittedToRemoveNamespace()) {
                     LOGGER.info(
                             "branch \"{}\" was removed from remote repository, deleting corresponding namespace \"{}\"",
-                            branchName,
-                            existingBranches
+                            schemaName,
+                            extinctNamespace
                     );
                     namespaceResource.delete();
                 } else {
                     LOGGER.warn(
                             "branch \"{}\" was removed from remote repository, stopping namespace \"{}\" maintenance",
-                            branchName,
-                            existingBranches
+                            schemaName,
+                            extinctNamespace
                     );
                 }
-                commitHistory.remove(branchName);
+                commitHistory.remove(schemaName);
             }
         }
+    }
+
+    private void notifyAboutExtinctedNamespaces(Set<String> existingBranches) {
+        if (!behaviour.isPermittedToRemoveNamespace() && LOGGER.isWarnEnabled()) {
+            List<String> extinctNamespaces = getExtinctNamespaces(existingBranches);
+            if (!extinctNamespaces.isEmpty()) {
+                LOGGER.warn(
+                        "Maintenance for namespaces \"{}\" are stopped, existed branches: \"{}\"",
+                        extinctNamespaces,
+                        existingBranches
+                );
+            }
+        }
+    }
+
+    @NotNull
+    private List<String> getExtinctNamespaces(Set<String> existingBranches) {
+        return kubeClient.namespaces()
+                .list()
+                .getItems()
+                .stream()
+                .map(item -> item.getMetadata().getName())
+                .filter(namespace -> namespace.startsWith(namespacePrefix)
+                        && !existingBranches.contains(namespace.substring(namespacePrefix.length())))
+                .toList();
     }
 
     public static boolean isStartupSynchronizationComplete() {
