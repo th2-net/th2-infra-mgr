@@ -78,7 +78,7 @@ public class RepositoryWatcherService {
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
             LOGGER.info("Fetched branches: {}, current/previous branch count: {}/{}",
-                    commits, commits.size(), prevBranchCount);
+                    commits.keySet(), commits.size(), prevBranchCount);
             if (prevBranchCount > commits.size()) {
                 removeExtinctedNamespaces(commits.keySet());
             } else {
