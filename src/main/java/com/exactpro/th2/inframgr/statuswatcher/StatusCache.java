@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,18 +31,17 @@ import java.util.*;
 
 @Component
 public class StatusCache {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StatusCache.class);
 
-    private NamespaceResources resources;
+    private final NamespaceResources resources;
 
-    private Map<ResourcePath, Set<ResourcePath>> dependencies;
+    private final Map<ResourcePath, Set<ResourcePath>> dependencies;
 
-    private Map<ResourcePath, ResourcePath> dependents;
+    private final Map<ResourcePath, ResourcePath> dependents;
 
-    private SchemaEventRouter eventRouter;
+    private final SchemaEventRouter eventRouter;
 
     private Kubernetes kube;
-
-    private static final Logger logger = LoggerFactory.getLogger(StatusCache.class);
 
     public StatusCache() {
         resources = new NamespaceResources();
@@ -57,10 +56,7 @@ public class StatusCache {
             ResourcePath path = ResourcePath.fromMetadata(resource);
             ResourceType type = ResourceType.forKind(path.getKind());
 
-            boolean isSchemaElement = false;
-            if (type != null && type.isMangedResource()) {
-                isSchemaElement = true;
-            }
+            boolean isSchemaElement = type != null && type.isMangedResource();
 
             ResourcePath annotationPath = null;
             switch (action) {
@@ -117,8 +113,7 @@ public class StatusCache {
                                                                               String resourceName) {
 
         String namespace = kube.formatNamespaceName(schema);
-        List<ResourceCondition> elements = resources.getResourceElements(namespace, kind, resourceName);
-        return elements;
+        return resources.getResourceElements(namespace, kind, resourceName);
     }
 
     private ResourceCondition.Status calculateStatus(ResourceCondition resource) {
@@ -197,10 +192,10 @@ public class StatusCache {
 
     @PostConstruct
     public void start() throws Exception {
-        logger.info("Starting resource status monitoring");
+        LOGGER.info("Starting resource status monitoring");
 
         Config config = Config.getInstance();
-        kube = new Kubernetes(config.getKubernetes(), null);
+        kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
 
         kube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
 

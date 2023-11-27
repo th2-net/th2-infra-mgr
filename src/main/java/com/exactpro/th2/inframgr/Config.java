@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,8 @@ public class Config {
     private String configDir;
 
     // config fields
+    private BehaviourCfg behaviour;
+
     private GitCfg git;
 
     private RabbitMQConfig rabbitmq;
@@ -55,6 +57,10 @@ public class Config {
     private PrometheusConfig prometheusConfiguration;
 
     private K8sConfig kubernetes;
+
+    public BehaviourCfg getBehaviour() {
+        return behaviour;
+    }
 
     public GitCfg getGit() {
         return git;
@@ -75,6 +81,10 @@ public class Config {
 
     public K8sConfig getKubernetes() {
         return kubernetes;
+    }
+
+    public void setBehaviour(BehaviourCfg behaviour) {
+        this.behaviour = behaviour;
     }
 
     public void setGit(GitCfg git) {

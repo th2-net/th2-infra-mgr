@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,9 @@ public class JobController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid resource name");
         }
 
-        try (Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), schemaName)) {
+        try (Kubernetes kube = new Kubernetes(
+                Config.getInstance().getBehaviour(), Config.getInstance().getKubernetes(), schemaName
+        )) {
             RepositoryResource resource;
             String resourceLabel;
             GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());

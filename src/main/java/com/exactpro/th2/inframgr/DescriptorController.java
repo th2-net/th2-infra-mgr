@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,8 @@ public class DescriptorController {
 
         String descriptor;
         try {
-            Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
+            Config config = Config.getInstance();
+            Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName);
             RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
             DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
@@ -91,7 +92,7 @@ public class DescriptorController {
         return null;
     }
 
-    private static class Response {
+    public static class Response {
         private final String descriptor;
 
         private final String content;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ public class SchemaRecoveryTask implements RetryableTask {
         try {
             // check actual state of the namespace
             Config config = Config.getInstance();
-            Kubernetes kube = new Kubernetes(config.getKubernetes(), schema);
+            Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schema);
             Namespace namespace = kube.getNamespace(kube.getNamespaceName());
 
             if (namespace != null && !namespace.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {

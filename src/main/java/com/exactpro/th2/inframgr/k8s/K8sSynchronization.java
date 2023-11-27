@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ public class K8sSynchronization {
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
     private void deleteNamespace(String schemaName) {
-        try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
+        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
             if (kube.existsNamespace()) {
                 logger.info("Removing schema \"{}\" from kubernetes", schemaName);
                 DynamicResourceProcessor.deleteSchema(schemaName);
@@ -89,7 +89,7 @@ public class K8sSynchronization {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         String shortCommitRef = getShortCommitRef(fullCommitRef);
-        try (Kubernetes kube = new Kubernetes(config.getKubernetes(), schemaName)) {
+        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
             SchemaInitializer.ensureSchema(schemaName, kube);
             validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 

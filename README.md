@@ -1,4 +1,4 @@
-# infra-mgr
+# infra-mgr (2.4.0)
 infra-mgr is a component responsible for rolling out schemas from git repository to kubernetes.
 It watches for changes in the repositories and deploys changed components to kubernets.
 Depending on the schema configuration, it also monitors kubernetes and if it detects external manipulation on deployed component, redeploys them from latest repository version.
@@ -89,8 +89,22 @@ infra-mgr configuration is given with *config.yml* file that should be on the cl
         rabbitmqManagement: rabbitmq-mng-params
       # individual ConfigMaps for components to be copied from infra-mgr namespace to schema namespace
       # this ConfigMaps will be populated with schema specific data before copying to target namespace
-
+      
+      behaviour:
+        permittedToRemoveNamespace: true
+      # Has infra-mgr got permission to remove Kubernetes namespace when
+      # branch is disabled (spec.k8s-propagation: deny) or removed.
+      # Infra-manager removes Kubernetes namespace when this option is true otherwise
+      # stops maintenance for the namespace without deleting any resources.
+      # Maintenance is continued when user enable or create the branch related to namespace: `<prefix><branch name>`
+      # Default value is `true`
 ```
 ##
 ## For API documentation please refer to
 [API Documentation](API.md)
+
+## Changes:
+
+### 2.4.0
++ Added `behaviour.permittedToRemoveNamespace` option
++ Added value format check for secret when user uploads secrets via HTTP API

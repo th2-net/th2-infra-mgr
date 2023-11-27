@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import com.exactpro.th2.infrarepo.ResourceType;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -133,20 +134,26 @@ public class DynamicResourceProcessor {
     @PostConstruct
     public void start() throws IOException {
         try {
-            Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
-            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
-            RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-            RegistryWatcher registryWatcher = new RegistryWatcher(
-                    REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
-                    REGISTRY_CHECK_PERIOD_SECONDS,
-                    registryConnection
-            );
-            registryWatcher.startWatchingRegistry();
+            getRegistryWatcher()
+                .startWatchingRegistry();
             logger.info("DynamicResourceProcessor has been started");
         } catch (Exception e) {
             logger.error("Exception while starting DynamicResourceProcessor. " +
                     "resources with dynamic versions will not be monitored", e);
             throw  e;
         }
+    }
+
+    @NotNull
+    private static RegistryWatcher getRegistryWatcher() throws IOException {
+        Config config = Config.getInstance();
+        Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
+        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+        RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
+        return new RegistryWatcher(
+                REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
+                REGISTRY_CHECK_PERIOD_SECONDS,
+                registryConnection
+        );
     }
 }

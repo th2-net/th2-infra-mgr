@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @Controller
-public class PodController {
 
-    private static final Logger logger = LoggerFactory.getLogger(PodController.class);
+public class PodController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PodController.class);
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
@@ -59,13 +59,14 @@ public class PodController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
+            Config config = Config.getInstance();
+            Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName);
             for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 if (resource.getKind().equals(Kubernetes.KIND_POD)) {
                     try {
                         kubernetes.deletePodWithName(resource.getName(), force);
                     } catch (KubernetesClientException e) {
-                        logger.error("Could not delete pod \"{}\"",
+                        LOGGER.error("Could not delete pod \"{}\"",
                                 annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
                     }
                 }
@@ -73,9 +74,10 @@ public class PodController {
 
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (ServiceException e) {
+            LOGGER.error(e.getMessage(), e);
             throw e;
         } catch (Exception e) {
-            logger.error("Exception deleting pods for \"{}/{}\" in schema \"{}\"", kind, resourceName, schemaName, e);
+            LOGGER.error("Exception deleting pods for \"{}/{}\" in schema \"{}\"", kind, resourceName, schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }

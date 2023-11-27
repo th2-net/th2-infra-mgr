@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ public class K8sOperator {
         }
 
         logger.info("Creating informers");
-        Kubernetes kube = new Kubernetes(config.getKubernetes(), null);
+        Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
         cache = K8sResourceCache.INSTANCE;
 
         kube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {

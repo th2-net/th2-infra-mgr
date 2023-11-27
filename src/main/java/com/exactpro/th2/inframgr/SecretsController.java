@@ -25,21 +25,28 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 @Controller
 public class SecretsController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SecretsController.class);
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+
+    private static final Base64.Decoder DECODER = Base64.getDecoder();
 
     @GetMapping("/secrets/{schemaName}")
     @ResponseBody
@@ -52,6 +59,7 @@ public class SecretsController {
             Map<String, String> secretData = secretsManager.getCustomSecret(schemaName).getData();
             return secretData != null ? secretData.keySet() : Collections.emptySet();
         } catch (Exception e) {
+            LOGGER.error("get secrets failure, schema name: {}", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }
@@ -68,16 +76,30 @@ public class SecretsController {
             ObjectMapper mapper = new ObjectMapper()
                     .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
                     .registerModule(new KotlinModule.Builder().build());
-            secretEntries = mapper.readValue(requestBody, new TypeReference<>() {
-            });
+            secretEntries = mapper.readValue(requestBody, new TypeReference<>() { });
         } catch (Exception e) {
+            // TODO: exclude secret body form log
+            LOGGER.error("Parsing secret body failure, schema name: {}", schemaName, e);
             throw new BadRequestException(e.getMessage());
+        }
+
+        Set<String> secretKeys = new HashSet<>();
+        for (SecretsRequestEntry secretEntry : secretEntries) {
+            try {
+                DECODER.decode(secretEntry.data);
+            } catch (IllegalArgumentException e) {
+                secretKeys.add(secretEntry.key);
+            }
+        }
+        if (!secretKeys.isEmpty()) {
+            throw new BadRequestException("Values for secrets " + secretKeys + " haven't got base 64 format");
         }
 
         try {
             SecretsManager secretsManager = new SecretsManager();
             return secretsManager.createOrReplaceSecrets(schemaName, secretEntries);
         } catch (Exception e) {
+            LOGGER.error("Create or replace secrets failure, schema name: {}", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }
@@ -97,6 +119,7 @@ public class SecretsController {
             secretsNames = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
+            LOGGER.error("Parsing secret body failure, schema name: {}, body: {}", schemaName, requestBody, e);
             throw new BadRequestException(e.getMessage());
         }
 
@@ -104,6 +127,7 @@ public class SecretsController {
             SecretsManager secretsManager = new SecretsManager();
             return secretsManager.deleteSecrets(schemaName, secretsNames);
         } catch (Exception e) {
+            LOGGER.error("Delete secrets failure, schema name: {}", schemaName, e);
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
         }
     }
