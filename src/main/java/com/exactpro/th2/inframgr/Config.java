@@ -137,6 +137,10 @@ public class Config {
                 rabbitmq = new RabbitMQConfig();
             }
 
+            if (behaviour == null) {
+                behaviour = new BehaviourCfg();
+            }
+
         } catch (UnrecognizedPropertyException e) {
             logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
                     , e.getPropertyName()

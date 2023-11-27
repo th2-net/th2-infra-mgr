@@ -1,6 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
     id 'org.springframework.boot' version "${springboot_version}"
     id 'java'
@@ -128,10 +125,8 @@ test {
     useJUnitPlatform()
 }
 
-tasks.withType(KotlinCompile).configureEach {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
+kotlin {
+    jvmToolchain(17)
 }
 
 jar {
