@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ public class RepositoryWatcherService {
 
     private final KubernetesClient kubeClient = new KubernetesClientBuilder().build();
 
-    private int prevBranchCount;
+    private Set<String> prevBranches = Collections.emptySet();
 
     private final String namespacePrefix;
 
@@ -77,14 +78,13 @@ public class RepositoryWatcherService {
             LOGGER.debug("fetching changes from git");
             GitterContext ctx = GitterContext.getContext(config);
             Map<String, String> commits = ctx.getAllBranchesCommits();
-            LOGGER.info("Fetched branches: {}, current/previous branch count: {}/{}",
-                    commits.keySet(), commits.size(), prevBranchCount);
-            if (prevBranchCount > commits.size()) {
+            if (!prevBranches.equals(commits.keySet())) {
+                LOGGER.info("Fetched branches: {}, previous branches: {}", commits.keySet(), prevBranches);
                 removeExtinctedNamespaces(commits.keySet());
             } else {
                 notifyAboutExtinctedNamespaces(commits.keySet());
             }
-            prevBranchCount = commits.size();
+            prevBranches = commits.keySet();
             if (commitHistory.isEmpty()) {
                 doInitialSynchronization(commits);
             }
