@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,15 @@ package com.exactpro.th2.inframgr.errors;
 import org.springframework.http.HttpStatus;
 
 public class NotAcceptableException extends ServiceException {
+    public NotAcceptableException(String errorCode, String message, Exception e) {
+        super(HttpStatus.NOT_ACCEPTABLE, errorCode, message, e);
+    }
+
     public NotAcceptableException(String errorCode, String message) {
-        super(HttpStatus.NOT_ACCEPTABLE, errorCode, message);
+        this(errorCode, message, null);
+    }
+
+    public NotAcceptableException(String errorCode, Exception e) {
+        this(errorCode, e.getMessage(), e);
     }
 }

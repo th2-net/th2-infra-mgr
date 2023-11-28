@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @Controller
+@SuppressWarnings("unused")
 public class DescriptorController {
 
     private static final String PROTOBUF_DESCRIPTOR = "protobuf-description-base64";
@@ -77,13 +78,13 @@ public class DescriptorController {
             String resourceLabel = annotationFor(schemaName, kind, box);
             descriptor = descriptorExtractor.getImageDescriptor(resourceLabel, kind, box, PROTOBUF_DESCRIPTOR);
         } catch (ResourceNotFoundException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e);
         } catch (InvalidImageNameFormatException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, FORMATTING_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, FORMATTING_ERROR, e);
         } catch (RegistryRequestException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e);
         } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e);
         }
         if (descriptor != null) {
             return new Response(PROTOBUF_DESCRIPTOR, descriptor);
@@ -92,23 +93,5 @@ public class DescriptorController {
         return null;
     }
 
-    public static class Response {
-        private final String descriptor;
-
-        private final String content;
-
-        public Response(String descriptor, String content) {
-            this.descriptor = descriptor;
-            this.content = content;
-        }
-
-        public String getDescriptor() {
-            return descriptor;
-        }
-
-        public String getContent() {
-            return content;
-        }
-    }
-
+    public record Response(String descriptor, String content) { }
 }

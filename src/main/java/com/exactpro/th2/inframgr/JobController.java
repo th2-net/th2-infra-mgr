@@ -36,6 +36,7 @@ import java.io.IOException;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @RestController
+@SuppressWarnings("unused")
 public class JobController {
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
@@ -46,12 +47,12 @@ public class JobController {
 
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
-    private static final Logger logger = LoggerFactory.getLogger(JobController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(JobController.class);
 
     @PutMapping("/jobs/{schemaName}/{jobName}")
     public void putSecrets(@PathVariable(name = "schemaName") String schemaName,
                            @PathVariable(name = "jobName") String jobName) {
-        logger.debug("received request for job creation, job name: {}", jobName);
+        LOGGER.debug("received request for job creation, job name: {}", jobName);
         if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
@@ -72,16 +73,16 @@ public class JobController {
                 resource = Repository.getResource(gitter, ResourceType.Th2Job.kind(), jobName);
                 resourceLabel = annotationFor(kube.getNamespaceName(), ResourceType.Th2Job.kind(), jobName);
             } catch (GitAPIException e) {
-                throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, GIT_ERROR, e.getMessage());
+                throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, GIT_ERROR, e);
             } finally {
                 gitter.unlock();
             }
             kube.deleteCustomResource(resource);
-            logger.info("Delete resource : {}", resourceLabel);
+            LOGGER.info("Delete resource : {}", resourceLabel);
             kube.createCustomResource(resource);
-            logger.info("Created job with name : {}", resourceLabel);
+            LOGGER.info("Created job with name : {}", resourceLabel);
         } catch (IOException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, CONFIG_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, CONFIG_ERROR, e);
         }
     }
 }

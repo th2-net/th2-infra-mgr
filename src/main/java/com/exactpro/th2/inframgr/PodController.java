@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @Controller
-
+@SuppressWarnings("unused")
 public class PodController {
     private static final Logger LOGGER = LoggerFactory.getLogger(PodController.class);
 
@@ -60,25 +60,28 @@ public class PodController {
             }
 
             Config config = Config.getInstance();
-            Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName);
-            for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
-                if (resource.getKind().equals(Kubernetes.KIND_POD)) {
-                    try {
-                        kubernetes.deletePodWithName(resource.getName(), force);
-                    } catch (KubernetesClientException e) {
-                        LOGGER.error("Could not delete pod \"{}\"",
-                                annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
+            try(Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
+                for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
+                    if (resource.getKind().equals(Kubernetes.KIND_POD)) {
+                        String annotation = annotationFor(kubernetes.getNamespaceName(),
+                                Kubernetes.KIND_POD, resource.getName());
+                        try {
+                            kubernetes.deletePodWithName(resource.getName(), force);
+                            LOGGER.info("Deleted pod \"{}\", schema name \"{}\"", annotation, schemaName);
+                        } catch (KubernetesClientException e) {
+                            LOGGER.error("Could not delete pod \"{}\"", annotation, e);
+                        }
                     }
                 }
             }
-
+            // TODO: return correct HTTP response
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (ServiceException e) {
-            LOGGER.error(e.getMessage(), e);
             throw e;
         } catch (Exception e) {
-            LOGGER.error("Exception deleting pods for \"{}/{}\" in schema \"{}\"", kind, resourceName, schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
+                    "Exception deleting pods for \"" + kind + "/" + resourceName +
+                            "\" in schema \"" + schemaName + "\"", e);
         }
     }
 }

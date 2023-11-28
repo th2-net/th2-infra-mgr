@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Base64;
 import java.util.Collections;
@@ -39,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Controller
+@SuppressWarnings("unused")
 public class SecretsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(SecretsController.class);
 
@@ -59,8 +65,8 @@ public class SecretsController {
             Map<String, String> secretData = secretsManager.getCustomSecret(schemaName).getData();
             return secretData != null ? secretData.keySet() : Collections.emptySet();
         } catch (Exception e) {
-            LOGGER.error("get secrets failure, schema name: {}", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
+                    "get secrets failure, schema name: \"" + schemaName + "\"", e);
         }
     }
 
@@ -78,9 +84,7 @@ public class SecretsController {
                     .registerModule(new KotlinModule.Builder().build());
             secretEntries = mapper.readValue(requestBody, new TypeReference<>() { });
         } catch (Exception e) {
-            // TODO: exclude secret body form log
-            LOGGER.error("Parsing secret body failure, schema name: {}", schemaName, e);
-            throw new BadRequestException(e.getMessage());
+            throw new BadRequestException("Parsing secret body failure, schema name: \"" + schemaName + "\"", e);
         }
 
         Set<String> secretKeys = new HashSet<>();
@@ -97,10 +101,12 @@ public class SecretsController {
 
         try {
             SecretsManager secretsManager = new SecretsManager();
-            return secretsManager.createOrReplaceSecrets(schemaName, secretEntries);
+            Set<String> secrets = secretsManager.createOrReplaceSecrets(schemaName, secretEntries);
+            LOGGER.info("Updated secrets \"{}\", schema name: \"{}\"", secrets, schemaName);
+            return secrets;
         } catch (Exception e) {
-            LOGGER.error("Create or replace secrets failure, schema name: {}", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
+                    "Create or replace secrets failure, schema name: \"" + schemaName + "\"", e);
         }
     }
 
@@ -119,16 +125,19 @@ public class SecretsController {
             secretsNames = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
-            LOGGER.error("Parsing secret body failure, schema name: {}, body: {}", schemaName, requestBody, e);
-            throw new BadRequestException(e.getMessage());
+            throw new BadRequestException(
+                    "Parsing secret body failure, schema name: \"" + schemaName + "\", body: \"" + requestBody + "\"",
+                    e);
         }
 
         try {
             SecretsManager secretsManager = new SecretsManager();
-            return secretsManager.deleteSecrets(schemaName, secretsNames);
+            Set<String> secrets = secretsManager.deleteSecrets(schemaName, secretsNames);
+            LOGGER.info("Deleted secrets \"{}\", schema name: \"{}\"", secrets, schemaName);
+            return secrets;
         } catch (Exception e) {
-            LOGGER.error("Delete secrets failure, schema name: {}", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
+                    "Delete secrets failure, schema name: \"" + schemaName + "\"", e);
         }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,16 @@ package com.exactpro.th2.inframgr.errors;
 import org.springframework.http.HttpStatus;
 
 public class BadRequestException extends ServiceException {
+
+    public BadRequestException(String message, Exception e) {
+        super(HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.name(), message, e);
+    }
+
     public BadRequestException(String message) {
-        super(HttpStatus.BAD_REQUEST, HttpStatus.BAD_REQUEST.name(), message);
+        this(message, null);
+    }
+
+    public BadRequestException(Exception e) {
+        this(e.getMessage(), e);
     }
 }

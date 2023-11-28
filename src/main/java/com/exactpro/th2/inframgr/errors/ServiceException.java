@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,25 @@ import org.springframework.http.HttpStatus;
 
 public class ServiceException extends RuntimeException {
 
-    public ErrorResponse getErrorResponse() {
-        return errorResponse;
+    private final ErrorResponse errorResponse;
+
+    public ServiceException(HttpStatus statusCode, String errorCode, String message, Exception e) {
+        super(message, e);
+        errorResponse = new ErrorResponse(statusCode, errorCode, message, e);
     }
 
-    private ErrorResponse errorResponse;
-
     public ServiceException(HttpStatus statusCode, String errorCode, String message) {
+        super(message);
         errorResponse = new ErrorResponse(statusCode, errorCode, message);
+    }
+
+    public ServiceException(HttpStatus statusCode, String errorCode, Exception e) {
+        super(e);
+        errorResponse = new ErrorResponse(statusCode, errorCode, e);
+    }
+
+    public ErrorResponse getErrorResponse() {
+        return errorResponse;
     }
 
 }
