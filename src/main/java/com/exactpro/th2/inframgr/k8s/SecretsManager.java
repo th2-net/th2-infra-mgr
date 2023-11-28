@@ -55,7 +55,8 @@ public class SecretsManager {
     }
 
     public Set<String> createOrReplaceSecrets(String schemaName,
-                                              List<SecretsController.SecretsRequestEntry> secretEntries) {
+                                              List<SecretsController.SecretsRequestEntry> secretEntries,
+                                              String user) {
         String namespace = prefix + schemaName;
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, DEFAULT_SECRET_NAME);
         Set<String> updatedEntries = new HashSet<>();
@@ -70,8 +71,8 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
-            logger.info("Updated \"{}\"", resourceLabel);
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
+            logger.info("Updated \"{}\" by user \"{}\"", resourceLabel, user);
             return updatedEntries;
         } catch (Exception e) {
             logger.error("Exception while updating \"{}\"", resourceLabel, e);
@@ -91,7 +92,7 @@ public class SecretsManager {
         data.putAll(secretEntries);
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
             logger.info("Updated \"{}\"", resourceLabel);
             return secretEntries.keySet();
         } catch (Exception e) {
@@ -113,7 +114,7 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
             logger.info("Removed entries from \"{}\"", resourceLabel);
             return secretEntries;
         } catch (Exception e) {

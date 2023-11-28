@@ -1,0 +1,5 @@
+http:
+  adminAccounts:
+    raw: password
+    strength_9: $2a$09$0gkRGEHmSrGNCrTD.8xrs.mxaCeCV76TKZdRq63NUVXyQEUMI4uEm
+    strength_10: $2a$10$.8fPAjnrz.x3GbY9D85UkewE6AOqTcUNpiOdXt31rfWJ6QG.F4q/q

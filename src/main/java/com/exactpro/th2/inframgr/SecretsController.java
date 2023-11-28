@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -72,7 +73,8 @@ public class SecretsController {
 
     @PutMapping("/secrets/{schemaName}")
     @ResponseBody
-    public Set<String> putSecrets(@PathVariable(name = "schemaName") String schemaName,
+    public Set<String> putSecrets(HttpServletRequest request,
+                                  @PathVariable(name = "schemaName") String schemaName,
                                   @RequestBody String requestBody) {
         if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
@@ -101,7 +103,8 @@ public class SecretsController {
 
         try {
             SecretsManager secretsManager = new SecretsManager();
-            Set<String> secrets = secretsManager.createOrReplaceSecrets(schemaName, secretEntries);
+            Set<String> secrets = secretsManager.createOrReplaceSecrets(schemaName,
+                    secretEntries, request.getUserPrincipal().getName());
             LOGGER.info("Updated secrets \"{}\", schema name: \"{}\"", secrets, schemaName);
             return secrets;
         } catch (Exception e) {
@@ -112,7 +115,8 @@ public class SecretsController {
 
     @DeleteMapping("/secrets/{schemaName}")
     @ResponseBody
-    public Set<String> deleteSecrets(@PathVariable(name = "schemaName") String schemaName,
+    public Set<String> deleteSecrets(HttpServletRequest request,
+                                     @PathVariable(name = "schemaName") String schemaName,
                                      @RequestBody String requestBody) {
         if (!K8sCustomResource.isSchemaNameValid(schemaName)) {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
@@ -133,7 +137,8 @@ public class SecretsController {
         try {
             SecretsManager secretsManager = new SecretsManager();
             Set<String> secrets = secretsManager.deleteSecrets(schemaName, secretsNames);
-            LOGGER.info("Deleted secrets \"{}\", schema name: \"{}\"", secrets, schemaName);
+            LOGGER.info("Deleted secrets \"{}\", schema name: \"{}\", user: \"{}\"",
+                    secrets, schemaName, request.getUserPrincipal().getName());
             return secrets;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,

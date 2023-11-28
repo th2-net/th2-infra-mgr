@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,7 +64,8 @@ public class NamespaceController {
 
     @DeleteMapping("/namespace/{schemaName}")
     @ResponseBody
-    public String getResourceDeploymentStatuses(@PathVariable(name = "schemaName") String schemaName) {
+    public String getResourceDeploymentStatuses(HttpServletRequest request,
+                                                @PathVariable(name = "schemaName") String schemaName) {
 
         try {
             // check schema name against valid pattern
@@ -103,7 +105,8 @@ public class NamespaceController {
                 }
 
                 namespaceResource.delete();
-                LOGGER.info("Deleted namespace \"{}\" related to the schema \"{}\"", namespace, schemaName);
+                LOGGER.info("Deleted namespace \"{}\" related to the schema \"{}\", user: \"{}\"",
+                        namespace, schemaName, request.getUserPrincipal().getName());
                 return namespace;
             }
         } catch (ServiceException e) {

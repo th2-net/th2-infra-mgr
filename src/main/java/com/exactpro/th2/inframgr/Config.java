@@ -16,7 +16,13 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.util.cfg.*;
+import com.exactpro.th2.inframgr.util.cfg.BehaviourCfg;
+import com.exactpro.th2.inframgr.util.cfg.CassandraConfig;
+import com.exactpro.th2.inframgr.util.cfg.GitCfg;
+import com.exactpro.th2.inframgr.util.cfg.HttpCfg;
+import com.exactpro.th2.inframgr.util.cfg.K8sConfig;
+import com.exactpro.th2.inframgr.util.cfg.PrometheusConfig;
+import com.exactpro.th2.inframgr.util.cfg.RabbitMQConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
@@ -32,8 +38,11 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 public class Config {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);
 
     private static final String CONFIG_FILE = "config.yml";
 
@@ -41,12 +50,12 @@ public class Config {
 
     private static volatile Config instance;
 
-    private final Logger logger;
-
-    private String configDir;
+    private static final Path CONFIG_DIR = Path.of(System.getProperty(CONFIG_DIR_SYSTEM_PROPERTY, "."));
 
     // config fields
     private BehaviourCfg behaviour;
+
+    private HttpCfg http;
 
     private GitCfg git;
 
@@ -60,6 +69,10 @@ public class Config {
 
     public BehaviourCfg getBehaviour() {
         return behaviour;
+    }
+
+    public HttpCfg getHttp() {
+        return http;
     }
 
     public GitCfg getGit() {
@@ -87,6 +100,10 @@ public class Config {
         this.behaviour = behaviour;
     }
 
+    public void setHttp(HttpCfg http) {
+        this.http = http;
+    }
+
     public void setGit(GitCfg git) {
         this.git = git;
     }
@@ -108,13 +125,22 @@ public class Config {
         this.kubernetes = kubernetes;
     }
 
-    private Config() {
-        logger = LoggerFactory.getLogger(Config.class);
-        configDir = System.getProperty(CONFIG_DIR_SYSTEM_PROPERTY, ".");
-        configDir += "/";
+    private Config() {}
+
+    public static Config getInstance() throws IOException {
+        if (instance == null) {
+            synchronized (Config.class) {
+                if (instance == null) {
+                    Path file = CONFIG_DIR.resolve(CONFIG_FILE);
+                    instance = readConfiguration(file);
+                }
+            }
+        }
+
+        return instance;
     }
 
-    private void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
+    private static void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
 
         String fileContent = new String(Files.readAllBytes(file.toPath()));
         StringSubstitutor stringSubstitutor = new StringSubstitutor(
@@ -124,47 +150,38 @@ public class Config {
         mapper.readerForUpdating(object).readValue(enrichedContent);
     }
 
-    private void readConfiguration() throws IOException {
-
+    static Config readConfiguration(Path configFile) throws IOException {
         try {
-            File file = new File(configDir + CONFIG_FILE);
+            Config config = new Config();
+            parseFile(configFile.toFile(), new ObjectMapper(new YAMLFactory()).enable(
+                            JsonParser.Feature.STRICT_DUPLICATE_DETECTION).
+                    registerModule(new KotlinModule.Builder().build()), config);
 
-            parseFile(file, new ObjectMapper(new YAMLFactory()).enable(
-                    JsonParser.Feature.STRICT_DUPLICATE_DETECTION).
-                    registerModule(new KotlinModule.Builder().build()), this);
-
-            if (rabbitmq == null) {
-                rabbitmq = new RabbitMQConfig();
+            if (config.getRabbitMQ() == null) {
+                config.setRabbitMQ(new RabbitMQConfig());
+            }
+            if (config.getBehaviour() == null) {
+                config.setBehaviour(new BehaviourCfg());
+            }
+            if (config.getCassandra() == null) {
+                config.setCassandra(new CassandraConfig());
+            }
+            if (config.getHttp() == null) {
+                throw new IllegalStateException("'http' config can't be null");
             }
 
-            if (behaviour == null) {
-                behaviour = new BehaviourCfg();
-            }
+            config.getHttp().validate();
 
+            return config;
         } catch (UnrecognizedPropertyException e) {
-            logger.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
+            LOGGER.error("Bad configuration: unknown property(\"{}\") specified in configuration file \"{}\""
                     , e.getPropertyName()
                     , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         } catch (JsonParseException e) {
-            logger.error("Bad configuration: exception while parsing configuration file \"{}\""
+            LOGGER.error("Bad configuration: exception while parsing configuration file \"{}\""
                     , CONFIG_FILE);
             throw new RuntimeException("Configuration exception", e);
         }
-    }
-
-    public static Config getInstance() throws IOException {
-        if (instance == null) {
-            synchronized (Config.class) {
-                if (instance == null) {
-                    Config config = new Config();
-                    config.readConfiguration();
-
-                    instance = config;
-                }
-            }
-        }
-
-        return instance;
     }
 }

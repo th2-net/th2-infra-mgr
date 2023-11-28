@@ -23,16 +23,24 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.io.IOException;
+import java.util.List;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
+@SuppressWarnings("unused")
 public class BasicAuthConfig {
 
-    public static final String ADMIN_ROLE = "ADMIN";
+    private static final String ADMIN_ROLE = "ADMIN";
+
+    public static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,12 +54,20 @@ public class BasicAuthConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        UserDetails admin = User.withDefaultPasswordEncoder()
-                .username("admin")
-                .password("password")
-                .roles("ADMIN")
-                .build();
-        return new InMemoryUserDetailsManager(admin);
+    public UserDetailsService userDetailsService() throws IOException {
+        Config config = Config.getInstance();
+        List<UserDetails> admins = config.getHttp().getAdminAccounts().entrySet().stream()
+                .map(entry -> User.builder()
+                        .username(entry.getKey())
+                        .password(entry.getValue())
+                        .roles(ADMIN_ROLE)
+                        .build())
+                .toList();
+        return new InMemoryUserDetailsManager(admins);
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return PASSWORD_ENCODER;
     }
 }
