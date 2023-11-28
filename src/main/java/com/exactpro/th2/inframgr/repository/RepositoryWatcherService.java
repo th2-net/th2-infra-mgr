@@ -105,7 +105,7 @@ public class RepositoryWatcherService {
 
             commitHistory.putAll(commits);
         } catch (Exception e) {
-//            LOGGER.error("Error fetching repository", e);
+            LOGGER.error("Error fetching repository", e);
         }
     }
 
