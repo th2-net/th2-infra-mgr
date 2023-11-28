@@ -70,6 +70,8 @@ configurations.configureEach() {
 
 dependencies {
     implementation platform("org.springframework.boot:spring-boot-dependencies:${springboot_version}")
+    implementation "org.springframework.boot:spring-boot-starter-security:${springboot_version}"
+    implementation "org.springframework.boot:spring-boot-starter-web:${springboot_version}"
 
     implementation "com.exactpro.th2:infra-repo:${infra_repo_version}"
 

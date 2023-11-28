@@ -60,7 +60,7 @@ public class PodController {
             }
 
             Config config = Config.getInstance();
-            try(Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
+            try (Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
                 for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                     if (resource.getKind().equals(Kubernetes.KIND_POD)) {
                         String annotation = annotationFor(kubernetes.getNamespaceName(),
