@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -49,7 +50,9 @@ public class BasicAuthConfig {
                                 .requestMatchers("/secrets/**").hasRole(ADMIN_ROLE)
                                 .requestMatchers("/namespace/**").hasRole(ADMIN_ROLE)
                                 .requestMatchers("/**").permitAll()
-                ).httpBasic(withDefaults());
+                ).httpBasic(withDefaults())
+                // CSRF is disabled because user uses curl only to call REST API
+                .csrf(AbstractHttpConfigurer::disable);
         return http.build();
     }
 
