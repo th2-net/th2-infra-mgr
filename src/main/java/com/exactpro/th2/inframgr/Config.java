@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+// TODO: instant this class as spring @Bean instead of singleton
 public class Config {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);

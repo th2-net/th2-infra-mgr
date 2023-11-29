@@ -21,7 +21,6 @@ import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.statuswatcher.Condition;
 import com.exactpro.th2.inframgr.statuswatcher.ResourceCondition;
-import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import com.exactpro.th2.infrarepo.git.Gitter;
 import com.exactpro.th2.infrarepo.git.GitterContext;
 import com.exactpro.th2.infrarepo.repo.Repository;
@@ -34,7 +33,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -58,9 +56,6 @@ public class NamespaceController {
     public static final String GIT_BRANCH_IS_ACTIVE = "GIT_BRANCH_IS_ACTIVE";
 
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
-
-    @Autowired
-    private StatusCache statusCache;
 
     @DeleteMapping("/namespace/{schemaName}")
     @ResponseBody
