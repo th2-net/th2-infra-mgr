@@ -78,7 +78,7 @@ public class NamespaceController {
             LOGGER.debug("Checking namespace \"{}\"", namespace);
             try (KubernetesClient kubeClient = new KubernetesClientBuilder().build()) {
                 Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(namespace);
-                if (namespaceResource == null) {
+                if (namespaceResource.get() == null) {
                     throw new ServiceException(HttpStatus.GONE, NAMESPACE_DOES_NOT_EXIST,
                             "Kube doesn't contain namespace \"" + namespace +
                                     "\" related to schema \"" + schemaName + "\"");
