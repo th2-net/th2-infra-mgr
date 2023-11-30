@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr.controllers.backup;
 
+import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.SecretsManager;
@@ -32,6 +33,7 @@ import net.lingala.zip4j.model.enums.EncryptionMethod;
 import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,6 +54,9 @@ public class NamespaceBackupController {
     private static final String CUSTOM_SECRETS_SUFFIX = "custom-secrets";
 
     private static final Logger logger = LoggerFactory.getLogger(NamespaceBackupController.class);
+
+    @Autowired
+    private Config config;
 
     ObjectMapper mapper = new ObjectMapper()
             .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
@@ -77,7 +82,7 @@ public class NamespaceBackupController {
         zipParameters.setAesKeyStrength(AesKeyStrength.KEY_STRENGTH_256);
 
         // add custom-secrets-config as zip content
-        SecretsManager secretsManager = new SecretsManager();
+        SecretsManager secretsManager = new SecretsManager(config.getKubernetes().getNamespacePrefix());
         var secret = secretsManager.getCustomSecret(schemaName);
         if (secret == null || secret.getData() == null) {
             logger.info("There are no custom secrets present in schema: \"{}\"", schemaName);
@@ -125,7 +130,7 @@ public class NamespaceBackupController {
             if (entryName.contains(CUSTOM_SECRETS_SUFFIX)) {
                 String content = reader.readLine();
                 if (content != null) {
-                    SecretsManager secretsManager = new SecretsManager();
+                    SecretsManager secretsManager = new SecretsManager(config.getKubernetes().getNamespacePrefix());
                     Map<String, String> secretEntries = mapper.readValue(content, new TypeReference<>() {
                     });
                     backupResponse.addCustomSecrets(secretsManager.createOrReplaceSecrets(schemaName, secretEntries));

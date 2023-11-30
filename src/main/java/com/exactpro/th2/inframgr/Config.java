@@ -128,17 +128,9 @@ public class Config {
 
     private Config() {}
 
-    public static Config getInstance() throws IOException {
-        if (instance == null) {
-            synchronized (Config.class) {
-                if (instance == null) {
-                    Path file = CONFIG_DIR.resolve(CONFIG_FILE);
-                    instance = readConfiguration(file);
-                }
-            }
-        }
-
-        return instance;
+    public static Config instance() throws IOException {
+        Path file = CONFIG_DIR.resolve(CONFIG_FILE);
+        return readConfiguration(file);
     }
 
     private static void parseFile(File file, ObjectMapper mapper, Object object) throws IOException {
@@ -170,8 +162,9 @@ public class Config {
             if (config.getHttp() == null) {
                 throw new IllegalStateException("'http' config can't be null");
             }
-
-            config.getHttp().validate();
+            if (config.getHttp().getAdminAccounts() == null) {
+                throw new IllegalStateException("'http.adminAccounts' config can't be null");
+            }
 
             return config;
         } catch (UnrecognizedPropertyException e) {

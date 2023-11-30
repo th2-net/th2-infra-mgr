@@ -20,8 +20,6 @@ import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
 import com.exactpro.th2.inframgr.k8s.K8sResourceCache;
-import com.exactpro.th2.inframgr.util.cfg.BehaviourCfg;
-import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.git.GitterContext;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -30,6 +28,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -46,11 +45,9 @@ public class RepositoryWatcherService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RepositoryWatcherService.class);
 
+    private static volatile boolean startupSynchronizationComplete;
+
     private final Map<String, String> commitHistory;
-
-    private final BehaviourCfg behaviour;
-
-    private final GitCfg config;
 
     private final SchemaEventRouter eventRouter;
 
@@ -58,25 +55,19 @@ public class RepositoryWatcherService {
 
     private Set<String> prevBranches = Collections.emptySet();
 
-    private final String namespacePrefix;
+    @Autowired
+    private Config config;
 
-    private static volatile boolean startupSynchronizationComplete;
-
-    public RepositoryWatcherService() throws Exception {
-        Config fullConfig = Config.getInstance();
+    public RepositoryWatcherService() {
         commitHistory = new HashMap<>();
-        behaviour = fullConfig.getBehaviour();
-        config = fullConfig.getGit();
-        namespacePrefix = fullConfig.getKubernetes().getNamespacePrefix();
         eventRouter = SchemaEventRouter.getInstance();
     }
 
     @Scheduled(fixedDelayString = "${GIT_FETCH_INTERVAL:14000}")
-    @SuppressWarnings("unused")
     private void scheduledJob() {
         try {
             LOGGER.debug("fetching changes from git");
-            GitterContext ctx = GitterContext.getContext(config);
+            GitterContext ctx = GitterContext.getContext(config.getGit());
             Map<String, String> commits = ctx.getAllBranchesCommits();
             if (!prevBranches.equals(commits.keySet())) {
                 LOGGER.info("Fetched branches: {}, previous branches: {}", commits.keySet(), prevBranches);
@@ -128,13 +119,13 @@ public class RepositoryWatcherService {
         List<String> extinctNamespaces = getExtinctNamespaces(existingBranches);
 
         for (String extinctNamespace : extinctNamespaces) {
-            String schemaName = extinctNamespace.substring(namespacePrefix.length());
+            String schemaName = extinctNamespace.substring(config.getKubernetes().getNamespacePrefix().length());
             DynamicResourceProcessor.deleteSchema(schemaName);
             K8sResourceCache.INSTANCE.removeNamespace(extinctNamespace);
             Resource<Namespace> namespaceResource = kubeClient.namespaces().withName(extinctNamespace);
             if (namespaceResource != null) {
                 eventRouter.removeEventsForSchema(schemaName);
-                if (behaviour.isPermittedToRemoveNamespace()) {
+                if (config.getBehaviour().isPermittedToRemoveNamespace()) {
                     LOGGER.info(
                             "branch \"{}\" was removed from remote repository, deleting corresponding namespace \"{}\"",
                             schemaName,
@@ -154,7 +145,7 @@ public class RepositoryWatcherService {
     }
 
     private void notifyAboutExtinctedNamespaces(Set<String> existingBranches) {
-        if (!behaviour.isPermittedToRemoveNamespace() && LOGGER.isWarnEnabled()) {
+        if (!config.getBehaviour().isPermittedToRemoveNamespace() && LOGGER.isWarnEnabled()) {
             List<String> extinctNamespaces = getExtinctNamespaces(existingBranches);
             if (!extinctNamespaces.isEmpty()) {
                 LOGGER.warn(
@@ -168,6 +159,7 @@ public class RepositoryWatcherService {
 
     @NotNull
     private List<String> getExtinctNamespaces(Set<String> existingBranches) {
+        String namespacePrefix = config.getKubernetes().getNamespacePrefix();
         return kubeClient.namespaces()
                 .list()
                 .getItems()

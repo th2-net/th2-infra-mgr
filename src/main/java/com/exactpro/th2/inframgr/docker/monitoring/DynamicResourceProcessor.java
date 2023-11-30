@@ -31,9 +31,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.List;
 
 @Component
@@ -44,6 +44,9 @@ public class DynamicResourceProcessor {
     private static final long REGISTRY_CHECK_PERIOD_SECONDS = 200;
 
     private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 30;
+
+    @Autowired
+    private Config config;
 
     private static final List<String> monitoredKinds = List.of(
             ResourceType.Th2Box.kind(),
@@ -132,7 +135,7 @@ public class DynamicResourceProcessor {
     }
 
     @PostConstruct
-    public void start() throws IOException {
+    public void start() {
         try {
             getRegistryWatcher()
                 .startWatchingRegistry();
@@ -145,12 +148,12 @@ public class DynamicResourceProcessor {
     }
 
     @NotNull
-    private static RegistryWatcher getRegistryWatcher() throws IOException {
-        Config config = Config.getInstance();
+    private RegistryWatcher getRegistryWatcher() {
         Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
         RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
         RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
         return new RegistryWatcher(
+                config,
                 REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
                 REGISTRY_CHECK_PERIOD_SECONDS,
                 registryConnection

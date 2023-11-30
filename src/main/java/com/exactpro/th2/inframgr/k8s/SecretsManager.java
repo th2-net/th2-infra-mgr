@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SecretsController;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -25,8 +24,11 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class SecretsManager {
 
@@ -38,8 +40,8 @@ public class SecretsManager {
 
     private final String prefix;
 
-    public SecretsManager() throws IOException {
-        this.prefix = Config.getInstance().getKubernetes().getNamespacePrefix();
+    public SecretsManager(String prefix) {
+        this.prefix = prefix;
     }
 
     public Secret getCustomSecret(String schemaName) {

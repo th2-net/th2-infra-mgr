@@ -28,6 +28,7 @@ import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,7 +37,6 @@ import java.io.IOException;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @RestController
-@SuppressWarnings("unused")
 public class JobController {
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
@@ -48,6 +48,9 @@ public class JobController {
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JobController.class);
+
+    @Autowired
+    private Config config;
 
     @PutMapping("/jobs/{schemaName}/{jobName}")
     public void putSecrets(@PathVariable(name = "schemaName") String schemaName,
@@ -61,11 +64,11 @@ public class JobController {
         }
 
         try (Kubernetes kube = new Kubernetes(
-                Config.getInstance().getBehaviour(), Config.getInstance().getKubernetes(), schemaName
+                config.getBehaviour(), config.getKubernetes(), schemaName
         )) {
             RepositoryResource resource;
             String resourceLabel;
-            GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
+            GitterContext ctx = GitterContext.getContext(config.getGit());
             Gitter gitter = ctx.getGitter(schemaName);
             try {
                 gitter.lock();

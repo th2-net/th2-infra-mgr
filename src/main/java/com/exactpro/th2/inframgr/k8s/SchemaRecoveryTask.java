@@ -34,14 +34,16 @@ public class SchemaRecoveryTask implements RetryableTask {
 
     private final int retryDelay;
 
-    public SchemaRecoveryTask(String schema) {
-        this.schema = schema;
-        this.retryDelay = RETRY_DELAY_SEC;
-    }
+    private final Config config;
 
-    public SchemaRecoveryTask(String schema, int retryDelay) {
+    public SchemaRecoveryTask(Config config, String schema, int retryDelay) {
+        this.config = config;
         this.schema = schema;
         this.retryDelay = retryDelay;
+    }
+
+    public SchemaRecoveryTask(Config config, String schema) {
+        this(config, schema, RETRY_DELAY_SEC);
     }
 
     @Override
@@ -56,10 +58,8 @@ public class SchemaRecoveryTask implements RetryableTask {
 
     @Override
     public void run() {
-        try {
-            // check actual state of the namespace
-            Config config = Config.getInstance();
-            Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schema);
+        // check actual state of the namespace
+        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schema)) {
             Namespace namespace = kube.getNamespace(kube.getNamespaceName());
 
             if (namespace != null && !namespace.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {

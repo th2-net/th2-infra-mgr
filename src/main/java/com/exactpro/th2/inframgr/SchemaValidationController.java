@@ -42,6 +42,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +52,6 @@ import java.util.*;
 import static com.exactpro.th2.inframgr.SchemaController.*;
 
 @Controller
-@SuppressWarnings("unused")
 public class SchemaValidationController {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaController.class);
@@ -59,6 +59,9 @@ public class SchemaValidationController {
     private static final String UNSUPPORTED_OPERATION = "UNSUPPORTED_OPERATION";
 
     private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
+
+    @Autowired
+    private Config config;
 
     @PostMapping("/validation/{schemaName}")
     @ResponseBody
@@ -71,7 +74,6 @@ public class SchemaValidationController {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
 
-        Config config = Config.getInstance();
         var fullRepositoryMap = toRepositoryMap(allResourcesStr);
         SchemaValidationContext validationContext = SchemaValidator.validate(
                 schemaName,
@@ -130,8 +132,7 @@ public class SchemaValidationController {
     @GetMapping("/validation/{schemaName}")
     @ResponseBody
     public SchemaValidationContext validateSchema(@PathVariable(name = "schemaName") String schemaName,
-                                                  @RequestBody String requestBody
-    ) throws Exception {
+                                                  @RequestBody String requestBody) {
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
@@ -152,8 +153,6 @@ public class SchemaValidationController {
         List<RequestEntry> operations = request.operations;
 
         validateResourceNames(operations);
-
-        Config config = Config.getInstance();
 
         var fullRepositoryMap = toRepositoryMap(operations);
 

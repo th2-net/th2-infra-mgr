@@ -28,6 +28,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,7 +46,6 @@ import java.util.Map;
 import java.util.Set;
 
 @Controller
-@SuppressWarnings("unused")
 public class SecretsController {
     private static final Logger LOGGER = LoggerFactory.getLogger(SecretsController.class);
 
@@ -55,6 +55,9 @@ public class SecretsController {
 
     private static final Base64.Decoder DECODER = Base64.getDecoder();
 
+    @Autowired
+    private Config config;
+
     @GetMapping("/secrets/{schemaName}")
     @ResponseBody
     public Set<String> getSecrets(@PathVariable(name = "schemaName") String schemaName) throws ServiceException {
@@ -62,7 +65,7 @@ public class SecretsController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
         try {
-            SecretsManager secretsManager = new SecretsManager();
+            SecretsManager secretsManager = new SecretsManager(config.getKubernetes().getNamespacePrefix());
             Map<String, String> secretData = secretsManager.getCustomSecret(schemaName).getData();
             return secretData != null ? secretData.keySet() : Collections.emptySet();
         } catch (Exception e) {
@@ -102,7 +105,7 @@ public class SecretsController {
         }
 
         try {
-            SecretsManager secretsManager = new SecretsManager();
+            SecretsManager secretsManager = new SecretsManager(config.getKubernetes().getNamespacePrefix());
             Set<String> secrets = secretsManager.createOrReplaceSecrets(schemaName,
                     secretEntries, request.getUserPrincipal().getName());
             LOGGER.info("Updated secrets \"{}\", schema name: \"{}\"", secrets, schemaName);
@@ -135,7 +138,7 @@ public class SecretsController {
         }
 
         try {
-            SecretsManager secretsManager = new SecretsManager();
+            SecretsManager secretsManager = new SecretsManager(config.getKubernetes().getNamespacePrefix());
             Set<String> secrets = secretsManager.deleteSecrets(schemaName, secretsNames);
             LOGGER.info("Deleted secrets \"{}\", schema name: \"{}\", user: \"{}\"",
                     secrets, schemaName, request.getUserPrincipal().getName());

@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.inframgr;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,19 +30,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
-@SuppressWarnings("unused")
-public class BasicAuthConfig {
+public class BasicAuthConfiguration {
 
     private static final String ADMIN_ROLE = "ADMIN";
 
-    public static final PasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+    @Autowired
+    private Config config;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -57,9 +58,13 @@ public class BasicAuthConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() throws IOException {
-        Config config = Config.getInstance();
-        List<UserDetails> admins = config.getHttp().getAdminAccounts().entrySet().stream()
+    public UserDetailsService userDetailsService() {
+        Map<String, String> adminAccounts = config.getHttp().getAdminAccounts();
+        if (adminAccounts.isEmpty()) {
+            throw new IllegalStateException("'http.adminAccounts' mustn't be empty");
+        }
+
+        List<UserDetails> admins = adminAccounts.entrySet().stream()
                 .map(entry -> User.builder()
                         .username(entry.getKey())
                         .password(entry.getValue())
@@ -71,6 +76,6 @@ public class BasicAuthConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return PASSWORD_ENCODER;
+        return new BCryptPasswordEncoder();
     }
 }

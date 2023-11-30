@@ -19,13 +19,10 @@ package com.exactpro.th2.inframgr;
 import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
-import com.exactpro.th2.inframgr.statuswatcher.Condition;
-import com.exactpro.th2.inframgr.statuswatcher.ResourceCondition;
 import com.exactpro.th2.infrarepo.git.Gitter;
 import com.exactpro.th2.infrarepo.git.GitterContext;
 import com.exactpro.th2.infrarepo.repo.Repository;
 import com.exactpro.th2.infrarepo.settings.RepositorySettingsResource;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -33,18 +30,16 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 @Controller
-@SuppressWarnings("unused")
 public class NamespaceController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceController.class);
@@ -57,6 +52,9 @@ public class NamespaceController {
 
     public static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
+    @Autowired
+    private Config config;
+
     @DeleteMapping("/namespace/{schemaName}")
     @ResponseBody
     public String getResourceDeploymentStatuses(HttpServletRequest request,
@@ -68,7 +66,6 @@ public class NamespaceController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            Config config = Config.getInstance();
             String namespace = config.getKubernetes().getNamespacePrefix() + schemaName;
             LOGGER.debug("Checking namespace \"{}\"", namespace);
             try (KubernetesClient kubeClient = new KubernetesClientBuilder().build()) {
@@ -108,31 +105,7 @@ public class NamespaceController {
             throw e;
         } catch (Exception e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
-                    "Exception deleting namespace related to schema " + schemaName + " from kuber", e);
-        }
-    }
-
-    public static class ResponseEntry {
-
-        @JsonProperty("kind")
-        public String kind;
-
-        @JsonProperty("name")
-        public String name;
-
-        @JsonProperty("conditions")
-        public List<Condition> conditions;
-
-        @JsonProperty("status")
-        public String status;
-
-        public ResponseEntry(ResourceCondition resource) {
-            kind = resource.getKind();
-            name = resource.getName();
-            status = resource.getStatus().toString();
-            if (resource.getConditions() != null) {
-                conditions = new ArrayList<>(resource.getConditions().values());
-            }
+                    "Exception deleting namespace related to schema " + schemaName + " from kubernetes", e);
         }
     }
 }

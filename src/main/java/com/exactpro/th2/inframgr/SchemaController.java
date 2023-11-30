@@ -25,7 +25,6 @@ import com.exactpro.th2.inframgr.models.RequestOperation;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
-import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.InconsistentRepositoryStateException;
 import com.exactpro.th2.infrarepo.SchemaUtils;
 import com.exactpro.th2.infrarepo.git.Gitter;
@@ -44,6 +43,7 @@ import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,7 +60,6 @@ import java.util.Map;
 import java.util.Set;
 
 @Controller
-@SuppressWarnings("unused")
 public class SchemaController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaController.class);
@@ -73,12 +72,15 @@ public class SchemaController {
 
     public static final String SOURCE_BRANCH = "master";
 
+    @Autowired
+    private Config config;
+
     @GetMapping("/schemas")
     @ResponseBody
     public Set<String> getAvailableSchemas() throws ServiceException {
 
         try {
-            GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
+            GitterContext ctx = GitterContext.getContext(config.getGit());
             Set<String> schemas = ctx.getBranches();
             schemas.remove(SOURCE_BRANCH);
             return schemas;
@@ -89,14 +91,13 @@ public class SchemaController {
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) throws Exception {
+    public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
 
-        GitCfg gitConfig = Config.getInstance().getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
         final Gitter gitter = ctx.getGitter(schemaName);
         try {
             gitter.lock();
@@ -113,7 +114,7 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) throws Exception {
+    public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -123,9 +124,7 @@ public class SchemaController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
 
-        Config config = Config.getInstance();
-        GitCfg gitConfig = config.getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
 
         if (schemaAlreadyExists(schemaName, ctx)) {
             throw new NotAcceptableException(SCHEMA_EXISTS, "Error creating schema. schema already exists");
@@ -169,8 +168,7 @@ public class SchemaController {
     @PostMapping("/schema/{name}")
     @ResponseBody
     public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName,
-                                                 @RequestBody String requestBody
-    ) throws Exception {
+                                                 @RequestBody String requestBody) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -190,9 +188,7 @@ public class SchemaController {
 
         validateResourceNames(operations);
 
-        Config config = Config.getInstance();
-        GitCfg gitConfig = config.getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
 
         if (!schemaAlreadyExists(schemaName, ctx)) {
             throw new ServiceException(HttpStatus.NOT_FOUND,
@@ -272,13 +268,13 @@ public class SchemaController {
             }
             return gitter.commitAndPush("schema update");
 
-        } catch (InconsistentRepositoryStateException irse) {
+        } catch (InconsistentRepositoryStateException e) {
             // this exception is thrown when inconsistent state of git repository is expected
             // discard local cache and re-download repository
-            LOGGER.error("Inconsistent repository state exception for branch \"{}\"", branchName, irse);
+            LOGGER.error("Inconsistent repository state exception for branch \"{}\"", branchName, e);
 
-            var se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, irse);
-            se.addSuppressed(irse);
+            var se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
+            se.addSuppressed(e);
 
             try {
                 gitter.recreateCache();

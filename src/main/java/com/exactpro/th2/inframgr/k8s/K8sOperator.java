@@ -37,9 +37,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -52,6 +52,7 @@ public class K8sOperator {
 
     private static final int RECOVERY_THREAD_POOL_SIZE = 3;
 
+    @Autowired
     private Config config;
 
     private K8sResourceCache cache;
@@ -72,30 +73,31 @@ public class K8sOperator {
         }
 
         logger.info("Creating informers");
-        Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
-        cache = K8sResourceCache.INSTANCE;
+        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null)) {
+            cache = K8sResourceCache.INSTANCE;
 
-        kube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
+            kube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
 
-            @Override
-            public void onAdd(K8sCustomResource obj) {
-                processEvent(Watcher.Action.ADDED, obj, kube);
-            }
+                @Override
+                public void onAdd(K8sCustomResource obj) {
+                    processEvent(Watcher.Action.ADDED, obj, kube);
+                }
 
-            @Override
-            public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
-                processEvent(Watcher.Action.MODIFIED, newObj, kube);
-            }
+                @Override
+                public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
+                    processEvent(Watcher.Action.MODIFIED, newObj, kube);
+                }
 
-            @Override
-            public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
-                processEvent(Watcher.Action.DELETED, obj, kube);
-            }
-        });
+                @Override
+                public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
+                    processEvent(Watcher.Action.DELETED, obj, kube);
+                }
+            });
 
-        kube.startInformers();
+            kube.startInformers();
 
-        logger.info("Informers has been started");
+            logger.info("Informers has been started");
+        }
     }
 
     private void processEvent(Watcher.Action action, K8sCustomResource res, Kubernetes kube) {
@@ -207,7 +209,7 @@ public class K8sOperator {
                         logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. " +
                                         "Scheduled full schema synchronization"
                                 , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
-                        taskQueue.add(new SchemaRecoveryTask(kube.extractSchemaName(namespace)), true);
+                        taskQueue.add(new SchemaRecoveryTask(config, kube.extractSchemaName(namespace)), true);
                     } else {
                         kube.createOrReplaceCustomResource(resource, namespace);
                     }
@@ -226,9 +228,7 @@ public class K8sOperator {
     }
 
     @PostConstruct
-    public void start() throws IOException {
-
-        config = Config.getInstance();
+    public void start() {
         taskQueue = new RetryableTaskQueue(RECOVERY_THREAD_POOL_SIZE);
 
         // start repository event listener thread

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,13 @@
 
 package com.exactpro.th2.inframgr.initializer;
 
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.util.cfg.K8sConfig;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Map;
 
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
@@ -76,29 +75,33 @@ public class LoggingConfigMap {
             "OFF", "FATAL"
     );
 
-    public static void checkLoggingConfigMap(RepositoryResource resource,
+    public static void checkLoggingConfigMap(K8sConfig kubeConfig,
+                                             RepositoryResource resource,
                                              String logLevelRoot,
                                              String logLevelTh2,
                                              String fullCommitRef,
-                                             Kubernetes kube) throws IOException {
-        if (resource.getMetadata() != null && resource.getMetadata().getName().equals(getLoggingConfigMapName())) {
-            copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, fullCommitRef, true);
+                                             Kubernetes kube) {
+        if (resource.getMetadata() != null
+                && resource.getMetadata().getName().equals(getLoggingConfigMapName(kubeConfig))) {
+            copyLoggingConfigMap(kubeConfig, logLevelRoot, logLevelTh2, kube, fullCommitRef, true);
         }
     }
 
-    public static void copyLoggingConfigMap(String logLevelRoot,
+    public static void copyLoggingConfigMap(K8sConfig kubeConfig,
+                                            String logLevelRoot,
                                             String logLevelTh2,
                                             String fullCommitRef,
-                                            Kubernetes kube) throws IOException {
-        copyLoggingConfigMap(logLevelRoot, logLevelTh2, kube, fullCommitRef, false);
+                                            Kubernetes kube) {
+        copyLoggingConfigMap(kubeConfig, logLevelRoot, logLevelTh2, kube, fullCommitRef, false);
     }
 
-    public static void copyLoggingConfigMap(String logLevelRoot,
+    public static void copyLoggingConfigMap(K8sConfig kubeConfig,
+                                            String logLevelRoot,
                                             String logLevelTh2,
                                             Kubernetes kube,
                                             String fullCommitRef,
-                                            boolean forceUpdate) throws IOException {
-        String configMapName = getLoggingConfigMapName();
+                                            boolean forceUpdate) {
+        String configMapName = getLoggingConfigMapName(kubeConfig);
         if (configMapName == null || configMapName.isEmpty()) {
             return;
         }
@@ -168,7 +171,7 @@ public class LoggingConfigMap {
         }
     }
 
-    private static String getLoggingConfigMapName() throws IOException {
-        return Config.getInstance().getKubernetes().getConfigMaps().get(LOGGING_CONFIGMAP_PARAM);
+    private static String getLoggingConfigMapName(K8sConfig kubeConfig) {
+        return kubeConfig.getConfigMaps().get(LOGGING_CONFIGMAP_PARAM);
     }
 }

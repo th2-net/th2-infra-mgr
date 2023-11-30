@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -42,6 +43,9 @@ public class StatusCache {
     private final SchemaEventRouter eventRouter;
 
     private Kubernetes kube;
+
+    @Autowired
+    private Config config;
 
     public StatusCache() {
         resources = new NamespaceResources();
@@ -130,7 +134,7 @@ public class StatusCache {
         }
 
         // find all pods for this component
-        // and compute lowest status as a common status
+        // and compute the lowest status as a common status
         ResourceCondition.Status podsStatus = null;
         for (ResourcePath p : components) {
             if (p.getKind().equals("Pod")) {
@@ -191,10 +195,9 @@ public class StatusCache {
     }
 
     @PostConstruct
-    public void start() throws Exception {
+    public void start() {
         LOGGER.info("Starting resource status monitoring");
 
-        Config config = Config.getInstance();
         kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
 
         kube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {

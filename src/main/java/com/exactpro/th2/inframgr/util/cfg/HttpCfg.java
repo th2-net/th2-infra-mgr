@@ -16,13 +16,7 @@
 
 package com.exactpro.th2.inframgr.util.cfg;
 
-import org.apache.commons.lang3.StringUtils;
-
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-
-import static com.exactpro.th2.inframgr.BasicAuthConfig.PASSWORD_ENCODER;
 
 public class HttpCfg {
 
@@ -38,29 +32,5 @@ public class HttpCfg {
 
     public void setAdminAccounts(Map<String, String> adminAccounts) {
         this.adminAccounts = adminAccounts;
-    }
-
-    public void validate() {
-        if (adminAccounts.isEmpty()) {
-            throw new IllegalStateException("'adminAccounts' mustn't be empty");
-        }
-
-        List<String> passwordProblems = adminAccounts.entrySet().stream()
-                .map(entry -> {
-                    try {
-                        if (PASSWORD_ENCODER.upgradeEncoding(entry.getValue())) {
-                            return "Upgrade password for admin user \"" + entry.getKey() + "\" is required";
-                        }
-                    } catch (RuntimeException e) {
-                        return "Password for admin user \"" + entry.getKey() + "\" is incorrect by reason: " +
-                                StringUtils.replace(e.getMessage(), entry.getValue(), "***");
-                    }
-                    return null;
-                }).filter(Objects::nonNull)
-                .toList();
-
-        if (!passwordProblems.isEmpty()) {
-            throw new IllegalStateException("'adminAccounts' has the problems: " + passwordProblems);
-        }
     }
 }

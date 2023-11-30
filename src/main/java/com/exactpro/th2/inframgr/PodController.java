@@ -35,13 +35,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @Controller
-@SuppressWarnings("unused")
 public class PodController {
     private static final Logger LOGGER = LoggerFactory.getLogger(PodController.class);
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
+
+    @Autowired
+    private Config config;
 
     @Autowired
     private StatusCache statusCache;
@@ -59,7 +61,6 @@ public class PodController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            Config config = Config.getInstance();
             try (Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
                 for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                     if (resource.getKind().equals(Kubernetes.KIND_POD)) {

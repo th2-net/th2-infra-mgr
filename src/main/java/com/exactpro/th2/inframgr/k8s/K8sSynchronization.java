@@ -19,10 +19,10 @@ package com.exactpro.th2.inframgr.k8s;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourceProcessor;
-import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.BookConfiguration;
-import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
+import com.exactpro.th2.inframgr.initializer.LoggingConfigMap;
 import com.exactpro.th2.inframgr.initializer.SchemaInitializer;
+import com.exactpro.th2.inframgr.initializer.Th2BoxConfigurations;
 import com.exactpro.th2.inframgr.metrics.ManagerMetrics;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
@@ -46,10 +46,10 @@ import io.prometheus.client.Histogram;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import rx.schedulers.Schedulers;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -65,6 +65,7 @@ public class K8sSynchronization {
 
     private static final Logger logger = LoggerFactory.getLogger(K8sSynchronization.class);
 
+    @Autowired
     private Config config;
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
@@ -90,12 +91,13 @@ public class K8sSynchronization {
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
-            SchemaInitializer.ensureSchema(schemaName, kube);
+            SchemaInitializer.ensureSchema(config, schemaName, kube);
             validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 
             RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
             try {
                 LoggingConfigMap.copyLoggingConfigMap(
+                        config.getKubernetes(),
                         settingsSpec.getLogLevelRoot(),
                         settingsSpec.getLogLevelTh2(),
                         fullCommitRef,
@@ -310,12 +312,6 @@ public class K8sSynchronization {
     public void start() {
         logger.info("Starting Kubernetes synchronization phase");
         subscribeToRepositoryEvents();
-        try {
-            config = Config.getInstance();
-        } catch (IOException e) {
-            logger.error("Error loading config");
-            throw new RuntimeException("Failed to start Kubernetes synchronization component");
-        }
     }
 
     private void subscribeToRepositoryEvents() {

@@ -28,6 +28,7 @@ import com.exactpro.th2.inframgr.k8s.Kubernetes;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +38,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 
 @Controller
-@SuppressWarnings("unused")
 public class DescriptorController {
 
     private static final String PROTOBUF_DESCRIPTOR = "protobuf-description-base64";
@@ -49,6 +49,9 @@ public class DescriptorController {
     private static final String FORMATTING_ERROR = "INVALID_FORMAT";
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
+
+    @Autowired
+    private Config config;
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
@@ -70,7 +73,6 @@ public class DescriptorController {
 
         String descriptor;
         try {
-            Config config = Config.getInstance();
             Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName);
             RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());

@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Controller
-@SuppressWarnings("unused")
 public class DeploymentController {
 
     public static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";

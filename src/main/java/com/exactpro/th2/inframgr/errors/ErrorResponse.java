@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-@SuppressWarnings("unused")
 public class ErrorResponse {
 
     public static final String STATUS_CODE = "status_code";

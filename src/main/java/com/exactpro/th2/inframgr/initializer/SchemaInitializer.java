@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,12 +41,13 @@ import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.KIND_SERVICE_MONITOR;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 
@@ -110,17 +111,12 @@ public class SchemaInitializer {
         FORCE
     }
 
-    public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
-        ensureSchema(schemaName, kube, Config.getInstance().getKubernetes().getSchemaSyncMode());
-        K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
-    }
-
-    public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
-        switch (syncMode) {
+    public static void ensureSchema(Config config, String schemaName, Kubernetes kube) {
+        switch (config.getKubernetes().getSchemaSyncMode()) {
             case CHECK_NAMESPACE:
                 if (kube.existsNamespace()) {
                     if (!kube.namespaceActive()) {
-                        retryTaskQueue.add(new SchemaRecoveryTask(schemaName, NAMESPACE_RETRY_DELAY), true);
+                        retryTaskQueue.add(new SchemaRecoveryTask(config, schemaName, NAMESPACE_RETRY_DELAY), true);
                         throw new IllegalStateException(
                                 String.format(
                                         "Cannot synchronize branch \"%s\" as corresponding namespace in the wrong state"
@@ -130,21 +126,19 @@ public class SchemaInitializer {
                     }
                     return;
                 }
-                ensureNameSpace(schemaName, kube, false);
+                ensureNameSpace(config, schemaName, kube, false);
                 break;
             case CHECK_RESOURCES:
-                ensureNameSpace(schemaName, kube, false);
+                ensureNameSpace(config, schemaName, kube, false);
                 break;
             case FORCE:
-                ensureNameSpace(schemaName, kube, true);
+                ensureNameSpace(config, schemaName, kube, true);
                 break;
         }
+        K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
     }
 
-    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
-
-        Config config = Config.getInstance();
-
+    private static void ensureNameSpace(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
         if (!kube.existsNamespace()) {
             // namespace not found, create it
             logger.info("Creating namespace \"{}\"", kube.getNamespaceName());
