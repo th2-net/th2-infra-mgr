@@ -69,13 +69,13 @@ public class K8sSynchronization {
     private Config config;
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
     private void deleteNamespace(String schemaName) {
         try {
-            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             if (schemaKube.existsNamespace()) {
                 logger.info("Removing schema \"{}\" from kubernetes", schemaName);
                 DynamicResourceProcessor.deleteSchema(schemaName);
@@ -95,7 +95,7 @@ public class K8sSynchronization {
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         String shortCommitRef = getShortCommitRef(fullCommitRef);
         try {
-            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             SchemaInitializer.ensureSchema(config, schemaKube);
             validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 

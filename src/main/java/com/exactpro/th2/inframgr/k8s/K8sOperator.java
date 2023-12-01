@@ -59,7 +59,7 @@ public class K8sOperator {
     private RepositoryWatcherService repositoryWatcherService;
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     private K8sResourceCache cache;
 
@@ -79,7 +79,7 @@ public class K8sOperator {
         }
 
         logger.info("Creating informers");
-        Kubernetes anonKube = kubernetesController.getKubernetes();
+        Kubernetes anonKube = kubernetesService.getKubernetes();
         cache = K8sResourceCache.INSTANCE;
 
         anonKube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
@@ -215,7 +215,7 @@ public class K8sOperator {
                         logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. " +
                                         "Scheduled full schema synchronization"
                                 , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
-                        taskQueue.add(new SchemaRecoveryTask(kubernetesController.getKubernetes(schemaName)), true);
+                        taskQueue.add(new SchemaRecoveryTask(kubernetesService.getKubernetes(schemaName)), true);
                     } else {
                         anonKube.createOrReplaceCustomResource(resource, namespace);
                     }

@@ -20,7 +20,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.k8s.KubernetesController;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
@@ -50,7 +50,7 @@ public class PodController {
     private StatusCache statusCache;
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     @DeleteMapping("/pod/{schema}/{kind}/{resource}")
     public ResponseEntity<?> deleteResourcePods(
@@ -65,7 +65,7 @@ public class PodController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 if (resource.getKind().equals(Kubernetes.KIND_POD)) {
                     String annotation = annotationFor(schemaKube.getNamespaceName(),

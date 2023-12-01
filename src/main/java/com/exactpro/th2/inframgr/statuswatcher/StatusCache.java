@@ -19,7 +19,7 @@ package com.exactpro.th2.inframgr.statuswatcher;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.k8s.KubernetesController;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
@@ -49,7 +49,7 @@ public class StatusCache {
     private Config config;
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     public StatusCache() {
         resources = new NamespaceResources();
@@ -202,7 +202,7 @@ public class StatusCache {
     public void start() {
         LOGGER.info("Starting resource status monitoring");
 
-        anonKube = kubernetesController.getKubernetes();
+        anonKube = kubernetesService.getKubernetes();
 
         anonKube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
 

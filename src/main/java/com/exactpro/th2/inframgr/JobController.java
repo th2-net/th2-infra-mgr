@@ -20,7 +20,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.k8s.KubernetesController;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.infrarepo.git.Gitter;
 import com.exactpro.th2.infrarepo.git.GitterContext;
@@ -52,7 +52,7 @@ public class JobController {
     private Config config;
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     @PutMapping("/jobs/{schemaName}/{jobName}")
     public void putSecrets(@PathVariable(name = "schemaName") String schemaName,
@@ -66,7 +66,7 @@ public class JobController {
         }
 
         try {
-            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             RepositoryResource resource;
             String resourceLabel;
             GitterContext ctx = GitterContext.getContext(config.getGit());

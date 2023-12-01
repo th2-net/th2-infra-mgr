@@ -22,15 +22,15 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Service;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-@Controller
-public class KubernetesController {
+@Service
+public class KubernetesService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KubernetesController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KubernetesService.class);
 
     private final ConcurrentMap<String, Kubernetes> clients = new ConcurrentHashMap<>();
 

@@ -25,7 +25,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
-import com.exactpro.th2.inframgr.k8s.KubernetesController;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -52,7 +52,7 @@ public class DescriptorController {
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     @Autowired
-    private KubernetesController kubernetesController;
+    private KubernetesService kubernetesService;
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
@@ -74,7 +74,7 @@ public class DescriptorController {
 
         String descriptor;
         try {
-            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(schemaKube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
             DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, schemaKube);
