@@ -55,15 +55,21 @@ public class K8sOperator {
     @Autowired
     private Config config;
 
+    @Autowired
+    private RepositoryWatcherService repositoryWatcherService;
+
+    @Autowired
+    private KubernetesController kubernetesController;
+
     private K8sResourceCache cache;
 
     private RetryableTaskQueue taskQueue;
 
     private void startInformers() {
         // wait for startup synchronization to complete
-        logger.info("Operator is waiting for kubernetes startup  synchronization to complete");
+        logger.info("Operator is waiting for anon Kube startup synchronization to complete");
         while (!(Thread.currentThread().isInterrupted()
-                || RepositoryWatcherService.isStartupSynchronizationComplete())) {
+                || repositoryWatcherService.isStartupSynchronizationComplete())) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
@@ -73,34 +79,33 @@ public class K8sOperator {
         }
 
         logger.info("Creating informers");
-        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null)) {
-            cache = K8sResourceCache.INSTANCE;
+        Kubernetes anonKube = kubernetesController.getKubernetes();
+        cache = K8sResourceCache.INSTANCE;
 
-            kube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
+        anonKube.registerCustomResourceSharedInformers(new ResourceEventHandler<K8sCustomResource>() {
 
-                @Override
-                public void onAdd(K8sCustomResource obj) {
-                    processEvent(Watcher.Action.ADDED, obj, kube);
-                }
+            @Override
+            public void onAdd(K8sCustomResource obj) {
+                processEvent(Watcher.Action.ADDED, obj, anonKube);
+            }
 
-                @Override
-                public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
-                    processEvent(Watcher.Action.MODIFIED, newObj, kube);
-                }
+            @Override
+            public void onUpdate(K8sCustomResource oldObj, K8sCustomResource newObj) {
+                processEvent(Watcher.Action.MODIFIED, newObj, anonKube);
+            }
 
-                @Override
-                public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
-                    processEvent(Watcher.Action.DELETED, obj, kube);
-                }
-            });
+            @Override
+            public void onDelete(K8sCustomResource obj, boolean deletedFinalStateUnknown) {
+                processEvent(Watcher.Action.DELETED, obj, anonKube);
+            }
+        });
 
-            kube.startInformers();
+        anonKube.startInformers();
 
-            logger.info("Informers has been started");
-        }
+        logger.info("Informers has been started");
     }
 
-    private void processEvent(Watcher.Action action, K8sCustomResource res, Kubernetes kube) {
+    private void processEvent(Watcher.Action action, K8sCustomResource res, Kubernetes anonKube) {
 
         try {
             ObjectMeta meta = res.getMetadata();
@@ -138,7 +143,8 @@ public class K8sOperator {
 
                 // action is needed as optimistic check did not draw enough conclusions
                 GitterContext ctx = GitterContext.getContext(config.getGit());
-                Gitter gitter = ctx.getGitter(kube.extractSchemaName(namespace));
+                String schemaName = anonKube.extractSchemaName(namespace);
+                Gitter gitter = ctx.getGitter(schemaName);
 
                 RepositoryResource resource = null;
                 try {
@@ -204,18 +210,18 @@ public class K8sOperator {
                     logger.info("Detected external manipulation on {}, recreating resource {}", resourceLabel, hashTag);
 
                     // check current status of namespace
-                    Namespace n = kube.getNamespace(namespace);
+                    Namespace n = anonKube.getNamespace(namespace);
                     if (n == null || !n.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {
                         logger.warn("Cannot recreate resource {} as namespace is in \"{}\" state. " +
                                         "Scheduled full schema synchronization"
                                 , resourceLabel, (n == null ? "Deleted" : n.getStatus().getPhase()));
-                        taskQueue.add(new SchemaRecoveryTask(config, kube.extractSchemaName(namespace)), true);
+                        taskQueue.add(new SchemaRecoveryTask(kubernetesController.getKubernetes(schemaName)), true);
                     } else {
-                        kube.createOrReplaceCustomResource(resource, namespace);
+                        anonKube.createOrReplaceCustomResource(resource, namespace);
                     }
                 } else if (actionDelete) {
                     logger.info("Detected external manipulation on {}, deleting resource {}", resourceLabel, hashTag);
-                    kube.deleteCustomResource(resource, namespace);
+                    anonKube.deleteCustomResource(resource, namespace);
                 }
 
             } finally {

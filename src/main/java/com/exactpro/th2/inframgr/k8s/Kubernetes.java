@@ -472,12 +472,15 @@ public class Kubernetes implements Closeable {
 
     private Map<String, MixedOperation> operations;
 
-    private String namespace;
+    private final String schemaName;
+
+    private final String namespace;
 
     public Kubernetes(BehaviourCfg behaviour, K8sConfig config, String schemaName) {
         this.permittedToRemoveNamespace = behaviour.isPermittedToRemoveNamespace();
         // if we are not using custom configuration, let fabric8 handle initialization
         this.namespacePrefix = config.getNamespacePrefix();
+        this.schemaName = schemaName;
         this.namespace = formatNamespaceName(schemaName);
         this.currentNamespace = new CurrentNamespace();
 
@@ -534,6 +537,10 @@ public class Kubernetes implements Closeable {
     public Secret createOrReplaceSecret(Secret secret) {
         secret.getMetadata().setNamespace(namespace);
         return client.resource(secret).inNamespace(namespace).createOrReplace();
+    }
+
+    public String getSchemaName() {
+        return schemaName;
     }
 
     public String getNamespaceName() {

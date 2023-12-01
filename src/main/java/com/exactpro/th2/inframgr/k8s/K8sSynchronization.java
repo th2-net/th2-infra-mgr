@@ -68,15 +68,19 @@ public class K8sSynchronization {
     @Autowired
     private Config config;
 
+    @Autowired
+    private KubernetesController kubernetesController;
+
     private final K8sSynchronizationJobQueue jobQueue = new K8sSynchronizationJobQueue();
 
     private void deleteNamespace(String schemaName) {
-        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
-            if (kube.existsNamespace()) {
+        try {
+            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            if (schemaKube.existsNamespace()) {
                 logger.info("Removing schema \"{}\" from kubernetes", schemaName);
                 DynamicResourceProcessor.deleteSchema(schemaName);
-                K8sResourceCache.INSTANCE.removeNamespace(kube.formatNamespaceName(schemaName));
-                kube.deleteNamespace();
+                K8sResourceCache.INSTANCE.removeNamespace(schemaKube.getNamespaceName());
+                schemaKube.deleteNamespace();
             }
         } catch (Exception e) {
             logger.error("Exception removing schema \"{}\" from kubernetes", schemaName, e);
@@ -90,8 +94,9 @@ public class K8sSynchronization {
 
         Histogram.Timer timer = ManagerMetrics.getCommitTimer();
         String shortCommitRef = getShortCommitRef(fullCommitRef);
-        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
-            SchemaInitializer.ensureSchema(config, schemaName, kube);
+        try {
+            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            SchemaInitializer.ensureSchema(config, schemaKube);
             validateSchema(schemaName, repositoryResources, repositorySettings, shortCommitRef);
 
             RepositorySettingsSpec settingsSpec = repositorySettings.getSpec();
@@ -101,7 +106,7 @@ public class K8sSynchronization {
                         settingsSpec.getLogLevelRoot(),
                         settingsSpec.getLogLevelTh2(),
                         fullCommitRef,
-                        kube
+                        schemaKube
                 );
             } catch (Exception e) {
                 logger.error("Exception copying logging config map to schema \"{}\"", schemaName, e);
@@ -109,7 +114,7 @@ public class K8sSynchronization {
 
             BookConfiguration.synchronizeBookConfig(
                     settingsSpec.getBookConfig(),
-                    kube,
+                    schemaKube,
                     fullCommitRef
             );
 
@@ -118,10 +123,10 @@ public class K8sSynchronization {
                     settingsSpec.getGrpcRouter(),
                     settingsSpec.getCradleManager(),
                     fullCommitRef,
-                    kube
+                    schemaKube
             );
 
-            syncCustomResourcesWithK8s(schemaName, repositoryResources, kube, shortCommitRef);
+            syncCustomResourcesWithK8s(schemaName, repositoryResources, schemaKube, shortCommitRef);
 
         } finally {
             timer.observeDuration();
@@ -164,10 +169,10 @@ public class K8sSynchronization {
 
     private void syncCustomResourcesWithK8s(String schemaName,
                                             Map<String, Map<String, RepositoryResource>> repositoryResources,
-                                            Kubernetes kube, String shortCommitRef) {
-        String namespace = kube.formatNamespaceName(schemaName);
+                                            Kubernetes schemaKube, String shortCommitRef) {
+        String namespace = schemaKube.getNamespaceName();
         K8sResourceCache cache = K8sResourceCache.INSTANCE;
-        Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(kube);
+        Map<String, Map<String, K8sCustomResource>> k8sResources = loadCustomResources(schemaKube);
         // synchronize by resource type
         for (ResourceType type : ResourceType.values()) {
             if (type.isMangedResource() && !type.equals(ResourceType.Th2Job)) {
@@ -189,7 +194,7 @@ public class K8sSynchronization {
                         logger.info("Creating resource {} {}. [commit: {}]",
                                 resourceLabel, hashTag, shortCommitRef);
                         try {
-                            kube.createCustomResource(resource);
+                            schemaKube.createCustomResource(resource);
                         } catch (Exception e) {
                             logger.error("Exception creating resource {} {}. [commit: {}]",
                                     resourceLabel, hashTag, shortCommitRef, e);
@@ -204,7 +209,7 @@ public class K8sSynchronization {
                             logger.info("Updating resource {} {}. [commit: {}]",
                                     resourceLabel, hashTag, shortCommitRef);
                             try {
-                                kube.replaceCustomResource(resource);
+                                schemaKube.replaceCustomResource(resource);
                             } catch (Exception e) {
                                 logger.error("Exception updating resource {} {}. [commit: {}]",
                                         resourceLabel, hashTag, shortCommitRef, e);
@@ -225,7 +230,7 @@ public class K8sSynchronization {
                             meta.setName(resourceName);
                             resource.setMetadata(meta);
                             DynamicResourceProcessor.checkResource(resource, schemaName, true);
-                            kube.deleteCustomResource(resource);
+                            schemaKube.deleteCustomResource(resource);
                         } catch (Exception e) {
                             logger.error("Exception deleting resource {}. [commit: {}]",
                                     resourceLabel, shortCommitRef, e);

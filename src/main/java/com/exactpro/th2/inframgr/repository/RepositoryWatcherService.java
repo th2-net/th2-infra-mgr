@@ -170,7 +170,7 @@ public class RepositoryWatcherService {
                 .toList();
     }
 
-    public static boolean isStartupSynchronizationComplete() {
+    public boolean isStartupSynchronizationComplete() {
         return startupSynchronizationComplete;
     }
 }

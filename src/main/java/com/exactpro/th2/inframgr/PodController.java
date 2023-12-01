@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesController;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
@@ -48,6 +49,9 @@ public class PodController {
     @Autowired
     private StatusCache statusCache;
 
+    @Autowired
+    private KubernetesController kubernetesController;
+
     @DeleteMapping("/pod/{schema}/{kind}/{resource}")
     public ResponseEntity<?> deleteResourcePods(
             @PathVariable(name = "schema") String schemaName,
@@ -61,17 +65,16 @@ public class PodController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            try (Kubernetes kubernetes = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName)) {
-                for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
-                    if (resource.getKind().equals(Kubernetes.KIND_POD)) {
-                        String annotation = annotationFor(kubernetes.getNamespaceName(),
-                                Kubernetes.KIND_POD, resource.getName());
-                        try {
-                            kubernetes.deletePodWithName(resource.getName(), force);
-                            LOGGER.info("Deleted pod \"{}\", schema name \"{}\"", annotation, schemaName);
-                        } catch (KubernetesClientException e) {
-                            LOGGER.error("Could not delete pod \"{}\"", annotation, e);
-                        }
+            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
+                if (resource.getKind().equals(Kubernetes.KIND_POD)) {
+                    String annotation = annotationFor(schemaKube.getNamespaceName(),
+                            Kubernetes.KIND_POD, resource.getName());
+                    try {
+                        schemaKube.deletePodWithName(resource.getName(), force);
+                        LOGGER.info("Deleted pod \"{}\", schema name \"{}\"", annotation, schemaName);
+                    } catch (KubernetesClientException e) {
+                        LOGGER.error("Could not delete pod \"{}\"", annotation, e);
                     }
                 }
             }

@@ -128,7 +128,7 @@ public class Config {
 
     private Config() {}
 
-    public static Config instance() throws IOException {
+    public static Config createInstance() throws IOException {
         Path file = CONFIG_DIR.resolve(CONFIG_FILE);
         return readConfiguration(file);
     }

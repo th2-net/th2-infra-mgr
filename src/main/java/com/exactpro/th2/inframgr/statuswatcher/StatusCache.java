@@ -19,6 +19,7 @@ package com.exactpro.th2.inframgr.statuswatcher;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesController;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
@@ -42,10 +43,13 @@ public class StatusCache {
 
     private final SchemaEventRouter eventRouter;
 
-    private Kubernetes kube;
+    private Kubernetes anonKube;
 
     @Autowired
     private Config config;
+
+    @Autowired
+    private KubernetesController kubernetesController;
 
     public StatusCache() {
         resources = new NamespaceResources();
@@ -96,7 +100,7 @@ public class StatusCache {
 
         List<StatusUpdateEvent> events = new ArrayList<>();
 
-        String namespace = kube.formatNamespaceName(schema);
+        String namespace = anonKube.formatNamespaceName(schema);
         List<ResourceCondition> schemaElements = resources.getSchemaElements(namespace);
         if (schemaElements == null) {
             return null;
@@ -116,7 +120,7 @@ public class StatusCache {
                                                                               String kind,
                                                                               String resourceName) {
 
-        String namespace = kube.formatNamespaceName(schema);
+        String namespace = anonKube.formatNamespaceName(schema);
         return resources.getResourceElements(namespace, kind, resourceName);
     }
 
@@ -198,14 +202,14 @@ public class StatusCache {
     public void start() {
         LOGGER.info("Starting resource status monitoring");
 
-        kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
+        anonKube = kubernetesController.getKubernetes();
 
-        kube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
+        anonKube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
 
             @Override
             public void onAdd(HasMetadata obj) {
                 ResourceCondition resource = ResourceCondition.extractFrom(obj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.ADD);
             }
@@ -213,7 +217,7 @@ public class StatusCache {
             @Override
             public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
                 ResourceCondition resource = ResourceCondition.extractFrom(newObj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.ADD);
             }
@@ -221,13 +225,13 @@ public class StatusCache {
             @Override
             public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
                 ResourceCondition resource = ResourceCondition.extractFrom(obj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.REMOVE);
             }
         });
 
-        kube.startInformers();
+        anonKube.startInformers();
     }
 
     private enum Action {

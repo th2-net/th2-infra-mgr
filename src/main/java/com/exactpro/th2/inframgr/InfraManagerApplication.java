@@ -45,6 +45,6 @@ public class InfraManagerApplication {
 
     @Bean
     public Config config() throws IOException {
-        return Config.instance();
+        return Config.createInstance();
     }
 }

@@ -23,6 +23,7 @@ import com.exactpro.th2.inframgr.docker.monitoring.watcher.RegistryWatcher;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesController;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.ResourceType;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
@@ -47,6 +48,9 @@ public class DynamicResourceProcessor {
 
     @Autowired
     private Config config;
+
+    @Autowired
+    private KubernetesController kubernetesController;
 
     private static final List<String> monitoredKinds = List.of(
             ResourceType.Th2Box.kind(),
@@ -149,8 +153,8 @@ public class DynamicResourceProcessor {
 
     @NotNull
     private RegistryWatcher getRegistryWatcher() {
-        Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), null);
-        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+        Kubernetes anonKube = kubernetesController.getKubernetes();
+        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(anonKube);
         RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
         return new RegistryWatcher(
                 config,

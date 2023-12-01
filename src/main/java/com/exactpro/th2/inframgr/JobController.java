@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesController;
 import com.exactpro.th2.infrarepo.*;
 import com.exactpro.th2.infrarepo.git.Gitter;
 import com.exactpro.th2.infrarepo.git.GitterContext;
@@ -39,8 +40,6 @@ import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor
 @RestController
 public class JobController {
 
-    private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
-
     private static final String GIT_ERROR = "GIT_ERROR";
 
     private static final String CONFIG_ERROR = "GIT_ERROR";
@@ -51,6 +50,9 @@ public class JobController {
 
     @Autowired
     private Config config;
+
+    @Autowired
+    private KubernetesController kubernetesController;
 
     @PutMapping("/jobs/{schemaName}/{jobName}")
     public void putSecrets(@PathVariable(name = "schemaName") String schemaName,
@@ -63,9 +65,8 @@ public class JobController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid resource name");
         }
 
-        try (Kubernetes kube = new Kubernetes(
-                config.getBehaviour(), config.getKubernetes(), schemaName
-        )) {
+        try {
+            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
             RepositoryResource resource;
             String resourceLabel;
             GitterContext ctx = GitterContext.getContext(config.getGit());
@@ -74,15 +75,15 @@ public class JobController {
                 gitter.lock();
                 gitter.checkout();
                 resource = Repository.getResource(gitter, ResourceType.Th2Job.kind(), jobName);
-                resourceLabel = annotationFor(kube.getNamespaceName(), ResourceType.Th2Job.kind(), jobName);
+                resourceLabel = annotationFor(schemaKube.getNamespaceName(), ResourceType.Th2Job.kind(), jobName);
             } catch (GitAPIException e) {
                 throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, GIT_ERROR, e);
             } finally {
                 gitter.unlock();
             }
-            kube.deleteCustomResource(resource);
+            schemaKube.deleteCustomResource(resource);
             LOGGER.info("Delete resource : {}", resourceLabel);
-            kube.createCustomResource(resource);
+            schemaKube.createCustomResource(resource);
             LOGGER.info("Created job with name : {}", resourceLabel);
         } catch (IOException e) {
             throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, CONFIG_ERROR, e);

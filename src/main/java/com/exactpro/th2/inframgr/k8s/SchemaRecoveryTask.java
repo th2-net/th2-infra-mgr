@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEvent;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.util.RetryableTask;
@@ -24,31 +23,31 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 public class SchemaRecoveryTask implements RetryableTask {
 
     private static final Logger logger = LoggerFactory.getLogger(SchemaRecoveryTask.class);
 
     private static final int RETRY_DELAY_SEC = 60;
 
-    private final String schema;
+    private final Kubernetes schemaKube;
 
     private final int retryDelay;
 
-    private final Config config;
-
-    public SchemaRecoveryTask(Config config, String schema, int retryDelay) {
-        this.config = config;
-        this.schema = schema;
+    public SchemaRecoveryTask(Kubernetes schemaKube, int retryDelay) {
+        Objects.requireNonNull(schemaKube.getSchemaName(), "Kubernetes client is anonymous");
+        this.schemaKube = schemaKube;
         this.retryDelay = retryDelay;
     }
 
-    public SchemaRecoveryTask(Config config, String schema) {
-        this(config, schema, RETRY_DELAY_SEC);
+    public SchemaRecoveryTask(Kubernetes schemaKube) {
+        this(schemaKube, RETRY_DELAY_SEC);
     }
 
     @Override
     public String getUniqueKey() {
-        return SchemaRecoveryTask.class.getName() + ":" + schema;
+        return SchemaRecoveryTask.class.getName() + ":" + schemaKube.getSchemaName();
     }
 
     @Override
@@ -59,8 +58,8 @@ public class SchemaRecoveryTask implements RetryableTask {
     @Override
     public void run() {
         // check actual state of the namespace
-        try (Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schema)) {
-            Namespace namespace = kube.getNamespace(kube.getNamespaceName());
+        try {
+            Namespace namespace = schemaKube.getNamespace(schemaKube.getNamespaceName());
 
             if (namespace != null && !namespace.getStatus().getPhase().equals(Kubernetes.PHASE_ACTIVE)) {
                 // namespace is still unavailable for operations
@@ -77,12 +76,13 @@ public class SchemaRecoveryTask implements RetryableTask {
             // namespace not found or is marked as active
             // send synchronization request
             SchemaEventRouter router = SchemaEventRouter.getInstance();
-            SchemaEvent event = new SynchronizationRequestEvent(schema);
-            router.addEvent(schema, event);
+            SchemaEvent event = new SynchronizationRequestEvent(schemaKube.getSchemaName());
+            router.addEvent(schemaKube.getSchemaName(), event);
 
         } catch (Exception e) {
             // rethrow exception to re-execute this task in the future
-            logger.error("Exception recovering schema \"{}\", will be rescheduled for retry", schema, e);
+            logger.error("Exception recovering schema \"{}\", will be rescheduled for retry",
+                    schemaKube.getSchemaName(), e);
             throw new RuntimeException(e);
         }
     }

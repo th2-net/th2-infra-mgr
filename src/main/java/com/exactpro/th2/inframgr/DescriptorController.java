@@ -25,6 +25,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesController;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -51,7 +52,7 @@ public class DescriptorController {
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     @Autowired
-    private Config config;
+    private KubernetesController kubernetesController;
 
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
@@ -73,10 +74,10 @@ public class DescriptorController {
 
         String descriptor;
         try {
-            Kubernetes kube = new Kubernetes(config.getBehaviour(), config.getKubernetes(), schemaName);
-            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+            Kubernetes schemaKube = kubernetesController.getKubernetes(schemaName);
+            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(schemaKube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-            DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
+            DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, schemaKube);
             String resourceLabel = annotationFor(schemaName, kind, box);
             descriptor = descriptorExtractor.getImageDescriptor(resourceLabel, kind, box, PROTOBUF_DESCRIPTOR);
         } catch (ResourceNotFoundException e) {
