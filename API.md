@@ -211,6 +211,10 @@ Response body is empty, with `204 No Content` response code.
 ##
 ##
 ### Secrets API
+
+`/secrets/**` are accessible for users with admin role only.
+Please look at the README for `http` configuration to configure admin users. 
+
 __GET/secrets/{schema}__
 
 __Returns:__
@@ -218,6 +222,12 @@ __Returns:__
 Set containing names of keys of custom secrets in specified schema.
 
 __Response body example:__
+
+__CURL example:__
+
+`curl -u "admin:password" 'http://my-cluster:30000/editor/backend/secrets/my-schema'`
+
+`["cassandraPassword"]`
 
 If there are two keys in custom secrets file of this schema
 ```json
@@ -254,6 +264,12 @@ __Response body example:__
     "key2"
 ]
 ```
+
+__CURL example:__
+
+`curl curl -X PUT 'http://my-cluster:30000/editor/backend/secrets/my-schema' 
+  -u "admin:password" -H 'Content-Type: application/json' 
+  -d '[{"key":"key1","data":"dXBkYXRlZHZhbHVl","key":"key2","data":"c29tZS1zZWNyZXQtdmFsdWU="}]'`
 ##
 __DELETE/secrets/{schema}__
 
@@ -275,4 +291,24 @@ __Response body example:__
     "key1"
 ]
 ```
+
 ##
+##
+### Namespace API
+
+`/namespace/**` endpoints are accessible for users with admin role only.
+Please look at the README for `http` configuration to configure admin users.
+
+__DELETE/namespace/{schema}__
+
+Deletes Kubernetes namespace related to `schema` if related git branch is deleted or spec.k8s-propagation: deny
+
+__Returns:__
+
+Name of deleted Kubernetes namespace.
+
+__Response body example:__
+`th2-my-schema`
+
+__CURL example:__
+`curl -X DELETE 'http://my-cluster:30000/editor/backend/namespace/my-schema' -u "admin:password" `

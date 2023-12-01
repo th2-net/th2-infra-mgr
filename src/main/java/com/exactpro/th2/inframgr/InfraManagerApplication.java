@@ -16,14 +16,16 @@
 
 package com.exactpro.th2.inframgr;
 
-import com.exactpro.th2.inframgr.metrics.PrometheusServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.cassandra.CassandraAutoConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
+
+import java.io.IOException;
 
 @SpringBootApplication
 @EnableScheduling
@@ -33,16 +35,16 @@ public class InfraManagerApplication {
     public static void main(String[] args) {
 
         try {
-            // preload configuration
-            Config.getInstance();
-
-            PrometheusServer.start();
             SpringApplication application = new SpringApplication(InfraManagerApplication.class);
             application.run(args);
-
         } catch (Exception e) {
             Logger logger = LoggerFactory.getLogger(InfraManagerApplication.class);
             logger.error("Exiting with exception", e);
         }
+    }
+
+    @Bean
+    public Config config() throws IOException {
+        return Config.createInstance();
     }
 }

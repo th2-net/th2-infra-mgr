@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,30 +19,37 @@ package com.exactpro.th2.inframgr.statuswatcher;
 import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SchemaEventRouter;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 
 @Component
 public class StatusCache {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StatusCache.class);
 
-    private NamespaceResources resources;
+    private final NamespaceResources resources;
 
-    private Map<ResourcePath, Set<ResourcePath>> dependencies;
+    private final Map<ResourcePath, Set<ResourcePath>> dependencies;
 
-    private Map<ResourcePath, ResourcePath> dependents;
+    private final Map<ResourcePath, ResourcePath> dependents;
 
-    private SchemaEventRouter eventRouter;
+    private final SchemaEventRouter eventRouter;
 
-    private Kubernetes kube;
+    private Kubernetes anonKube;
 
-    private static final Logger logger = LoggerFactory.getLogger(StatusCache.class);
+    @Autowired
+    private Config config;
+
+    @Autowired
+    private KubernetesService kubernetesService;
 
     public StatusCache() {
         resources = new NamespaceResources();
@@ -57,10 +64,7 @@ public class StatusCache {
             ResourcePath path = ResourcePath.fromMetadata(resource);
             ResourceType type = ResourceType.forKind(path.getKind());
 
-            boolean isSchemaElement = false;
-            if (type != null && type.isMangedResource()) {
-                isSchemaElement = true;
-            }
+            boolean isSchemaElement = type != null && type.isMangedResource();
 
             ResourcePath annotationPath = null;
             switch (action) {
@@ -96,7 +100,7 @@ public class StatusCache {
 
         List<StatusUpdateEvent> events = new ArrayList<>();
 
-        String namespace = kube.formatNamespaceName(schema);
+        String namespace = anonKube.formatNamespaceName(schema);
         List<ResourceCondition> schemaElements = resources.getSchemaElements(namespace);
         if (schemaElements == null) {
             return null;
@@ -116,9 +120,8 @@ public class StatusCache {
                                                                               String kind,
                                                                               String resourceName) {
 
-        String namespace = kube.formatNamespaceName(schema);
-        List<ResourceCondition> elements = resources.getResourceElements(namespace, kind, resourceName);
-        return elements;
+        String namespace = anonKube.formatNamespaceName(schema);
+        return resources.getResourceElements(namespace, kind, resourceName);
     }
 
     private ResourceCondition.Status calculateStatus(ResourceCondition resource) {
@@ -135,7 +138,7 @@ public class StatusCache {
         }
 
         // find all pods for this component
-        // and compute lowest status as a common status
+        // and compute the lowest status as a common status
         ResourceCondition.Status podsStatus = null;
         for (ResourcePath p : components) {
             if (p.getKind().equals("Pod")) {
@@ -196,18 +199,17 @@ public class StatusCache {
     }
 
     @PostConstruct
-    public void start() throws Exception {
-        logger.info("Starting resource status monitoring");
+    public void start() {
+        LOGGER.info("Starting resource status monitoring");
 
-        Config config = Config.getInstance();
-        kube = new Kubernetes(config.getKubernetes(), null);
+        anonKube = kubernetesService.getKubernetes();
 
-        kube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
+        anonKube.registerSharedInformersAll(new ResourceEventHandler<HasMetadata>() {
 
             @Override
             public void onAdd(HasMetadata obj) {
                 ResourceCondition resource = ResourceCondition.extractFrom(obj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.ADD);
             }
@@ -215,7 +217,7 @@ public class StatusCache {
             @Override
             public void onUpdate(HasMetadata oldObj, HasMetadata newObj) {
                 ResourceCondition resource = ResourceCondition.extractFrom(newObj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.ADD);
             }
@@ -223,13 +225,13 @@ public class StatusCache {
             @Override
             public void onDelete(HasMetadata obj, boolean deletedFinalStateUnknown) {
                 ResourceCondition resource = ResourceCondition.extractFrom(obj);
-                String schema = kube.extractSchemaName(resource.getNamespace());
+                String schema = anonKube.extractSchemaName(resource.getNamespace());
 
                 update(resource, schema, StatusCache.Action.REMOVE);
             }
         });
 
-        kube.startInformers();
+        anonKube.startInformers();
     }
 
     private enum Action {

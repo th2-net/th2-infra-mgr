@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import com.exactpro.th2.inframgr.models.RequestOperation;
 import com.exactpro.th2.inframgr.models.ResourceEntry;
 import com.exactpro.th2.inframgr.repository.RepositoryUpdateEvent;
 import com.exactpro.th2.inframgr.util.SchemaErrorPrinter;
-import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.InconsistentRepositoryStateException;
 import com.exactpro.th2.infrarepo.SchemaUtils;
 import com.exactpro.th2.infrarepo.git.Gitter;
@@ -37,7 +36,6 @@ import com.exactpro.th2.infrarepo.settings.RepositorySettingsSpec;
 import com.exactpro.th2.validator.SchemaValidator;
 import com.exactpro.th2.validator.ValidationReport;
 import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
@@ -45,14 +43,26 @@ import org.eclipse.jgit.api.errors.RefNotAdvertisedException;
 import org.eclipse.jgit.api.errors.RefNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Controller
 public class SchemaController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SchemaController.class);
 
     public static final String SCHEMA_EXISTS = "SCHEMA_EXISTS";
 
@@ -62,41 +72,41 @@ public class SchemaController {
 
     public static final String SOURCE_BRANCH = "master";
 
-    private static final Logger logger = LoggerFactory.getLogger(SchemaController.class);
+    @Autowired
+    private Config config;
 
     @GetMapping("/schemas")
     @ResponseBody
     public Set<String> getAvailableSchemas() throws ServiceException {
 
         try {
-            GitterContext ctx = GitterContext.getContext(Config.getInstance().getGit());
+            GitterContext ctx = GitterContext.getContext(config.getGit());
             Set<String> schemas = ctx.getBranches();
             schemas.remove(SOURCE_BRANCH);
             return schemas;
         } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
         }
     }
 
     @GetMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) throws Exception {
+    public SchemaControllerResponse getSchemaFiles(@PathVariable(name = "name") String schemaName) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
 
-        GitCfg gitConfig = Config.getInstance().getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
         final Gitter gitter = ctx.getGitter(schemaName);
         try {
             gitter.lock();
             return new SchemaControllerResponse(Repository.getSnapshot(gitter));
         } catch (RefNotAdvertisedException | RefNotFoundException e) {
-            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
+            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists", e);
         } catch (Exception e) {
-            logger.error("Exception retrieving schema {} from repository", schemaName, e);
-            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+            LOGGER.error("Exception retrieving schema {} from repository", schemaName, e);
+            throw new NotAcceptableException(REPOSITORY_ERROR, e);
         } finally {
             gitter.unlock();
         }
@@ -104,7 +114,7 @@ public class SchemaController {
 
     @PutMapping("/schema/{name}")
     @ResponseBody
-    public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) throws Exception {
+    public SchemaControllerResponse createSchema(@PathVariable(name = "name") String schemaName) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -114,9 +124,7 @@ public class SchemaController {
             throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
         }
 
-        Config config = Config.getInstance();
-        GitCfg gitConfig = config.getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
 
         if (schemaAlreadyExists(schemaName, ctx)) {
             throw new NotAcceptableException(SCHEMA_EXISTS, "Error creating schema. schema already exists");
@@ -136,13 +144,14 @@ public class SchemaController {
 
             issueRepoUpdateEvent(schemaName, snapshot);
 
+            LOGGER.info("Created schema \"{}\"", schemaName);
             return new SchemaControllerResponse(snapshot);
 
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
-            logger.error("Exception creating schema \"{}\"", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR,
+                    "Exception creating schema \"" + schemaName + "\"", e);
         }
     }
 
@@ -151,7 +160,7 @@ public class SchemaController {
         try {
             branches = ctx.getBranches();
         } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
         }
         return branches.contains(schemaName);
     }
@@ -159,8 +168,7 @@ public class SchemaController {
     @PostMapping("/schema/{name}")
     @ResponseBody
     public SchemaControllerResponse updateSchema(@PathVariable(name = "name") String schemaName,
-                                                 @RequestBody String requestBody
-    ) throws Exception {
+                                                 @RequestBody String requestBody) {
 
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
@@ -175,17 +183,16 @@ public class SchemaController {
             operations = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
-            throw new BadRequestException(e.getMessage());
+            throw new BadRequestException(e);
         }
 
         validateResourceNames(operations);
 
-        Config config = Config.getInstance();
-        GitCfg gitConfig = config.getGit();
-        GitterContext ctx = GitterContext.getContext(gitConfig);
+        GitterContext ctx = GitterContext.getContext(config.getGit());
 
         if (!schemaAlreadyExists(schemaName, ctx)) {
-            throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "Schema does not exist");
+            throw new ServiceException(HttpStatus.NOT_FOUND,
+                    HttpStatus.NOT_FOUND.name(), "Schema does not exist", null);
         }
 
         //validate schema and apply updates if valid
@@ -207,7 +214,7 @@ public class SchemaController {
                 );
                 if (!validationContext.isValid()) {
                     // do not update repository and kubernetes if requested changes contain errors.
-                    logger.error("Schema \"{}\" contains errors, update request will be ignored", schemaName);
+                    LOGGER.error("Schema \"{}\" contains errors, update request will be ignored", schemaName);
                     ValidationReport report = validationContext.getReport();
                     SchemaErrorPrinter.printErrors(report, "editor");
                     return new SchemaControllerResponse(report);
@@ -220,7 +227,7 @@ public class SchemaController {
             }
 
             if (commitRef == null) {
-                logger.info("Nothing changed, leaving");
+                LOGGER.info("Nothing changed, leaving");
             } else {
                 issueRepoUpdateEvent(schemaName, snapshot);
             }
@@ -228,13 +235,12 @@ public class SchemaController {
         } catch (ServiceException se) {
             throw se;
         } catch (Exception e) {
-            logger.error("Exception updating schema \"{}\" request", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR,
+                    "Exception updating schema \"" + schemaName + "\" request", e);
         }
     }
 
-    private void issueRepoUpdateEvent(String schemaName, RepositorySnapshot snapshot)
-            throws JsonProcessingException {
+    private void issueRepoUpdateEvent(String schemaName, RepositorySnapshot snapshot) {
         SchemaEventRouter router = SchemaEventRouter.getInstance();
         RepositoryUpdateEvent event = new RepositoryUpdateEvent(schemaName, snapshot.getCommitRef());
         RepositorySettingsSpec rs = snapshot.getRepositorySettingsSpec();
@@ -262,26 +268,26 @@ public class SchemaController {
             }
             return gitter.commitAndPush("schema update");
 
-        } catch (InconsistentRepositoryStateException irse) {
+        } catch (InconsistentRepositoryStateException e) {
             // this exception is thrown when inconsistent state of git repository is expected
             // discard local cache and re-download repository
-            logger.error("Inconsistent repository state exception for branch \"{}\"", branchName, irse);
+            LOGGER.error("Inconsistent repository state exception for branch \"{}\"", branchName, e);
 
-            var se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, irse.getMessage());
-            se.addSuppressed(irse);
+            var se = new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
+            se.addSuppressed(e);
 
             try {
                 gitter.recreateCache();
             } catch (Exception re) {
-                logger.error("Exception recreating repository's local cache for branch \"{}\"", branchName, re);
+                LOGGER.error("Exception recreating repository's local cache for branch \"{}\"", branchName, re);
                 se.addSuppressed(re);
             }
             throw se;
 
         } catch (Exception e) {
-            logger.error("Exception updating repository for branch \"{}\"", branchName, e);
+            LOGGER.error("Exception updating repository for branch \"{}\"", branchName, e);
             gitter.reset();
-            throw new NotAcceptableException(REPOSITORY_ERROR, e.getMessage());
+            throw new NotAcceptableException(REPOSITORY_ERROR, e);
         }
     }
 
@@ -293,7 +299,7 @@ public class SchemaController {
             String resourceName = entry.getPayload().getName();
 
             if (!K8sCustomResource.isNameValid(resourceName)) {
-                logger.error("Invalid resource name: \"{}\"", resourceName);
+                LOGGER.error("Invalid resource name: \"{}\"", resourceName);
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, String.format(
                         "Invalid resource name : \"%s\" (%s)"
                         , entry.getPayload().getName()
@@ -302,7 +308,7 @@ public class SchemaController {
             }
 
             if (!names.add(resourceName)) {
-                logger.error("Multiple operations on the same resource: \"{}\"", resourceName);
+                LOGGER.error("Multiple operations on the same resource: \"{}\"", resourceName);
                 throw new NotAcceptableException(REPOSITORY_ERROR, "Multiple operation on the resource");
             }
         }

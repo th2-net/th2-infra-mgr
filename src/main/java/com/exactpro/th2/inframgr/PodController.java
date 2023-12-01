@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.inframgr.statuswatcher.StatusCache;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.slf4j.Logger;
@@ -36,15 +37,20 @@ import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor
 
 @Controller
 public class PodController {
-
-    private static final Logger logger = LoggerFactory.getLogger(PodController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PodController.class);
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
     private static final String BAD_RESOURCE_NAME = "BAD_RESOURCE_NAME";
 
     @Autowired
+    private Config config;
+
+    @Autowired
     private StatusCache statusCache;
+
+    @Autowired
+    private KubernetesService kubernetesService;
 
     @DeleteMapping("/pod/{schema}/{kind}/{resource}")
     public ResponseEntity<?> deleteResourcePods(
@@ -59,24 +65,27 @@ public class PodController {
                 throw new NotAcceptableException(BAD_RESOURCE_NAME, "Invalid schema name");
             }
 
-            Kubernetes kubernetes = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
             for (var resource : statusCache.getResourceDependencyStatuses(schemaName, kind, resourceName)) {
                 if (resource.getKind().equals(Kubernetes.KIND_POD)) {
+                    String annotation = annotationFor(schemaKube.getNamespaceName(),
+                            Kubernetes.KIND_POD, resource.getName());
                     try {
-                        kubernetes.deletePodWithName(resource.getName(), force);
+                        schemaKube.deletePodWithName(resource.getName(), force);
+                        LOGGER.info("Deleted pod \"{}\", schema name \"{}\"", annotation, schemaName);
                     } catch (KubernetesClientException e) {
-                        logger.error("Could not delete pod \"{}\"",
-                                annotationFor(kubernetes.getNamespaceName(), Kubernetes.KIND_POD, resource.getName()));
+                        LOGGER.error("Could not delete pod \"{}\"", annotation, e);
                     }
                 }
             }
-
+            // TODO: return correct HTTP response
             return new ResponseEntity<>(HttpStatus.NO_CONTENT);
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            logger.error("Exception deleting pods for \"{}/{}\" in schema \"{}\"", kind, resourceName, schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR,
+                    "Exception deleting pods for \"" + kind + "/" + resourceName +
+                            "\" in schema \"" + schemaName + "\"", e);
         }
     }
 }

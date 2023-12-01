@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.module.kotlin.KotlinModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -59,6 +60,9 @@ public class SchemaValidationController {
 
     private static final String REPOSITORY_ERROR = "REPOSITORY_ERROR";
 
+    @Autowired
+    private Config config;
+
     @PostMapping("/validation/{schemaName}")
     @ResponseBody
     public String validateRequestedSchema(
@@ -70,7 +74,6 @@ public class SchemaValidationController {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
 
-        Config config = Config.getInstance();
         var fullRepositoryMap = toRepositoryMap(allResourcesStr);
         SchemaValidationContext validationContext = SchemaValidator.validate(
                 schemaName,
@@ -129,8 +132,7 @@ public class SchemaValidationController {
     @GetMapping("/validation/{schemaName}")
     @ResponseBody
     public SchemaValidationContext validateSchema(@PathVariable(name = "schemaName") String schemaName,
-                                                  @RequestBody String requestBody
-    ) throws Exception {
+                                                  @RequestBody String requestBody) {
         if (schemaName.equals(SOURCE_BRANCH)) {
             throw new NotAcceptableException(REPOSITORY_ERROR, "Not Allowed");
         }
@@ -145,14 +147,12 @@ public class SchemaValidationController {
             request = mapper.readValue(requestBody, new TypeReference<>() {
             });
         } catch (Exception e) {
-            throw new BadRequestException(e.getMessage());
+            throw new BadRequestException(e);
         }
 
         List<RequestEntry> operations = request.operations;
 
         validateResourceNames(operations);
-
-        Config config = Config.getInstance();
 
         var fullRepositoryMap = toRepositoryMap(operations);
 
@@ -174,7 +174,7 @@ public class SchemaValidationController {
         try {
             branches = ctx.getBranches();
         } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
         }
         if (!branches.contains(schemaName)) {
             throw new ServiceException(HttpStatus.NOT_FOUND, HttpStatus.NOT_FOUND.name(), "schema does not exists");
@@ -201,7 +201,7 @@ public class SchemaValidationController {
             return validationContext;
         } catch (Exception e) {
             logger.error("Exception updating schema \"{}\" request", schemaName, e);
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REPOSITORY_ERROR, e);
         }
     }
 
@@ -217,7 +217,7 @@ public class SchemaValidationController {
                 case update:
                 case remove:
                     throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNSUPPORTED_OPERATION,
-                            "update and remove operations are not supported for full schema validation request");
+                            "update and remove operations are not supported for full schema validation request", null);
             }
         }
         return SchemaUtils.convertToRepositoryMap(resources);

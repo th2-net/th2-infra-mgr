@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import com.exactpro.th2.inframgr.docker.monitoring.DynamicResourcesCache;
 import com.exactpro.th2.inframgr.util.cfg.GitCfg;
 import com.exactpro.th2.infrarepo.git.GitterContext;
 
-import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -41,17 +40,19 @@ public class RegistryWatcher implements Runnable {
 
     private final RegistryConnection connection;
 
+    private final Config config;
+
     private GitterContext ctx;
 
-    public RegistryWatcher(long initialDelay, long repeatPeriod, RegistryConnection connection) {
+    public RegistryWatcher(Config config, long initialDelay, long repeatPeriod, RegistryConnection connection) {
+        this.config = config;
         this.taskScheduler = new ScheduledThreadPoolExecutor(THREAD_POOL_SIZE_SCHEDULER);
         this.initialDelay = initialDelay;
         this.repeatPeriod = repeatPeriod;
         this.connection = connection;
     }
 
-    public void startWatchingRegistry() throws IOException {
-        Config config = Config.getInstance();
+    public void startWatchingRegistry() {
         GitCfg gitConfig = config.getGit();
         ctx = GitterContext.getContext(gitConfig);
 

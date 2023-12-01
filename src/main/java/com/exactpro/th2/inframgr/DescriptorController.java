@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,11 @@ import com.exactpro.th2.inframgr.errors.NotAcceptableException;
 import com.exactpro.th2.inframgr.errors.ServiceException;
 import com.exactpro.th2.inframgr.k8s.K8sCustomResource;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.infrarepo.ResourceType;
 import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -49,6 +51,9 @@ public class DescriptorController {
 
     private static final String UNKNOWN_ERROR = "UNKNOWN_ERROR";
 
+    @Autowired
+    private KubernetesService kubernetesService;
+
     @GetMapping("/descriptor/{schema}/{kind}/{box}")
     @ResponseBody
     public Response getDescriptor(@PathVariable(name = "schema") String schemaName,
@@ -69,20 +74,20 @@ public class DescriptorController {
 
         String descriptor;
         try {
-            Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), schemaName);
-            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
+            Kubernetes schemaKube = kubernetesService.getKubernetes(schemaName);
+            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(schemaKube);
             RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-            DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, kube);
+            DescriptorExtractor descriptorExtractor = new DescriptorExtractor(registryConnection, schemaKube);
             String resourceLabel = annotationFor(schemaName, kind, box);
             descriptor = descriptorExtractor.getImageDescriptor(resourceLabel, kind, box, PROTOBUF_DESCRIPTOR);
         } catch (ResourceNotFoundException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, HttpStatus.NOT_FOUND.name(), e);
         } catch (InvalidImageNameFormatException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, FORMATTING_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, FORMATTING_ERROR, e);
         } catch (RegistryRequestException e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, REGISTRY_ERROR, e);
         } catch (Exception e) {
-            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e.getMessage());
+            throw new ServiceException(HttpStatus.INTERNAL_SERVER_ERROR, UNKNOWN_ERROR, e);
         }
         if (descriptor != null) {
             return new Response(PROTOBUF_DESCRIPTOR, descriptor);
@@ -91,23 +96,5 @@ public class DescriptorController {
         return null;
     }
 
-    private static class Response {
-        private final String descriptor;
-
-        private final String content;
-
-        public Response(String descriptor, String content) {
-            this.descriptor = descriptor;
-            this.content = content;
-        }
-
-        public String getDescriptor() {
-            return descriptor;
-        }
-
-        public String getContent() {
-            return content;
-        }
-    }
-
+    public record Response(String descriptor, String content) { }
 }
