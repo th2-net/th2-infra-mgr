@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.inframgr.errors;
+package com.exactpro.th2.inframgr.util.cfg;
 
-import org.springframework.http.HttpStatus;
+import java.util.Map;
 
-public class NotAcceptableException extends ServiceException {
-    public NotAcceptableException(String errorCode, String message, Exception e) {
-        super(HttpStatus.NOT_ACCEPTABLE, errorCode, message, e);
+public class HttpCfg {
+
+    /**
+     * Map of username to encrypted by BCrypt (strength >= 10) password pairs.
+     * @see <a href="https://en.wikipedia.org/wiki/Bcrypt">BCrypt</a>
+     */
+    private Map<String, String> adminAccounts;
+
+    public Map<String, String> getAdminAccounts() {
+        return adminAccounts;
     }
 
-    public NotAcceptableException(String errorCode, String message) {
-        this(errorCode, message, null);
-    }
-
-    public NotAcceptableException(String errorCode, Exception e) {
-        this(errorCode, e.getMessage(), e);
+    public void setAdminAccounts(Map<String, String> adminAccounts) {
+        this.adminAccounts = adminAccounts;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,12 +41,14 @@ import org.apache.commons.text.RandomStringGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
-import static com.exactpro.th2.inframgr.k8s.Kubernetes.*;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.KIND_SERVICE_MONITOR;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetaDataWithNewAnnotations;
+import static com.exactpro.th2.inframgr.k8s.Kubernetes.createMetadataWithPreviousAnnotations;
 import static com.exactpro.th2.inframgr.statuswatcher.ResourcePath.annotationFor;
 import static com.exactpro.th2.inframgr.util.AnnotationUtils.setSourceHash;
 
@@ -110,81 +112,76 @@ public class SchemaInitializer {
         FORCE
     }
 
-    public static void ensureSchema(String schemaName, Kubernetes kube) throws Exception {
-        ensureSchema(schemaName, kube, Config.getInstance().getKubernetes().getSchemaSyncMode());
-        K8sResourceCache.INSTANCE.addNamespace(kube.formatNamespaceName(schemaName));
-    }
-
-    public static void ensureSchema(String schemaName, Kubernetes kube, SchemaSyncMode syncMode) throws Exception {
-        switch (syncMode) {
+    public static void ensureSchema(Config config, Kubernetes schemaKube) {
+        Objects.requireNonNull(schemaKube.getSchemaName(), "Kubernetes client is anonymous");
+        switch (config.getKubernetes().getSchemaSyncMode()) {
             case CHECK_NAMESPACE:
-                if (kube.existsNamespace()) {
-                    if (!kube.namespaceActive()) {
-                        retryTaskQueue.add(new SchemaRecoveryTask(schemaName, NAMESPACE_RETRY_DELAY), true);
+                if (schemaKube.existsNamespace()) {
+                    if (!schemaKube.namespaceActive()) {
+                        retryTaskQueue.add(new SchemaRecoveryTask(schemaKube, NAMESPACE_RETRY_DELAY), true);
                         throw new IllegalStateException(
                                 String.format(
                                         "Cannot synchronize branch \"%s\" as corresponding namespace in the wrong state"
-                                        , schemaName
+                                        , schemaKube.getSchemaName()
                                 )
                         );
                     }
                     return;
                 }
-                ensureNameSpace(schemaName, kube, false);
+                ensureNameSpace(config, schemaKube, false);
                 break;
             case CHECK_RESOURCES:
-                ensureNameSpace(schemaName, kube, false);
+                ensureNameSpace(config, schemaKube, false);
                 break;
             case FORCE:
-                ensureNameSpace(schemaName, kube, true);
+                ensureNameSpace(config, schemaKube, true);
                 break;
         }
+        K8sResourceCache.INSTANCE.addNamespace(schemaKube.getNamespaceName());
     }
 
-    private static void ensureNameSpace(String schemaName, Kubernetes kube, boolean forceUpdate) throws IOException {
-
-        Config config = Config.getInstance();
-
-        if (!kube.existsNamespace()) {
+    private static void ensureNameSpace(Config config, Kubernetes schemaKube, boolean forceUpdate) {
+        if (!schemaKube.existsNamespace()) {
             // namespace not found, create it
-            logger.info("Creating namespace \"{}\"", kube.getNamespaceName());
-            kube.createNamespace();
+            logger.info("Creating namespace \"{}\"", schemaKube.getNamespaceName());
+            schemaKube.createNamespace();
         }
 
         // copy Th2BoxConfigurations config maps
-        copyConfigMap(kube, MQ_ROUTER_CM_NAME, forceUpdate);
-        copyConfigMap(kube, GRPC_ROUTER_CM_NAME, forceUpdate);
-        copyConfigMap(kube, CRADLE_MANAGER_CM_NAME, forceUpdate);
-        copyConfigMap(kube, BOOK_CONFIG_CM_NAME, forceUpdate);
+        copyConfigMap(schemaKube, MQ_ROUTER_CM_NAME, forceUpdate);
+        copyConfigMap(schemaKube, GRPC_ROUTER_CM_NAME, forceUpdate);
+        copyConfigMap(schemaKube, CRADLE_MANAGER_CM_NAME, forceUpdate);
+        copyConfigMap(schemaKube, BOOK_CONFIG_CM_NAME, forceUpdate);
 
 
         // ensure rabbitMq resources
-        ensureRabbitMQResources(config, schemaName, kube, forceUpdate);
+        ensureRabbitMQResources(config, schemaKube, forceUpdate);
 
         //ensure cassandra resources
-        copyCassandraSecret(config, kube, forceUpdate);
-        ensureCradleConfig(config, schemaName, kube, forceUpdate);
+        copyCassandraSecret(config, schemaKube, forceUpdate);
+        ensureCradleConfig(config, schemaKube, forceUpdate);
 
         // copy Service Monitor
-        copyServiceMonitor(config, kube, forceUpdate);
+        copyServiceMonitor(config, schemaKube, forceUpdate);
 
         // copy required secrets
-        copySecrets(config, kube, forceUpdate);
+        copySecrets(config, schemaKube, forceUpdate);
 
         // create custom-secrets resource
-        ensureCustomSecrets(kube, forceUpdate);
+        ensureCustomSecrets(schemaKube, forceUpdate);
     }
 
-    private static void copyConfigMap(Kubernetes kube, String configMapName, boolean forceUpdate) {
-        String newResourceLabel = annotationFor(kube.getNamespaceName(), Kubernetes.KIND_CONFIGMAP, configMapName);
-        ConfigMap originalConfigMap = kube.currentNamespace().getConfigMap(configMapName);
+    private static void copyConfigMap(Kubernetes schemaKube, String configMapName, boolean forceUpdate) {
+        String newResourceLabel = annotationFor(schemaKube.getNamespaceName(),
+                Kubernetes.KIND_CONFIGMAP, configMapName);
+        ConfigMap originalConfigMap = schemaKube.currentNamespace().getConfigMap(configMapName);
 
         if (originalConfigMap == null || originalConfigMap.getData() == null) {
             logger.error("Failed to load ConfigMap \"{}\" from default namespace", configMapName);
             return;
         }
 
-        if (kube.getConfigMap(configMapName) != null && !forceUpdate) {
+        if (schemaKube.getConfigMap(configMapName) != null && !forceUpdate) {
             logger.info("\"{}\" already exists, skipping", newResourceLabel);
             return;
         }
@@ -199,28 +196,29 @@ public class SchemaInitializer {
         newConfigMap.setData(originalConfigMap.getData());
         setSourceHash(newConfigMap);
 
-        kube.createOrReplaceConfigMap(newConfigMap);
+        schemaKube.createOrReplaceConfigMap(newConfigMap);
         logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, configMapName);
     }
 
-    static void ensureRabbitMQResources(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
+    static void ensureRabbitMQResources(Config config, Kubernetes schemaKube, boolean forceUpdate) {
+        Objects.requireNonNull(schemaKube.getSchemaName(), "Kubernetes client is anonymous");
 
         Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
         String prefix = config.getKubernetes().getNamespacePrefix();
         RabbitMQConfig rabbitMQConfig = config.getRabbitMQ();
 
         String vHostName = rabbitMQConfig.getVhostName();
-        String username = prefix + schemaName;
-        String exchange = prefix + schemaName;
+        String username = prefix + schemaKube.getSchemaName();
+        String exchange = prefix + schemaKube.getSchemaName();
 
         // copy config map with updated vHost value to namespace
         try {
-            createRabbitMQSecret(config, kube, username, forceUpdate);
+            createRabbitMQSecret(config, schemaKube, username, forceUpdate);
             copyRabbitMQConfigMap(
-                    configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, exchange, kube, forceUpdate
+                    configMaps.get(RABBITMQ_CONFIGMAP_PARAM), vHostName, username, exchange, schemaKube, forceUpdate
             );
             copyRabbitMQConfigMap(
-                    configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, exchange, kube, forceUpdate
+                    configMaps.get(RABBITMQ_EXTERNAL_CM_PARAM), vHostName, username, exchange, schemaKube, forceUpdate
             );
         } catch (Exception e) {
             logger.error("Exception writing RabbitMQ configuration resources", e);
@@ -319,19 +317,19 @@ public class SchemaInitializer {
         return newConfigMap;
     }
 
-    static void copyCassandraSecret(Config config, Kubernetes kube, boolean forceUpdate) {
-
+    static void copyCassandraSecret(Config config, Kubernetes schemaKube, boolean forceUpdate) {
+        Objects.requireNonNull(schemaKube.getSchemaName(), "Kubernetes client is anonymous");
         CassandraConfig cassandraConfig = config.getCassandra();
         String secretName = cassandraConfig.getSecret();
-        String newResourceLabel = annotationFor(kube.getNamespaceName(),
+        String newResourceLabel = annotationFor(schemaKube.getNamespaceName(),
                 Kubernetes.KIND_SECRET, CASSANDRA_SECRET_NAME_FOR_NAMESPACES);
 
-        if (kube.getSecret(CASSANDRA_SECRET_NAME_FOR_NAMESPACES) != null && !forceUpdate) {
+        if (schemaKube.getSecret(CASSANDRA_SECRET_NAME_FOR_NAMESPACES) != null && !forceUpdate) {
             logger.info("\"{}\" already exists, skipping", newResourceLabel);
             return;
         }
 
-        Secret secret = kube.currentNamespace().getSecrets().get(secretName);
+        Secret secret = schemaKube.currentNamespace().getSecrets().get(secretName);
         if (secret == null || secret.getData() == null) {
             logger.error("Failed to load Secret \"{}\" from default namespace", secretName);
             return;
@@ -343,30 +341,30 @@ public class SchemaInitializer {
                     newResourceLabel,
                     secret.getMetadata().getAnnotations())
             );
-            kube.createOrReplaceSecret(newResource);
+            schemaKube.createOrReplaceSecret(newResource);
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, secretName);
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", newResourceLabel, e);
         }
     }
 
-    static void ensureCradleConfig(Config config, String schemaName, Kubernetes kube, boolean forceUpdate) {
-
+    static void ensureCradleConfig(Config config, Kubernetes schemaKube, boolean forceUpdate) {
+        Objects.requireNonNull(schemaKube.getSchemaName(), "Kubernetes client is anonymous");
         try {
             GitterContext ctx = GitterContext.getContext(config.getGit());
-            Gitter gitter = ctx.getGitter(schemaName);
+            Gitter gitter = ctx.getGitter(schemaKube.getSchemaName());
             try {
                 gitter.lock();
                 CradleConfig cradle = Repository.getSettings(gitter).getSpec().getCradle();
 
                 Map<String, String> configMaps = config.getKubernetes().getConfigMaps();
-                copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
-                copyCradleConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), cradle, kube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_CONFIGMAP_PARAM), cradle, schemaKube, forceUpdate);
+                copyCradleConfigMap(configMaps.get(CASSANDRA_EXT_CONFIGMAP_PARAM), cradle, schemaKube, forceUpdate);
             } finally {
                 gitter.unlock();
             }
         } catch (Exception e) {
-            logger.error("Exception extracting keyspace for \"{}\"", schemaName, e);
+            logger.error("Exception extracting keyspace for \"{}\"", schemaKube.getSchemaName(), e);
         }
     }
 
@@ -414,17 +412,18 @@ public class SchemaInitializer {
         }
     }
 
-    private static void copyServiceMonitor(Config config, Kubernetes kube, boolean forceUpdate) {
+    private static void copyServiceMonitor(Config config, Kubernetes schemaKube, boolean forceUpdate) {
         String serviceMonitorName = config.getKubernetes().getServiceMonitor();
-        ServiceMonitor.Type originalServiceMonitor = kube.currentNamespace().loadServiceMonitor(serviceMonitorName);
+        ServiceMonitor.Type originalServiceMonitor = schemaKube.currentNamespace()
+                .loadServiceMonitor(serviceMonitorName);
         if (originalServiceMonitor == null) {
             logger.error("Failed to load ServiceMonitor \"{}\" from default namespace", serviceMonitorName);
             return;
         }
-        String namespace = kube.getNamespaceName();
+        String namespace = schemaKube.getNamespaceName();
         String newResourceLabel = annotationFor(namespace, KIND_SERVICE_MONITOR, serviceMonitorName);
         try {
-            if (kube.loadServiceMonitor(namespace, serviceMonitorName) != null && !forceUpdate) {
+            if (schemaKube.loadServiceMonitor(namespace, serviceMonitorName) != null && !forceUpdate) {
                 logger.info("\"{}\" already exists, skipping", newResourceLabel);
                 return;
             }
@@ -434,7 +433,7 @@ public class SchemaInitializer {
             processInstanceLabel(newServiceMonitor.getMetadata(), namespace);
             newServiceMonitor.setKind(KIND_SERVICE_MONITOR);
             newServiceMonitor.setSpec(originalServiceMonitor.getSpec());
-            kube.createServiceMonitor(newServiceMonitor);
+            schemaKube.createServiceMonitor(newServiceMonitor);
             logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, serviceMonitorName);
         } catch (Exception e) {
             logger.error("Exception creating ServiceMonitor \"{}\"", newResourceLabel, e);
@@ -448,10 +447,10 @@ public class SchemaInitializer {
         }
     }
 
-    private static void copySecrets(Config config, Kubernetes kube, boolean forceUpdate) {
+    private static void copySecrets(Config config, Kubernetes schemaKube, boolean forceUpdate) {
 
-        Map<String, Secret> workingNamespaceSecrets = kube.currentNamespace().getSecrets();
-        Map<String, Secret> targetNamespaceSecrets = kube.getSecrets();
+        Map<String, Secret> workingNamespaceSecrets = schemaKube.currentNamespace().getSecrets();
+        Map<String, Secret> targetNamespaceSecrets = schemaKube.getSecrets();
 
         String rmqSecretName = config.getRabbitMQ().getSecret();
         String cassandraSecretName = config.getCassandra().getSecret();
@@ -462,7 +461,7 @@ public class SchemaInitializer {
             }
 
             Secret originalSecret = workingNamespaceSecrets.get(secretName);
-            String newResourceLabel = annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+            String newResourceLabel = annotationFor(schemaKube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
             if (originalSecret == null || originalSecret.getData() == null) {
                 logger.error("Failed to load Secret \"{}\" from default namespace", secretName);
                 continue;
@@ -478,7 +477,7 @@ public class SchemaInitializer {
                             newResourceLabel,
                             originalSecret.getMetadata().getAnnotations())
                     );
-                    kube.createOrReplaceSecret(newResource);
+                    schemaKube.createOrReplaceSecret(newResource);
                     logger.info("Created \"{}\" based on \"{}\" from default namespace", newResourceLabel, secretName);
                 } catch (Exception e) {
                     logger.error("Exception creating \"{}\"", newResourceLabel, e);
@@ -497,11 +496,11 @@ public class SchemaInitializer {
         return secretCopy;
     }
 
-    private static void ensureCustomSecrets(Kubernetes kube, boolean forceUpdate) {
+    private static void ensureCustomSecrets(Kubernetes schemaKube, boolean forceUpdate) {
         String secretName = SecretsManager.DEFAULT_SECRET_NAME;
-        String newResourceLabel = annotationFor(kube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
+        String newResourceLabel = annotationFor(schemaKube.getNamespaceName(), Kubernetes.KIND_SECRET, secretName);
 
-        if (kube.getSecret(secretName) != null && !forceUpdate) {
+        if (schemaKube.getSecret(secretName) != null && !forceUpdate) {
             logger.info("\"{}\" already exists, skipping", newResourceLabel);
             return;
         }
@@ -516,7 +515,7 @@ public class SchemaInitializer {
         }});
 
         try {
-            kube.createOrReplaceSecret(newSecret);
+            schemaKube.createOrReplaceSecret(newSecret);
             logger.info("Created \"{}\"", newResourceLabel);
         } catch (Exception e) {
             logger.error("Exception creating \"{}\"", newResourceLabel, e);

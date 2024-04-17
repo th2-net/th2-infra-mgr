@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.exactpro.th2.inframgr.k8s;
 
 import com.exactpro.th2.inframgr.k8s.cr.*;
+import com.exactpro.th2.inframgr.util.cfg.BehaviourCfg;
 import com.exactpro.th2.inframgr.util.cfg.K8sConfig;
 import com.exactpro.th2.infrarepo.ResourceType;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
@@ -29,6 +30,9 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.fabric8.kubernetes.client.informers.SharedInformerFactory;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.*;
@@ -38,6 +42,7 @@ import static com.exactpro.th2.inframgr.initializer.SchemaInitializer.HELM_ANNOT
 import static io.fabric8.kubernetes.internal.KubernetesDeserializer.registerCustomKind;
 
 public class Kubernetes implements Closeable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Kubernetes.class);
 
     public static final String KIND_SECRET = "Secret";
 
@@ -56,6 +61,8 @@ public class Kubernetes implements Closeable {
     public static final String API_VERSION_V1 = "v1";
 
     private static final String ANTECEDENT_ANNOTATION_KEY = "th2.exactpro.com/antecedent";
+
+    private final boolean permittedToRemoveNamespace;
 
     private final String namespacePrefix;
 
@@ -102,7 +109,7 @@ public class Kubernetes implements Closeable {
             throw new IllegalArgumentException("Malformed namespace name");
         }
         String schemaName = namespaceName.substring(namespacePrefix.length());
-        if (schemaName.equals("")) {
+        if (StringUtils.isEmpty(schemaName)) {
             throw new IllegalArgumentException("Malformed namespace name");
         }
         return schemaName;
@@ -127,7 +134,7 @@ public class Kubernetes implements Closeable {
             List<T> customResources = customResourceList.getItems();
             boolean resourceUpdated = false;
 
-            if (customResources.size() > 0) {
+            if (!customResources.isEmpty()) {
                 for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
                         k8sResource.getMetadata().setAnnotations(repoResource.getMetadata().getAnnotations());
@@ -211,7 +218,7 @@ public class Kubernetes implements Closeable {
             var customResourceList = operation.inNamespace(namespace).list();
             List<T> customResources = customResourceList.getItems();
 
-            if (customResources.size() > 0) {
+            if (!customResources.isEmpty()) {
                 for (T k8sResource : customResources) {
                     if (k8sResource.getMetadata().getName().equals(repoResource.getMetadata().getName())) {
 
@@ -314,8 +321,13 @@ public class Kubernetes implements Closeable {
         return client.namespaces().withName(namespace).get();
     }
 
-    public List<StatusDetails> deleteNamespace() {
-        return client.namespaces().withName(namespace).delete();
+    public void deleteNamespace() {
+        if (permittedToRemoveNamespace) {
+            Collection<StatusDetails> statusDetails = client.namespaces().withName(namespace).delete();
+            LOGGER.info("Deleted '{}' namespace, status details: {}", namespace, statusDetails);
+        } else {
+            LOGGER.warn("Stopping namespace \"{}\" maintenance", namespace);
+        }
     }
 
     public void createNamespace() {
@@ -420,18 +432,18 @@ public class Kubernetes implements Closeable {
         registerCustomResourceSharedInformers(eventHandler);
         SharedInformerFactory factory = getInformerFactory();
 
-        var filteringEventHanled = new FilteringResourceEventHandler().wrap(eventHandler);
+        var filteringEventHandled = new FilteringResourceEventHandler().wrap(eventHandler);
         factory.sharedIndexInformerFor(Deployment.class, 0)
-                .addEventHandler(filteringEventHanled);
+                .addEventHandler(filteringEventHandled);
 
         factory.sharedIndexInformerFor(Pod.class, 0)
-                .addEventHandler(filteringEventHanled);
+                .addEventHandler(filteringEventHandled);
 
         factory.sharedIndexInformerFor(Service.class, 0)
-                .addEventHandler(filteringEventHanled);
+                .addEventHandler(filteringEventHandled);
 
         factory.sharedIndexInformerFor(ConfigMap.class, 0)
-                .addEventHandler(filteringEventHanled);
+                .addEventHandler(filteringEventHandled);
     }
 
     private Map<String, Secret> mapOf(List<Secret> secrets) {
@@ -456,16 +468,19 @@ public class Kubernetes implements Closeable {
         informerFactory.startAllRegisteredInformers();
     }
 
-    private KubernetesClient client;
+    private final KubernetesClient client;
 
     private Map<String, MixedOperation> operations;
 
-    private String namespace;
+    private final String schemaName;
 
-    public Kubernetes(K8sConfig config, String schemaName) {
+    private final String namespace;
 
-        // if we are not using custom configutation, let fabric8 handle initialization
+    public Kubernetes(BehaviourCfg behaviour, K8sConfig config, String schemaName) {
+        this.permittedToRemoveNamespace = behaviour.isPermittedToRemoveNamespace();
+        // if we are not using custom configuration, let fabric8 handle initialization
         this.namespacePrefix = config.getNamespacePrefix();
+        this.schemaName = schemaName;
         this.namespace = formatNamespaceName(schemaName);
         this.currentNamespace = new CurrentNamespace();
 
@@ -484,7 +499,7 @@ public class Kubernetes implements Closeable {
                 .withTrustCerts(config.ignoreInsecureHosts());
 
         // prioritize key & certificate data over files
-        if (config.getClientCertificate() != null && config.getClientCertificate().length() > 0) {
+        if (config.getClientCertificate() != null && !config.getClientCertificate().isEmpty()) {
             configBuilder.withClientCertData(new String(
                     Base64.getEncoder().encode(config.getClientCertificate().getBytes()))
             );
@@ -492,7 +507,7 @@ public class Kubernetes implements Closeable {
             configBuilder.withClientCertFile(config.getClientCertificateFile());
         }
 
-        if (config.getClientKey() != null && config.getClientKey().length() > 0) {
+        if (config.getClientKey() != null && !config.getClientKey().isEmpty()) {
             configBuilder.withClientKeyData(new String(
                     Base64.getEncoder().encode(config.getClientKey().getBytes()))
             );
@@ -524,6 +539,10 @@ public class Kubernetes implements Closeable {
         return client.resource(secret).inNamespace(namespace).createOrReplace();
     }
 
+    public String getSchemaName() {
+        return schemaName;
+    }
+
     public String getNamespaceName() {
         return namespace;
     }
@@ -533,7 +552,7 @@ public class Kubernetes implements Closeable {
         client.close();
     }
 
-    private CurrentNamespace currentNamespace;
+    private final CurrentNamespace currentNamespace;
 
     public CurrentNamespace currentNamespace() {
         return currentNamespace;

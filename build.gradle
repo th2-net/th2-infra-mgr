@@ -16,7 +16,7 @@ repositories {
     mavenCentral()
 }
 
-configurations.all {
+configurations.configureEach {
     exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
     exclude group: 'org.springframework.boot', module: 'logback-classic'
 }
@@ -70,6 +70,8 @@ configurations.configureEach() {
 
 dependencies {
     implementation platform("org.springframework.boot:spring-boot-dependencies:${springboot_version}")
+    implementation "org.springframework.boot:spring-boot-starter-security:${springboot_version}"
+    implementation "org.springframework.boot:spring-boot-starter-web:${springboot_version}"
 
     implementation "com.exactpro.th2:infra-repo:${infra_repo_version}"
 
@@ -125,16 +127,8 @@ test {
     useJUnitPlatform()
 }
 
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-}
-
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+kotlin {
+    jvmToolchain(17)
 }
 
 jar {

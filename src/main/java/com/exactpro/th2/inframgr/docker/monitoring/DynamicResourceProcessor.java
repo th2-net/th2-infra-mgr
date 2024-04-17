@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,16 +23,18 @@ import com.exactpro.th2.inframgr.docker.monitoring.watcher.RegistryWatcher;
 import com.exactpro.th2.inframgr.docker.util.SpecUtils;
 import com.exactpro.th2.inframgr.docker.util.VersionNumberUtils;
 import com.exactpro.th2.inframgr.k8s.Kubernetes;
+import com.exactpro.th2.inframgr.k8s.KubernetesService;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import com.exactpro.th2.infrarepo.ResourceType;
 import com.exactpro.th2.infrarepo.repo.RepositoryResource;
 import jakarta.annotation.PostConstruct;
 import org.apache.commons.lang3.StringUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.util.List;
 
 @Component
@@ -43,6 +45,12 @@ public class DynamicResourceProcessor {
     private static final long REGISTRY_CHECK_PERIOD_SECONDS = 200;
 
     private static final long REGISTRY_CHECK_INITIAL_DELAY_SECONDS = 30;
+
+    @Autowired
+    private Config config;
+
+    @Autowired
+    private KubernetesService kubernetesService;
 
     private static final List<String> monitoredKinds = List.of(
             ResourceType.Th2Box.kind(),
@@ -131,22 +139,28 @@ public class DynamicResourceProcessor {
     }
 
     @PostConstruct
-    public void start() throws IOException {
+    public void start() {
         try {
-            Kubernetes kube = new Kubernetes(Config.getInstance().getKubernetes(), null);
-            RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(kube);
-            RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
-            RegistryWatcher registryWatcher = new RegistryWatcher(
-                    REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
-                    REGISTRY_CHECK_PERIOD_SECONDS,
-                    registryConnection
-            );
-            registryWatcher.startWatchingRegistry();
+            getRegistryWatcher()
+                .startWatchingRegistry();
             logger.info("DynamicResourceProcessor has been started");
         } catch (Exception e) {
             logger.error("Exception while starting DynamicResourceProcessor. " +
                     "resources with dynamic versions will not be monitored", e);
             throw  e;
         }
+    }
+
+    @NotNull
+    private RegistryWatcher getRegistryWatcher() {
+        Kubernetes anonKube = kubernetesService.getKubernetes();
+        RegistryCredentialLookup secretMapper = new RegistryCredentialLookup(anonKube);
+        RegistryConnection registryConnection = new RegistryConnection(secretMapper.getCredentials());
+        return new RegistryWatcher(
+                config,
+                REGISTRY_CHECK_INITIAL_DELAY_SECONDS,
+                REGISTRY_CHECK_PERIOD_SECONDS,
+                registryConnection
+        );
     }
 }

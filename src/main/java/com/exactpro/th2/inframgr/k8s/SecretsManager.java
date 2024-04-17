@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 Exactpro (Exactpro Systems Limited)
+ * Copyright 2020-2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.inframgr.k8s;
 
-import com.exactpro.th2.inframgr.Config;
 import com.exactpro.th2.inframgr.SecretsController;
 import com.exactpro.th2.inframgr.statuswatcher.ResourcePath;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -25,8 +24,11 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class SecretsManager {
 
@@ -38,8 +40,8 @@ public class SecretsManager {
 
     private final String prefix;
 
-    public SecretsManager() throws IOException {
-        this.prefix = Config.getInstance().getKubernetes().getNamespacePrefix();
+    public SecretsManager(String prefix) {
+        this.prefix = prefix;
     }
 
     public Secret getCustomSecret(String schemaName) {
@@ -55,7 +57,8 @@ public class SecretsManager {
     }
 
     public Set<String> createOrReplaceSecrets(String schemaName,
-                                              List<SecretsController.SecretsRequestEntry> secretEntries) {
+                                              List<SecretsController.SecretsRequestEntry> secretEntries,
+                                              String user) {
         String namespace = prefix + schemaName;
         String resourceLabel = ResourcePath.annotationFor(namespace, Kubernetes.KIND_SECRET, DEFAULT_SECRET_NAME);
         Set<String> updatedEntries = new HashSet<>();
@@ -70,8 +73,8 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
-            logger.info("Updated \"{}\"", resourceLabel);
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
+            logger.info("Updated \"{}\" by user \"{}\"", resourceLabel, user);
             return updatedEntries;
         } catch (Exception e) {
             logger.error("Exception while updating \"{}\"", resourceLabel, e);
@@ -91,7 +94,7 @@ public class SecretsManager {
         data.putAll(secretEntries);
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
             logger.info("Updated \"{}\"", resourceLabel);
             return secretEntries.keySet();
         } catch (Exception e) {
@@ -113,7 +116,7 @@ public class SecretsManager {
         }
         secret.setData(data);
         try {
-            kubernetesClient.resource(secret).inNamespace(namespace).createOrReplace();
+            kubernetesClient.resource(secret).inNamespace(namespace).serverSideApply();
             logger.info("Removed entries from \"{}\"", resourceLabel);
             return secretEntries;
         } catch (Exception e) {
